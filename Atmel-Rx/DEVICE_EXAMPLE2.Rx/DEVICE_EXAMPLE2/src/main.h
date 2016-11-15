@@ -85,8 +85,8 @@
 	  PAIRED,
   };
  #define BASE_GPS_IDX								0xe
- #define BASE_GPS_LEN								2*sizeof(float) 
-  
+ #define BASE_GPS_LEN								2*sizeof(float)
+
  /* used to be channel selection table for control radio band plan, now it can serve as lookup table for frequency hopp */
  extern const uint8_t RF_FREQ_CONTROL_INTE_HOP0_6[10] ; // 902.285 mhz
  extern const uint8_t RF_MODEM_AFC_LIMITER_HOP0_3[7] ;
@@ -274,6 +274,7 @@ typedef struct {
 } cpld_flash_map;
 
 #define FW_UPGRADE_HDR_LEN		(12)
+#define USB_BOOT_APP_VAL						0xa4
 #define USB_CPLD_UPGRADE_VAL	0x21  // cpld upgrade cmd
 #define USB_ATMEL_UPGRADE_VAL	0x23	// atmel upgrade cmd
 // sms4470 operation states
@@ -1812,8 +1813,7 @@ void main_sof_action(void);
   //#define MEDIA_ON_FLASH
   #if defined(CONFIG_ON_FLASH) || defined(MEDIA_ON_FLASH)
     #define CHECKED_FLASH_WR(fadr, src, sz) \
-							ul_rc = flash_write((fadr), (src), (sz), 0); \
-							if (ul_rc != FLASH_RC_OK) \
+							if (flash_write((fadr), (src), (sz), 0) != FLASH_RC_OK) \
 								while (1) { \
 									; /* Capture error */ \
 								}

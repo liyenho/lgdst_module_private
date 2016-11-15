@@ -181,6 +181,7 @@ void main_sof_action(void);
 //#define FWM_DNLD_DBG		// don't turn in on unless it's necessary, the last chunk of data would not match but it is ok...
 #define FW_DNLD_SIZE			/*7200*/15000 // NEVER be divisible into 64 or usb core shall malfunction (a big bug!!!)
 #define FW_UPGRADE_HDR_LEN		(12)
+#define USB_BOOT_APP_VAL						0xa4
 #define USB_FPGA_UPGRADE_VAL		0x22  // fpga upgrade cmd
 #define USB_ATMEL_UPGRADE_VAL	0x23	// atmel upgrade cmd
 
@@ -206,8 +207,7 @@ void main_sof_action(void);
     #include <string.h>  // declare memcpy()
     #define SECTOR_RES_C 	(SECTOR_SIZE_L - IFLASH_PAGE_SIZE * NUM_OF_PAGES)
     #define CHECKED_FLASH_WR(fadr, src, sz) \
-							ul_rc = flash_write((fadr), (src), (sz), 0); \
-							if (ul_rc != FLASH_RC_OK) \
+							if (flash_write((fadr), (src), (sz), 0) != FLASH_RC_OK) \
 								while (1) { \
 									; /* Capture error */ \
 								}

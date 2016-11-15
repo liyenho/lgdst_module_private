@@ -30,6 +30,7 @@
 #define CM_SRAM_END        0x3FFFFF80
 
 extern volatile bool udi_cdc_data_running; // from udi_cdc.c, liyenho
+const uint32_t ul_page_addr_bootapp = FLAG_BOOTAPP_ADDR;
 static volatile bool main_b_cdc_enable = false;
 static volatile bool system_upgrade = false;  // system upgrade flag, liyenho
 static volatile uint8_t main_loop_on = false;  // run time indicator
@@ -545,6 +546,7 @@ static int _app_dbg_input(uint8_t *keys, int nb_keys, uint32_t ctrl_flags)
  */
 int main(void)
 {
+	uint8_t flag_boot_app = *(uint8_t*)ul_page_addr_bootapp;
 	uint8_t boot_region = 0; /* Real boot region at this time */
 #ifdef DBG_USE_USART
 	uint8_t load_region = 0; /* Real region to put loaded data */
@@ -564,8 +566,11 @@ int main(void)
 	ioport_set_pin_dir(DBG_LED_PIN, IOPORT_DIR_OUTPUT);
 	ioport_set_pin_level(DBG_LED_PIN, DBG_LED_PIN_ON_LEVEL);
 
-	// Start USB stack to authorize VBus monitoring
-	udc_start();
+	if (!flag_boot_app || (0xff==flag_boot_app))
+		// Start USB stack to authorize VBus monitoring
+		udc_start(); // turn on usb comm only when flash flag is empty or reset
+	else  // otherwise jump to main app directly
+		usb_boot_app = true;
 
 	dbg_init();
 	dbg_print("\r\n\n----------------------\r\n");
@@ -595,7 +600,8 @@ int main(void)
 	memory_lock((void *)BOOT0_START, (void *)BOOT0_END);
 	dbg_print("bl: lock boot region done\r\n");
 #endif
- 	while (!udi_cdc_data_running) ; // wait for cdc data intf ready, liyenho
+	if (1 != flag_boot_app)
+ 		while (!udi_cdc_data_running) ; // wait for cdc data intf ready, liyenho
 
 	app_addr = (void *)(APP_START(boot_region));
 
@@ -636,8 +642,9 @@ main_load_app:
 	}
 
 main_run_app_check:
-	/* stop usb device operation */
-	udc_stop();
+	if (!flag_boot_app || (0xff==flag_boot_app))
+		/* stop usb device operation */
+		udc_stop();  // turn on usb comm only when flash flag is empty or reset
 
 	/* Is application valid? not available for verification... */
 	dbg_print("bl: application validity is not available, run\r\n");

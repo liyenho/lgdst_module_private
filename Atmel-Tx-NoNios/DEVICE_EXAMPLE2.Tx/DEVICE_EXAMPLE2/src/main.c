@@ -97,7 +97,10 @@ volatile bool stream_flag = true; // default to TS stream automatic on
 #ifdef CONFIG_ON_FLASH
 uint32_t ul_page_addr_ctune =IFLASH_ADDR + IFLASH_SIZE - NUM_OF_ATMEL_REGS, // 1st atmel reg on flash
 					// temperature @ current tuning @ 2nd atmel reg on flash
-				ul_page_addr_mtemp =IFLASH_ADDR + IFLASH_SIZE - NUM_OF_ATMEL_REGS + 1;
+				ul_page_addr_mtemp =IFLASH_ADDR + IFLASH_SIZE - NUM_OF_ATMEL_REGS + 1,
+				ul_page_addr_bootapp =IFLASH_ADDR + IFLASH_SIZE - NUM_OF_ATMEL_REGS + 2;
+uint8_t backup[NUM_OF_FPGA_REGS+NUM_OF_ATMEL_REGS+4+1],
+				bootapp = (uint8_t)/*-1*/0;
 #endif
  #ifdef MEDIA_ON_FLASH
   #ifdef NO_USB
@@ -531,10 +534,27 @@ static inline void usb_write_buf(void *pb)
  #endif
 /*! \brief host ctrl/sts callback for sms4470 interface
  */
+ void erase_last_sector() {
+		memcpy(backup, (void*)(IFLASH_ADDR + IFLASH_SIZE-sizeof(backup)), sizeof(backup));
+		uint32_t er_adr =IFLASH_ADDR + IFLASH_SIZE-SECTOR_SIZE_L;
+		flash_erase_sector(er_adr);
+	}
   static void host_usb_cb() {
 		if (Is_udd_in_sent(0) ||
 			udd_g_ctrlreq.payload_size >/*!=*/ udd_g_ctrlreq.req.wLength)
 			return; // invalid call
+		if (USB_BOOT_APP_VAL == udd_g_ctrlreq.req.wValue) {
+			erase_last_sector() ;
+			CHECKED_FLASH_WR(
+				IFLASH_ADDR + IFLASH_SIZE-sizeof(backup),
+				backup, NUM_OF_FPGA_REGS +1 +4 +2)
+			CHECKED_FLASH_WR(ul_page_addr_bootapp, &bootapp, 1)
+			CHECKED_FLASH_WR(
+				IFLASH_ADDR + IFLASH_SIZE-NUM_OF_ATMEL_REGS +3,
+				backup +NUM_OF_FPGA_REGS +1 +4 +3,
+				sizeof(backup)-NUM_OF_FPGA_REGS-1 -4 -3)
+			return ;
+		}
 		if ((USB_FPGA_UPGRADE_VAL == udd_g_ctrlreq.req.wValue ||
 						 USB_ATMEL_UPGRADE_VAL == udd_g_ctrlreq.req.wValue) &&
 						FW_UPGRADE_HDR_LEN >=udd_g_ctrlreq.payload_size) {
@@ -1334,7 +1354,20 @@ int main(void)
 	spi_master_initialize(2, SPI2_MASTER_BASE, BOARD_FLEXCOM_SPI2);// radio data pipe
   #endif
 	spi_master_initialize(1, SPI_MASTER_BASE, BOARD_FLEXCOM_SPI);// video pipe @ tx end
-
+#ifdef CONFIG_ON_FLASH
+		if (1!=*(uint8_t*)ul_page_addr_bootapp) {
+			erase_last_sector() ;
+			CHECKED_FLASH_WR(
+				IFLASH_ADDR + IFLASH_SIZE-sizeof(backup),
+				backup, NUM_OF_FPGA_REGS +1 +4 +2)
+			bootapp = 0; // tx board behaved as usual, so allow bootloader switch on udc
+			CHECKED_FLASH_WR(ul_page_addr_bootapp, &bootapp, 1)
+			CHECKED_FLASH_WR(
+				IFLASH_ADDR + IFLASH_SIZE-NUM_OF_ATMEL_REGS +3,
+				backup +NUM_OF_FPGA_REGS +1 +4 +3,
+				sizeof(backup)-NUM_OF_FPGA_REGS-1 -4 -3)
+		}
+#endif
 	// Start USB stack to authorize VBus monitoring
 	udc_start();
 system_restart:  // system restart entry, liyenho
@@ -1400,6 +1433,11 @@ system_restart:  // system restart entry, liyenho
 		if (!usb_read_buf(gs_uc_tbuffer))
 			while (1);	// it can't happen...
 		if (erase) {
+			static bool once = false;
+			if (!once) {
+				erase_last_sector() ;
+				once = true;
+			}
 			// flash_erase_page() doesn't work at all! liyenho
 			ul_rc = flash_erase_sector(er_adr);
 			if (ul_rc != FLASH_RC_OK) {
@@ -1441,6 +1479,10 @@ system_restart:  // system restart entry, liyenho
   // mark up bypass flag so next power up won't need media download again...
   w = true;
   CHECKED_FLASH_WR(page_addr_bypass, &w, 1/*1 byte flag*/)
+	CHECKED_FLASH_WR(
+		IFLASH_ADDR + IFLASH_SIZE-NUM_OF_ATMEL_REGS-NUM_OF_FPGA_REGS,
+		backup +1 +4 ,
+		sizeof(backup)-1 -4)
 bypass:
   ul_page_addr=PAGE_ADDRESS ;
 		uint32_t wtmp = *(uint32_t*)(~0x3&page_addr_mlen);
@@ -1653,18 +1695,20 @@ bypass:
 						(si4463_factory_tune.lower+
 						si4463_factory_tune.upper+1) / 2;
 	#ifdef CONFIG_ON_FLASH
-					uint32_t er_adr =ul_page_addr-SECTOR_RES1;
-					ul_rc = flash_erase_sector(er_adr);
-					if (ul_rc != FLASH_RC_OK) {
-						//printf("- Pages erase error %lu\n\r", (UL)ul_rc);
-						return; /* error when erase pages */
-					}
+					erase_last_sector();
+					CHECKED_FLASH_WR(
+						IFLASH_ADDR + IFLASH_SIZE-sizeof(backup),
+						backup, NUM_OF_FPGA_REGS +1 +4)
 					CHECKED_FLASH_WR(ul_page_addr_ctune,
 																			&si4463_factory_tune.median,
 																			1/*1 byte flag*/)
 					uint8_t ctemp = get_si446x_temp();
 					CHECKED_FLASH_WR(ul_page_addr_mtemp,
 																			&ctemp, 1/*1 byte flag*/)
+					CHECKED_FLASH_WR(
+						IFLASH_ADDR + IFLASH_SIZE-NUM_OF_ATMEL_REGS +2,
+						backup +NUM_OF_FPGA_REGS +1 +4 +2,
+						sizeof(backup)-NUM_OF_FPGA_REGS-1 -4 -2)
 	#endif
 					tune_cap_str[CAP_VAL_POS] = si4463_factory_tune.median;
 					if (radio_comm_SendCmdGetResp(sizeof(tune_cap_str), tune_cap_str, 0, 0) != 0xFF) {
@@ -2149,6 +2193,12 @@ bool main_usb_load_media() {
  #endif
 
 volatile bool main_vender_specific() {
+ #ifdef CONFIG_ON_FLASH
+	if (USB_BOOT_APP_VAL == udd_g_ctrlreq.req.wValue) {
+		udd_set_setup_payload( &bootapp, sizeof(bootapp));
+		udd_g_ctrlreq.callback = host_usb_cb;
+	}
+ #endif
 	if (USB_SYSTEM_RESTART_VAL == udd_g_ctrlreq.req.wValue) {
 		main_loop_restart(); return true;
 	}
