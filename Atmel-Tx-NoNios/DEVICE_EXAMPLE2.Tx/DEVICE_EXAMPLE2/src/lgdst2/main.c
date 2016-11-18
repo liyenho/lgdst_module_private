@@ -797,7 +797,14 @@ int rf_dvbt_startup(void)
     //REG_MAP_mWriteReg(REG_MAP_BASEADDR, MB_RF_CONF_OFFSET, 0xdeadbeef);
     //REG_MAP_mWriteReg(REG_MAP_BASEADDR, 4, 0xb0a6e0ab);
     //REG_MAP_mWriteReg(REG_MAP_BASEADDR, 8, 0x11223344);
-
+#ifdef NOIS_EXTRACTED
+ #ifdef SPI0_FOR_SPI5
+ extern void spi0_set_peripheral();
+	spi0_set_peripheral();
+	spi_master_initialize(0, SPI0_MASTER_BASE, BOARD_FLEXCOM_SPI0);// fpga ctrl pipe
+	spi_configure_cs_behavior(SPI0_MASTER_BASE, 0, SPI_CS_RISE_NO_TX);
+ #endif
+#endif
     //default DVB-T settings: QPSK, rate 1/2, 1/32 guard interval
     cur_word = 1 << REG_LOC_RF_REG_CHANGE_REQ;  //request the change
 #ifndef NOIS_EXTRACTED
@@ -826,13 +833,13 @@ int rf_dvbt_startup(void)
 		write_regs_spi(MB_RF_CONF_OFFSET+REG_LOC_TX_MIN_ATTEN, 2, pv); // to big endian
 #endif
     //min TX LO freq
-    cur_word = 9568;  //666, or 2430
+    cur_word = 9568;  /*666;*/ /*, or 2430*/
 #ifndef NOIS_EXTRACTED
     write_reg_bige(REG_MAP_BASEADDR, MB_RF_CONF_OFFSET + 12, cur_word); //freq in MHz
 #else
 		cur_word = (0xff000000&(cur_word<<24)) | (0xff0000&(cur_word<<8));
 		pv = ((uint8_t*)&cur_word)+2 ;
-		write_regs_spi(MB_RF_CONF_OFFSET+12, 2, pv); // to big endian
+		write_regs_spi(MB_RF_CONF_OFFSET+12+2, 2, pv); // to big endian
 #endif
     //frequency change delta
 #ifndef NOIS_EXTRACTED

@@ -350,7 +350,7 @@ void SPI_Handler(void)  // video spi pipe
 		 ioport_set_pin_mode(pin, mode);\
 		 ioport_disable_pin(pin);\
 	 } while (0)
-static void spi0_set_peripheral() { // all related pins are assigned back to peripheral mode
+/*static*/ void spi0_set_peripheral() { // all related pins are assigned back to peripheral mode
 	pio_clear(PIOA, PIO_PA24);  // revert spi0 for regular usage
 	ioport_set_pin_peripheral_mode(SPI0_MISO_GPIO, SPI0_MISO_FLAGS);
 	ioport_set_pin_peripheral_mode(SPI0_MOSI_GPIO, SPI0_MOSI_FLAGS);
@@ -1512,11 +1512,6 @@ bypass:
 #ifdef NOIS_EXTRACTED
   		pio_set_output(PIOA, PIO_PA20, HIGH, DISABLE, ENABLE);  // for ad9364 reset
 	  rf_dvbt_startup();  // setup ad9364/config mem defaults
-  #ifdef SPI0_FOR_SPI5
-		spi0_set_peripheral();
-		spi_master_initialize(0, SPI0_MASTER_BASE, BOARD_FLEXCOM_SPI0);// fpga ctrl pipe
-		spi_configure_cs_behavior(SPI0_MASTER_BASE, 0, SPI_CS_RISE_NO_TX);
-  #endif
 #endif
 		spi_tgt_done = true;
   #if false // not now, first let's config only a few of fpga registers
