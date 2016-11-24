@@ -1133,8 +1133,8 @@ static void _app_exec(void *addr)
 }
 	void upgrade_sys_fw(uint8_t system_upgrade) {
 			main_loop_on = true;	// to start up upgrade proc on host...
+			uint32_t tmp, wtmp, *pth = &tmp;
 			if (1 == system_upgrade) {
-				uint32_t tmp, wtmp, *pth = &tmp;
 				// altera upgrade
 /*****************************************************/
 				//enable reconfig
@@ -1185,6 +1185,20 @@ static void _app_exec(void *addr)
 //				download_atmel_fw( upgrade_fw_hdr );
 				wdt_init(WDT, WDT_MR_WDRPROC, 256/*1 sec*/, 0xfff) ;
 				while (1); // wait for processor reset
+			}
+			else if (3 == system_upgrade) {
+				// fpga switch to app image
+/*****************************************************/
+				//enable reconfig
+				*pth = 0xc000 | (0xfff & 12); // reg 12d
+				spi_tx_transfer(pth, 2/2, &wtmp, 2/2, 0/*ctrl/sts*/);
+				while (spi_tgt_done) ; spi_tgt_done = true;
+				wtmp = (0x01); *pth = 0xb000 | (0x0ff & wtmp);  // with 0x1
+				spi_tx_transfer(pth, 2/2, &wtmp, 2/2, 0/*ctrl/sts*/);
+				while (spi_tgt_done) ; spi_tgt_done = true;
+				delay_s(2);
+/*****************************************************/
+				pio_clear(PIOA, PIO_PA0);
 			}
 	}
 /*! \brief Main function. Execution starts here.
@@ -2107,6 +2121,11 @@ volatile bool main_vender_specific() {
 		USB_FPGA_UPGRADE_VAL == udd_g_ctrlreq.req.wValue ||
 		USB_ATMEL_UPGRADE_VAL == udd_g_ctrlreq.req.wValue)
 		return main_usb_host_msg();
+	if (USB_FPGA_NEW_VAL == udd_g_ctrlreq.req.wValue) {
+		system_upgrade = 3;  // switch to fpga app image
+		upgrade_sys_fw(system_upgrade) ;
+		system_upgrade = 0;
+	}
  #if defined(MEDIA_ON_FLASH) && !defined(NO_USB)
 	if (USB_LOAD_MEDIA == udd_g_ctrlreq.req.wValue)
 		return main_usb_load_media();

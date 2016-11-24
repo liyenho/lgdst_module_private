@@ -183,6 +183,7 @@ void main_sof_action(void);
 #define FW_UPGRADE_HDR_LEN		(12)
 #define USB_BOOT_APP_VAL						0xa4
 #define USB_FPGA_UPGRADE_VAL		0x22  // fpga upgrade cmd
+#define USB_FPGA_NEW_VAL					0x24  // fpga app image cmd
 #define USB_ATMEL_UPGRADE_VAL	0x23	// atmel upgrade cmd
 
  #define NUM_OF_PAGES	400	// let's reserve 200 kbyte (half) storage for TS file
