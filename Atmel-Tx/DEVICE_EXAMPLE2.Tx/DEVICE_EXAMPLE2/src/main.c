@@ -1197,8 +1197,6 @@ static void _app_exec(void *addr)
 				spi_tx_transfer(pth, 2/2, &wtmp, 2/2, 0/*ctrl/sts*/);
 				while (spi_tgt_done) ; spi_tgt_done = true;
 				delay_s(2);
-/*****************************************************/
-				pio_clear(PIOA, PIO_PA0);
 			}
 	}
 /*! \brief Main function. Execution starts here.
