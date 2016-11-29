@@ -1197,6 +1197,11 @@ static void _app_exec(void *addr)
 				spi_tx_transfer(pth, 2/2, &wtmp, 2/2, 0/*ctrl/sts*/);
 				while (spi_tgt_done) ; spi_tgt_done = true;
 				delay_s(2);
+/*****************************************************/
+				/* stop usb device operation */
+				udc_stop();
+				/* run application */
+				_app_exec(APP_START);
 			}
 	}
 /*! \brief Main function. Execution starts here.
@@ -2121,8 +2126,6 @@ volatile bool main_vender_specific() {
 		return main_usb_host_msg();
 	if (USB_FPGA_NEW_VAL == udd_g_ctrlreq.req.wValue) {
 		system_upgrade = 3;  // switch to fpga app image
-		upgrade_sys_fw(system_upgrade) ;
-		system_upgrade = 0;
 	}
  #if defined(MEDIA_ON_FLASH) && !defined(NO_USB)
 	if (USB_LOAD_MEDIA == udd_g_ctrlreq.req.wValue)
