@@ -2347,17 +2347,17 @@ volatile bool main_vender_specific() {
 	else if (USB_ATMEL_VER_VAL == udd_g_ctrlreq.req.wValue) {
 		char month[3+1], day[2+1], year[4+1];
 		{
-			month[0] = __REL_DATE__[0];
-			 month[1] = __REL_DATE__[1];
-			  month[2] = __REL_DATE__[2];
+			month[0] = __DATE__[0];
+			 month[1] = __DATE__[1];
+			  month[2] = __DATE__[2];
 			   month[3] = 0x0;
-			day[0] = __REL_DATE__[4];
-			 day[1] = __REL_DATE__[5];
+			day[0] = __DATE__[4];
+			 day[1] = __DATE__[5];
 			  day[2] = 0x0;
-			year[0] = __REL_DATE__[7];
-			 year[1] = __REL_DATE__[8];
-			  year[2] = __REL_DATE__[9];
-			   year[3] = __REL_DATE__[10];
+			year[0] = __DATE__[7];
+			 year[1] = __DATE__[8];
+			  year[2] = __DATE__[9];
+			   year[3] = __DATE__[10];
 			    year[4] = 0x0;
 		}
 		udd_set_setup_payload( __version_atmel__, sizeof(__version_atmel__));
