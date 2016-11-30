@@ -1196,7 +1196,6 @@ static void _app_exec(void *addr)
 				wtmp = (0x01); *pth = 0xb000 | (0x0ff & wtmp);  // with 0x1
 				spi_tx_transfer(pth, 2/2, &wtmp, 2/2, 0/*ctrl/sts*/);
 				while (spi_tgt_done) ; spi_tgt_done = true;
-				delay_s(2);
 /*****************************************************/
 				/* stop usb device operation */
 				udc_stop();
