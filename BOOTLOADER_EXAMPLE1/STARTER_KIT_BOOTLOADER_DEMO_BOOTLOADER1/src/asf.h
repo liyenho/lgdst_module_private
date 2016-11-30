@@ -77,6 +77,9 @@
 // From module: Interrupt management - SAM implementation
 #include <interrupt.h>
 
+// From module: PDC - Peripheral DMA Controller Example
+#include <pdc.h>
+
 // From module: PIO - Parallel Input/Output Controller
 #include <pio.h>
 
@@ -95,6 +98,9 @@
 
 // From module: SAMG55 Xplained Pro LED support enabled
 #include <led.h>
+
+// From module: SPI - Serial Peripheral Interface
+#include <spi.h>
 
 // From module: SUPC - Supply Controller
 #include <supc.h>

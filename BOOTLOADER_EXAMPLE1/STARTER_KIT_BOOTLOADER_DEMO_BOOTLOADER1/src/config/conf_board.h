@@ -49,6 +49,7 @@
 
 /** Enable Com Port. */
 #define CONF_BOARD_UART_CONSOLE
+#define CONF_BOARD_SPI	// added spi peripheral support, liyenho
 
 /** No second push button */
 #define BOARD_NO_PUSHBUTTON_2
@@ -61,5 +62,9 @@
 
 /** FLEXCOM base address for SPI mode*/
 #define BOARD_FLEXCOM_SPI    FLEXCOM5
+#define BOARD_FLEXCOM_SPI0    FLEXCOM0
+
+/** SPI base address for SPI master mode*/
+#define SPI0_MASTER_BASE      SPI0
 
 #endif /* CONF_BOARD_H_INCLUDED */

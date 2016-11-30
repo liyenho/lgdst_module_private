@@ -541,6 +541,127 @@ static int _app_dbg_input(uint8_t *keys, int nb_keys, uint32_t ctrl_flags)
 
 #endif
 
+  #define SPI0_Handler     FLEXCOM0_Handler // spi0 -> spi1 on tx
+  #define SPI0_IRQn        FLEXCOM0_IRQn
+/* Chip select. */
+#define SPI_CHIP_SEL 0
+/* Clock polarity. */
+#define SPI_CLK_POLARITY /*0*/ 1
+/* Clock phase. */
+#define SPI_CLK_PHASE 0
+/* Delay before SPCK. */
+#define SPI_DLYBS /*0x40*/ 0x10
+/* Delay between consecutive transfers. */
+#define SPI_DLYBCT /*0x10*/ 0x0
+
+/* Pointer to PDC register base */
+static Pdc *g_p_spim_pdc [1+2] ;/*fpga/sms, video, radio ctrl/sts, liyenho*/
+/* SPI clock setting (Hz). */
+  static uint32_t gs_ul_spi_clock[2+1] = {  // shall be higher than usb data rate
+  				  	2000000, 8000000, 1000000}; // (fpga/sms, video, radio) spi bit rate
+volatile uint8_t spi_tgt_done=false; // triggered by spi isr for (fpga/cpld) comm
+
+ void SPI0_Handler(void) // fpga ctrl spi
+ {
+	uint32_t status;
+	spi_disable_interrupt(SPI0_MASTER_BASE, SPI_IER_TXBUFE) ;
+	spi_disable_interrupt(SPI0_MASTER_BASE, SPI_IER_RXBUFF) ;
+
+	spi_tgt_done = false;  // handshake with main loop
+	status = spi_read_status(SPI0_MASTER_BASE) ;
+
+	//if(status & SPI_SR_NSSR) {
+		if ( status & SPI_SR_TXBUFE ) {
+//			printf("transfer done\n");
+		}
+	//}
+ }
+/**
+ * \brief Initialize SPI0 as master.
+ */
+static void spi0_master_initialize()
+{
+//	puts("-I- Initialize SPI as master\r");
+	/* Get pointer to SPI master PDC register base */
+	g_p_spim_pdc [0] = spi_get_pdc_base(SPI0_MASTER_BASE);
+
+#if (SAMG55)
+	/* Enable the peripheral and set SPI mode. */
+	flexcom_enable(BOARD_FLEXCOM_SPI0);
+	flexcom_set_opmode(BOARD_FLEXCOM_SPI0, FLEXCOM_SPI);
+#else
+	/* Configure an SPI peripheral. */
+	pmc_enable_periph_clk(SPI_ID);
+#endif
+	spi_disable(SPI0_MASTER_BASE);
+	spi_reset(SPI0_MASTER_BASE);
+	spi_set_lastxfer(SPI0_MASTER_BASE);
+	spi_set_master_mode(SPI0_MASTER_BASE);
+	spi_disable_mode_fault_detect(SPI0_MASTER_BASE);
+	spi_set_peripheral_chip_select_value(SPI0_MASTER_BASE, SPI_CHIP_SEL);
+	spi_set_clock_polarity(SPI0_MASTER_BASE, SPI_CHIP_SEL, SPI_CLK_POLARITY);
+	spi_set_clock_phase(SPI0_MASTER_BASE, SPI_CHIP_SEL, SPI_CLK_PHASE);
+	 spi_set_bits_per_transfer(SPI0_MASTER_BASE, SPI_CHIP_SEL,
+			SPI_CSR_BITS_16_BIT);  // 16 bit spi xfer
+	spi_set_baudrate_div(SPI0_MASTER_BASE, SPI_CHIP_SEL,
+			(sysclk_get_cpu_hz() / gs_ul_spi_clock [0]));
+	spi_set_transfer_delay(SPI0_MASTER_BASE, SPI_CHIP_SEL, SPI_DLYBS,
+			SPI_DLYBCT);
+	spi_enable(SPI0_MASTER_BASE);
+	pdc_disable_transfer(g_p_spim_pdc [0], PERIPH_PTCR_RXTDIS |
+			PERIPH_PTCR_TXTDIS);
+}
+/**
+ * \brief Perform SPI master transfer.
+ *
+ * \param pbuf Pointer to buffer to transfer.
+ * \param size Size of the buffer.
+ */
+static void spi0_tx_transfer(void *p_tbuf, uint32_t tsize, void *p_rbuf, uint32_t rsize)
+{
+	pdc_packet_t pdc_spi_packet;
+
+	pdc_spi_packet.ul_addr = (uint32_t)p_rbuf;
+	pdc_spi_packet.ul_size = rsize;
+	pdc_rx_init(g_p_spim_pdc [0], &pdc_spi_packet, NULL);
+
+	pdc_spi_packet.ul_addr = (uint32_t)p_tbuf;
+	pdc_spi_packet.ul_size = tsize;
+	pdc_tx_init(g_p_spim_pdc [0], &pdc_spi_packet, NULL);
+
+	/* Enable the RX and TX PDC transfer requests */
+	pdc_enable_transfer(g_p_spim_pdc [0], PERIPH_PTCR_RXTEN | PERIPH_PTCR_TXTEN);
+
+	/* Transfer done handler is in ISR */
+	uint32_t spi_ier = SPI_IER_RXBUFF;
+	spi_enable_interrupt(SPI0_MASTER_BASE, spi_ier) ;
+}
+/**
+ * \brief Set SPI slave transfer.
+ *
+ * \param p_buf Pointer to buffer to transfer.
+ * \param size Size of the buffer.
+ */
+static void spi0_rx_transfer(void *p_tbuf, uint32_t tsize, void *p_rbuf, uint32_t rsize)
+{
+	uint32_t spi_ier;
+	pdc_packet_t pdc_spi_packet;
+
+	pdc_spi_packet.ul_addr = (uint32_t)p_rbuf;
+	pdc_spi_packet.ul_size = rsize;
+	pdc_rx_init(g_p_spim_pdc [0], &pdc_spi_packet, NULL);
+
+	pdc_spi_packet.ul_addr = (uint32_t)p_tbuf;
+	pdc_spi_packet.ul_size = tsize;
+	pdc_tx_init(g_p_spim_pdc [0], &pdc_spi_packet, NULL);
+
+	/* Enable the RX and TX PDC transfer requests */
+	pdc_enable_transfer(g_p_spim_pdc [0], PERIPH_PTCR_RXTEN | PERIPH_PTCR_TXTEN);
+	/* Transfer done handler is in ISR */
+	spi_ier = SPI_IER_RXBUFF;
+	spi_enable_interrupt(SPI0_MASTER_BASE, spi_ier) ;
+}
+
 /**
  * Bootloader main entry
  */
@@ -566,8 +687,29 @@ int main(void)
 	ioport_set_pin_dir(DBG_LED_PIN, IOPORT_DIR_OUTPUT);
 	ioport_set_pin_level(DBG_LED_PIN, DBG_LED_PIN_ON_LEVEL);
 
+	NVIC_DisableIRQ(SPI0_IRQn);  // spi0 peripheral instance = 8, liyenho
+	NVIC_ClearPendingIRQ(SPI0_IRQn);
+	NVIC_SetPriority(SPI0_IRQn, 0);
+	NVIC_EnableIRQ(SPI0_IRQn);
+
+	spi0_master_initialize();// fpga/cpld ctrl pipe
+#ifdef FPGA_IMAGE_APP
+		uint32_t tmp, wtmp, *pth = &tmp;
+		// fpga switch to app image
+/*****************************************************/
+		//enable reconfig
+		*pth = 0xc000 | (0xfff & 12); // reg 12d
+		spi_tgt_done = true;
+		spi0_tx_transfer(pth, 2/2, &wtmp, 2/2);
+		while (spi_tgt_done) ; spi_tgt_done = true;
+		wtmp = (0x01); *pth = 0xb000 | (0x0ff & wtmp);  // with 0x1
+		spi0_tx_transfer(pth, 2/2, &wtmp, 2/2);
+		while (spi_tgt_done) ; spi_tgt_done = true;
+/*****************************************************/
+#endif
+
 	if (!flag_boot_app || (0xff==flag_boot_app))
-		// Start USB stack to authorize VBus monitoring
+	// Start USB stack to authorize VBus monitoring
 		udc_start(); // turn on usb comm only when flash flag is empty or reset
 	else  // otherwise jump to main app directly
 		usb_boot_app = true;
@@ -601,7 +743,7 @@ int main(void)
 	dbg_print("bl: lock boot region done\r\n");
 #endif
 	if (1 != flag_boot_app)
- 		while (!udi_cdc_data_running) ; // wait for cdc data intf ready, liyenho
+ 	while (!udi_cdc_data_running) ; // wait for cdc data intf ready, liyenho
 
 	app_addr = (void *)(APP_START(boot_region));
 
@@ -643,7 +785,7 @@ main_load_app:
 
 main_run_app_check:
 	if (!flag_boot_app || (0xff==flag_boot_app))
-		/* stop usb device operation */
+	/* stop usb device operation */
 		udc_stop();  // turn on usb comm only when flash flag is empty or reset
 
 	/* Is application valid? not available for verification... */

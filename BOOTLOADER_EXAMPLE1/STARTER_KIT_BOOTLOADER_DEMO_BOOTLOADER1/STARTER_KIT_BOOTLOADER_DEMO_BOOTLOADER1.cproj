@@ -564,6 +564,7 @@
       <Value>../src/ASF/common/services/usb/class/cdc/device</Value>
       <Value>../src/ASF/common/services/usb/class/cdc/device/example/samg55j19_samg_xplained_pro</Value>
       <Value>../src/ASF/sam/drivers/matrix</Value>
+      <Value>../src/ASF/sam/drivers/pdc</Value>
     </ListValues>
   </armgcc.compiler.directories.IncludePaths>
   <armgcc.compiler.optimization.OtherFlags>-fdata-sections</armgcc.compiler.optimization.OtherFlags>
@@ -665,6 +666,8 @@
     <Folder Include="src\ASF\sam\drivers\efc\" />
     <Folder Include="src\ASF\sam\drivers\flexcom\" />
     <Folder Include="src\ASF\sam\drivers\matrix" />
+    <Folder Include="src\ASF\sam\drivers\pdc" />
+    <Folder Include="src\ASF\sam\drivers\spi" />
     <Folder Include="src\ASF\sam\drivers\udp" />
     <Folder Include="src\ASF\sam\drivers\pio\" />
     <Folder Include="src\ASF\sam\drivers\pmc\" />
@@ -1246,6 +1249,12 @@
     <Compile Include="src\ASF\sam\drivers\matrix\matrix.h">
       <SubType>compile</SubType>
     </Compile>
+    <Compile Include="src\ASF\sam\drivers\pdc\pdc.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\ASF\sam\drivers\pdc\pdc.h">
+      <SubType>compile</SubType>
+    </Compile>
     <Compile Include="src\ASF\sam\drivers\pio\pio.c">
       <SubType>compile</SubType>
     </Compile>
@@ -1259,6 +1268,12 @@
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="src\ASF\sam\drivers\rtc\rtc.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\ASF\sam\drivers\spi\spi.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\ASF\sam\drivers\spi\spi.h">
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="src\ASF\sam\drivers\supc\supc.c">

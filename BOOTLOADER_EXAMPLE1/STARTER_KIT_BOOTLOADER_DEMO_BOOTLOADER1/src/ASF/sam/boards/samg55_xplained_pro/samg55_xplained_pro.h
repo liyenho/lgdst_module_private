@@ -227,19 +227,33 @@ void system_board_init(void);
 /** SPI MISO pin definition. */
 #define SPI_MISO_GPIO         (PIO_PA12_IDX)
 #define SPI_MISO_FLAGS       (IOPORT_MODE_MUX_A)
+// added for fpga/cpld comm, liyenho
+#define SPI0_MISO_GPIO         (PIO_PA9_IDX)
+#define SPI0_MISO_FLAGS       (IOPORT_MODE_MUX_A)
 /** SPI MOSI pin definition. */
 #define SPI_MOSI_GPIO         (PIO_PA13_IDX)
 #define SPI_MOSI_FLAGS       (IOPORT_MODE_MUX_A)
+// added for fpga/cpld comm
+#define SPI0_MOSI_GPIO         (PIO_PA10_IDX)
+#define SPI0_MOSI_FLAGS       (IOPORT_MODE_MUX_A)
 /** SPI SPCK pin definition. */
 #define SPI_SPCK_GPIO         (PIO_PA14_IDX)
 #define SPI_SPCK_FLAGS       (IOPORT_MODE_MUX_A)
-
+// added for fpga/cpld comm
+#define SPI0_SPCK_GPIO         (PIO_PB0_IDX)
+#define SPI0_SPCK_FLAGS       (IOPORT_MODE_MUX_A)
 /** SPI chip select 0 pin definition. */
 #define SPI_NPCS0_GPIO        (PIO_PA11_IDX)
 #define SPI_NPCS0_FLAGS      (IOPORT_MODE_MUX_A)
+// added for fpga/cpld comm
+#define SPI0_NPCS0_GPIO        (PIO_PA25_IDX)
+#define SPI0_NPCS0_FLAGS      (IOPORT_MODE_MUX_A)
 /** SPI chip select 1 pin definition. */
 #define SPI_NPCS1_GPIO        (PIO_PA5_IDX)
 #define SPI_NPCS1_FLAGS      (IOPORT_MODE_MUX_B)
+// added for fpga/cpld comm
+#define SPI0_NPCS1_GPIO        (PIO_PA26_IDX)
+#define SPI0_NPCS1_FLAGS      (IOPORT_MODE_MUX_A)
 //@}
 
 /** \name Extension header #1 pin definitions

@@ -1376,7 +1376,8 @@ int main(void)
 			CHECKED_FLASH_WR(
 				IFLASH_ADDR + IFLASH_SIZE-sizeof(backup),
 				backup, NUM_OF_FPGA_REGS +1 +4 +2)
-			bootapp = 0; // tx board behaved as usual, so allow bootloader switch on udc
+			//bootapp = 0; // tx board behaved as usual, so allow bootloader switch on udc
+			bootapp = 1; // boot right into app
 			CHECKED_FLASH_WR(ul_page_addr_bootapp, &bootapp, 1)
 			CHECKED_FLASH_WR(
 				IFLASH_ADDR + IFLASH_SIZE-NUM_OF_ATMEL_REGS +3,

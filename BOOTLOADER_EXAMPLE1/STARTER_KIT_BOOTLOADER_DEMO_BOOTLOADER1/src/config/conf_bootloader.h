@@ -47,6 +47,7 @@
 #ifndef CONF_BOOTLOADER_H_INCLUDED
 #define CONF_BOOTLOADER_H_INCLUDED
 
+//#define FPGA_IMAGE_APP	// enable fpga switch to app image on tx board
 /*
  * Debug config
  * -> Debug console

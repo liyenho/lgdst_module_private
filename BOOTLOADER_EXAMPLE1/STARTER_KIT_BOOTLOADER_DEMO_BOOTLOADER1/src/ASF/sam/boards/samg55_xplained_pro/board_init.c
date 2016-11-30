@@ -138,6 +138,10 @@ void system_board_init(void)
 	ioport_set_pin_peripheral_mode(SPI_MISO_GPIO, SPI_MISO_FLAGS);
 	ioport_set_pin_peripheral_mode(SPI_MOSI_GPIO, SPI_MOSI_FLAGS);
 	ioport_set_pin_peripheral_mode(SPI_SPCK_GPIO, SPI_SPCK_FLAGS);
+	// added for fpga/cpld comm, liyenho
+	ioport_set_pin_peripheral_mode(SPI0_MISO_GPIO, SPI0_MISO_FLAGS);
+	ioport_set_pin_peripheral_mode(SPI0_MOSI_GPIO, SPI0_MOSI_FLAGS);
+	ioport_set_pin_peripheral_mode(SPI0_SPCK_GPIO, SPI0_SPCK_FLAGS);
 
 #ifdef CONF_BOARD_SD_MMC_SPI
 	/* Setting SD detection pin */
@@ -147,10 +151,14 @@ void system_board_init(void)
 
 #ifdef CONF_BOARD_SPI_NPCS0
 	ioport_set_pin_peripheral_mode(SPI_NPCS0_GPIO, SPI_NPCS0_FLAGS);
+	// added for fpga/cpld comm
+	ioport_set_pin_peripheral_mode(SPI0_NPCS0_GPIO, SPI0_NPCS0_FLAGS);
 #endif
 
 #ifdef CONF_BOARD_SPI_NPCS1
 	ioport_set_pin_peripheral_mode(SPI_NPCS1_GPIO, SPI_NPCS1_FLAGS);
+	// added for fpga/cpld comm
+	ioport_set_pin_peripheral_mode(SPI0_NPCS1_GPIO, SPI0_NPCS1_FLAGS);
 #endif
 #endif
 
