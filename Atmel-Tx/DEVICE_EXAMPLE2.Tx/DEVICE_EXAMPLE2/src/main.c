@@ -87,7 +87,7 @@ extern volatile bool udi_cdc_data_running; // from udi_cdc.c, liyenho
 	/*static*/ bool timedelta_reset, timedelta_reset_rx; //to handle system restart
 	volatile bool fhop_in_search= false, fhop_flag, fhop_dir;
   unsigned int tdma_sndthr=0;
-	/*static*/ uint8_t hop_id[HOP_ID_LEN]={0,0,0,0,0,0,0,0,0,1}; // 10 byte hop id from host
+	/*static*/ uint8_t hop_id[HOP_ID_LEN]={0,0,0,0,0,0,0,0,0,0}; // 10 byte hop id from host
 	int fhop_idx= 0, fhop_offset = HOP_2CH_ENABLE?(HOP_2CH_OFFSET0):0; //to produce frequency hopping sequence
 	int fhop_base = 0, fhopless= 0/*can be 1, 2 or 3*/;
   /*static*/ enum pair_mode hop_state;
@@ -98,9 +98,11 @@ volatile bool stream_flag = true; // default to TS stream automatic on
 uint32_t ul_page_addr_ctune =IFLASH_ADDR + IFLASH_SIZE - NUM_OF_ATMEL_REGS, // 1st atmel reg on flash
 					// temperature @ current tuning @ 2nd atmel reg on flash
 				ul_page_addr_mtemp =IFLASH_ADDR + IFLASH_SIZE - NUM_OF_ATMEL_REGS + 1,
-				ul_page_addr_bootapp =IFLASH_ADDR + IFLASH_SIZE - NUM_OF_ATMEL_REGS + 2;
+				ul_page_addr_bootapp =IFLASH_ADDR + IFLASH_SIZE - NUM_OF_ATMEL_REGS + 2,
+				ul_page_addr_fpgadef =IFLASH_ADDR + IFLASH_SIZE - NUM_OF_ATMEL_REGS + 3;
 uint8_t backup[NUM_OF_FPGA_REGS+NUM_OF_ATMEL_REGS+4+1],
-				bootapp = (uint8_t)/*-1*/0;
+				bootapp = (uint8_t)/*-1*/0,
+				fpgadef = (uint8_t)-1;
 #endif
  #ifdef MEDIA_ON_FLASH
   #ifdef NO_USB
@@ -519,6 +521,18 @@ static inline void usb_write_buf(void *pb)
 				IFLASH_ADDR + IFLASH_SIZE-NUM_OF_ATMEL_REGS +3,
 				backup +NUM_OF_FPGA_REGS +1 +4 +3,
 				sizeof(backup)-NUM_OF_FPGA_REGS-1 -4 -3)
+			return ;
+		}
+		if (USB_FPGA_DEF_VAL == udd_g_ctrlreq.req.wValue) {
+			erase_last_sector() ;
+			CHECKED_FLASH_WR(
+				IFLASH_ADDR + IFLASH_SIZE-sizeof(backup),
+				backup, NUM_OF_FPGA_REGS +1 +4 +3)
+			CHECKED_FLASH_WR(ul_page_addr_fpgadef, &fpgadef, 1)
+			CHECKED_FLASH_WR(
+				IFLASH_ADDR + IFLASH_SIZE-NUM_OF_ATMEL_REGS +4,
+				backup +NUM_OF_FPGA_REGS +1 +4 +4,
+				sizeof(backup)-NUM_OF_FPGA_REGS-1 -4 -4)
 			return ;
 		}
 		if ((USB_FPGA_UPGRADE_VAL == udd_g_ctrlreq.req.wValue ||
@@ -1197,10 +1211,11 @@ static void _app_exec(void *addr)
 				spi_tx_transfer(pth, 2/2, &wtmp, 2/2, 0/*ctrl/sts*/);
 				while (spi_tgt_done) ; spi_tgt_done = true;
 /*****************************************************/
-				/* stop usb device operation */
+				// stop usb device operation
 				udc_stop();
-				/* run application */
+				// run application
 				_app_exec(APP_START);
+/*****************************************************/
 			}
 	}
 /*! \brief Main function. Execution starts here.
@@ -1253,6 +1268,8 @@ int main(void)
 	/* Initialize the console UART. */
 	configure_console(); // used for si446x radio dev, liyenho
 #endif
+	// Start USB stack to authorize VBus monitoring
+	udc_start();
 #if (defined(MEDIA_ON_FLASH) && !defined(NO_USB)) || defined(CONFIG_ON_FLASH) || defined(FWM_DNLD_DBG)
 	/* Initialize flash: 6 wait states for flash writing. */
 	ul_rc = flash_init(FLASH_ACCESS_MODE_128, 6);
@@ -1309,7 +1326,7 @@ int main(void)
   #endif
 	spi_master_initialize(1, SPI_MASTER_BASE, BOARD_FLEXCOM_SPI);// video pipe @ tx end
 #ifdef CONFIG_ON_FLASH
-		if (1!=*(uint8_t*)ul_page_addr_bootapp) {
+		if (1!=*(uint8_t*)ul_page_addr_bootapp || 0!=*(uint8_t*)ul_page_addr_fpgadef) {
 			erase_last_sector() ;
 			CHECKED_FLASH_WR(
 				IFLASH_ADDR + IFLASH_SIZE-sizeof(backup),
@@ -1317,14 +1334,14 @@ int main(void)
 			//bootapp = 0; // tx board behaved as usual, so allow bootloader switch on udc
 			bootapp = 1; // boot right into app
 			CHECKED_FLASH_WR(ul_page_addr_bootapp, &bootapp, 1)
+			fpgadef = 0; // switch fpga to app image
+			CHECKED_FLASH_WR(ul_page_addr_fpgadef, &fpgadef, 1)
 			CHECKED_FLASH_WR(
-				IFLASH_ADDR + IFLASH_SIZE-NUM_OF_ATMEL_REGS +3,
-				backup +NUM_OF_FPGA_REGS +1 +4 +3,
-				sizeof(backup)-NUM_OF_FPGA_REGS-1 -4 -3)
+				IFLASH_ADDR + IFLASH_SIZE-NUM_OF_ATMEL_REGS +4,
+				backup +NUM_OF_FPGA_REGS +1 +4 +4,
+				sizeof(backup)-NUM_OF_FPGA_REGS-1 -4 -4)
 		}
 #endif
-	// Start USB stack to authorize VBus monitoring
-	udc_start();
 system_restart:  // system restart entry, liyenho
 	system_main_restart = false;
 	set_rf_params = false ;
@@ -1516,6 +1533,8 @@ bypass:
 #endif
 		dev_access *pr, *pt = (dev_access*)gs_uc_htbuffer;
 		  pr = gs_uc_hrbuffer;
+	for (int itr=0; itr<10000; itr++) {
+			spi_tgt_done = true;
 		  // setup spi to read addressed data
 		  *pth = 0xd000 | (0xfff & 0x100); //0xfff & 0x400
 		  spi_tx_transfer(pth, 2/2, &nios_done, 2/2, 0/*ctrl/sts*/);
@@ -1523,6 +1542,9 @@ bypass:
 		  *pth = 0x00ff;
 		  spi_tx_transfer(pth, 2/2, &nios_done, 2/2, 0/*ctrl/sts*/);
 		while (spi_tgt_done) ;
+		if (nios_done == 0x81)
+			break; // nios init is done
+	}
 		if (nios_done != 0x81) {
 			/*puts("NIOS did not come up!");*/ while(1); // raise exception
 		}
@@ -2114,6 +2136,10 @@ volatile bool main_vender_specific() {
  #ifdef CONFIG_ON_FLASH
 	if (USB_BOOT_APP_VAL == udd_g_ctrlreq.req.wValue) {
 		udd_set_setup_payload( &bootapp, sizeof(bootapp));
+		udd_g_ctrlreq.callback = host_usb_cb;
+	}
+	if (USB_FPGA_DEF_VAL == udd_g_ctrlreq.req.wValue) {
+		udd_set_setup_payload( &fpgadef, sizeof(fpgadef));
 		udd_g_ctrlreq.callback = host_usb_cb;
 	}
  #endif

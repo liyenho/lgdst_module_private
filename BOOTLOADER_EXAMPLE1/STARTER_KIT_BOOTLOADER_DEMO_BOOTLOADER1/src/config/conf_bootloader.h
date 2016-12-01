@@ -161,5 +161,7 @@
 
 #define NUM_OF_ATMEL_REGS		64  // # of flash registers for fpga/cpld access, come before atmel flash registers
 #define  FLAG_BOOTAPP_ADDR	(IFLASH_ADDR + IFLASH_SIZE - NUM_OF_ATMEL_REGS + 2) // flag indicated bootapp or upgrade
+#define  FLAG_FPGADEF_ADDR	(IFLASH_ADDR + IFLASH_SIZE - NUM_OF_ATMEL_REGS + 3) // flag indicated fpgaapp or upgrade
+
 #endif /* CONF_BOOTLOADER_H_INCLUDED */
 

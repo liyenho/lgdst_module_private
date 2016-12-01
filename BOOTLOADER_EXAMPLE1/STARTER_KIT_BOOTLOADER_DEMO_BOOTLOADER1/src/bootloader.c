@@ -31,6 +31,7 @@
 
 extern volatile bool udi_cdc_data_running; // from udi_cdc.c, liyenho
 const uint32_t ul_page_addr_bootapp = FLAG_BOOTAPP_ADDR;
+const uint32_t ul_page_addr_fpgadef = FLAG_FPGADEF_ADDR;
 static volatile bool main_b_cdc_enable = false;
 static volatile bool system_upgrade = false;  // system upgrade flag, liyenho
 static volatile uint8_t main_loop_on = false;  // run time indicator
@@ -668,6 +669,7 @@ static void spi0_rx_transfer(void *p_tbuf, uint32_t tsize, void *p_rbuf, uint32_
 int main(void)
 {
 	uint8_t flag_boot_app = *(uint8_t*)ul_page_addr_bootapp;
+	uint8_t flag_fpga_def = *(uint8_t*)ul_page_addr_fpgadef;
 	uint8_t boot_region = 0; /* Real boot region at this time */
 #ifdef DBG_USE_USART
 	uint8_t load_region = 0; /* Real region to put loaded data */
@@ -694,7 +696,9 @@ int main(void)
 
 	spi0_master_initialize();// fpga/cpld ctrl pipe
 #ifdef FPGA_IMAGE_APP
+	if (!flag_fpga_def) {
 		uint32_t tmp, wtmp, *pth = &tmp;
+		delay_s(3);  // allow fpga to complete initialization
 		// fpga switch to app image
 /*****************************************************/
 		//enable reconfig
@@ -706,6 +710,7 @@ int main(void)
 		spi0_tx_transfer(pth, 2/2, &wtmp, 2/2);
 		while (spi_tgt_done) ; spi_tgt_done = true;
 /*****************************************************/
+	}
 #endif
 
 	if (!flag_boot_app || (0xff==flag_boot_app))

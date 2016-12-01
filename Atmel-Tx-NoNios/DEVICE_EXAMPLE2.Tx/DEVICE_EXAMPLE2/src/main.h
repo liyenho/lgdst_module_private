@@ -185,6 +185,7 @@ void main_sof_action(void);
 #define FW_DNLD_SIZE			/*7200*/15000 // NEVER be divisible into 64 or usb core shall malfunction (a big bug!!!)
 #define FW_UPGRADE_HDR_LEN		(12)
 #define USB_BOOT_APP_VAL						0xa4
+#define USB_FPGA_DEF_VAL					0xa3
 #define USB_FPGA_UPGRADE_VAL		0x22  // fpga upgrade cmd
 #define USB_FPGA_NEW_VAL					0x24  // fpga app image cmd
 #define USB_ATMEL_UPGRADE_VAL	0x23	// atmel upgrade cmd
