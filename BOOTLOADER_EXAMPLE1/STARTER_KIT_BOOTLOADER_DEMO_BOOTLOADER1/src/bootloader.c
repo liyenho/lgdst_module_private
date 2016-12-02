@@ -696,7 +696,7 @@ int main(void)
 
 	spi0_master_initialize();// fpga/cpld ctrl pipe
 #ifdef FPGA_IMAGE_APP
-	if (!flag_fpga_def) {
+	if (!flag_fpga_def || 0xff ==flag_fpga_def) {
 		uint32_t tmp, wtmp, *pth = &tmp;
 		delay_s(3);  // allow fpga to complete initialization
 		// fpga switch to app image
