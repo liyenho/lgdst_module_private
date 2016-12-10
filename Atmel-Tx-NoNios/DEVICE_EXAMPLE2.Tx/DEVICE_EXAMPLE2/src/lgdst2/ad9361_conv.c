@@ -46,7 +46,7 @@
 #include "platform_altera/platform.h"
 #include "config.h"
 
-#ifndef AXI_ADC_NOT_PRESENT
+#if 1 /*ndef*/ AXI_ADC_NOT_PRESENT
 /**
  * HDL loopback enable/disable.
  * @param phy The AD9361 state structure.
