@@ -2341,7 +2341,8 @@ _reg_acs:
 				#endif
 							break;
 				default: /* host msg in error */
-							continue;
+							spi_tgt_done = false;
+							break;
 			}
 			while (spi_tgt_done) ; delay_us(1);
 			pio_set(PIOA, CPLD_6612_TRIG);
