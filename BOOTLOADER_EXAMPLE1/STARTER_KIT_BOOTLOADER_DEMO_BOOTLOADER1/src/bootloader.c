@@ -278,7 +278,7 @@ static uint32_t _app_load(uint32_t app_addr)
 			bytes0 += MEM_BLOCK_SIZE-bytes1;
 			bytes1 = MEM_BLOCK_SIZE-bytes1;
 		}
-		do {
+		while((len1-MEM_BLOCK_SIZE)>=bytes1) {
 			if (!mem_flash_page_write(ul_page_addr+bytes0, (uint8_t*)fw_sys_tbuffer+bytes1)) {
 				/*puts("-E-\tfailed on DataWrite().\r");*/
 				return 0;
@@ -293,9 +293,9 @@ static uint32_t _app_load(uint32_t app_addr)
 			bytes0 += MEM_BLOCK_SIZE;
 			bytes1 += MEM_BLOCK_SIZE;
 			bb += 1;
-		} while((len1-MEM_BLOCK_SIZE)>=bytes1);
+		}
 		// handle last chunk which may not align to page boundary
-		if (true) {
+		if (len1>bytes1) {
 			memcpy(block, (uint8_t*)fw_sys_tbuffer+bytes1, len1-bytes1);
 			// set the rest of buffer to 0xff (empty)
 			memset((uint8_t*)block+len1-bytes1, 0xff, MEM_BLOCK_SIZE-len1+bytes1);
