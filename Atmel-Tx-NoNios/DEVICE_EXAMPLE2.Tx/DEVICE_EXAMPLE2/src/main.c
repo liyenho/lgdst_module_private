@@ -1222,12 +1222,6 @@ static void _app_exec(void *addr)
 				pio_set(PIOA, PIO_PA0);
 				uint32_t fw_addr = upgrade_fw_hdr[2];
 				download_fpga_fw( upgrade_fw_hdr );
-				while (fw_addr == upgrade_fw_hdr[2])
-					delay_ms(1);  // wait for 2nd data file
-				main_loop_on = true;  // as switch flag, liyenho
-		extern bool first_flash_access;
-				first_flash_access = true;
-				download_fpga_fw( upgrade_fw_hdr );
 				pio_clear(PIOA, PIO_PA0);
 /*****************************************************/
 				//disable reconfig
