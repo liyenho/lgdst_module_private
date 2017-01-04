@@ -96,6 +96,7 @@
 	 struct {
 		 uint16_t chan_idx;
 		 uint16_t pwr_att;
+		 uint16_t tone_on; // tone generation, 1: turn on, 0: turn off
 	 } params_tx;
 	 struct {
 		 uint16_t chan_idx;
@@ -105,6 +106,7 @@
  #define RF_TX_VAL								0x11
  #define RF_TX_FREQ_VAL				0x13
  #define RF_TX_ATTN_VAL				0x14
+ #define RF_TX_CARRIER					0x15
  #define RF_TX_NIOS_DONE			0x16
 #endif
 /*

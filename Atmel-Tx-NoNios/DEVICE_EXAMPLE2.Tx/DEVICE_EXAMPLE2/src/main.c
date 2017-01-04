@@ -1060,6 +1060,49 @@ static void attenuation_select() {
   #endif
 #endif
 }
+/************* enable tone 1 generation **************/
+static void tone_generation() {
+		uint32_t tmp, wtmp, *pth = &tmp;
+				spi_tgt_done = true;
+				// enable tone 1: reg 74 = 0x1, disable tone 1: reg 74 = 0x0
+				// enable tone 1: reg 64 = 0x80, disable tone 1: reg 64 = 0x0
+				*pth = 0xc000 | (0xfff & 64); // reg 64d
+				spi_tx_transfer(pth, 2/2, &wtmp, 2/2, 0/*ctrl/sts*/);
+				while (spi_tgt_done) ; spi_tgt_done = true;
+				wtmp = (TX_Rf_Params.params_tx.tone_on)?0x80:0x0; *pth = 0xb000 | (0x0ff & wtmp);
+				spi_tx_transfer(pth, 2/2, &wtmp, 2/2, 0/*ctrl/sts*/);
+				while (spi_tgt_done) ; spi_tgt_done = true;
+				*pth = 0xc000 | (0xfff & 74); // reg 74d
+				spi_tx_transfer(pth, 2/2, &wtmp, 2/2, 0/*ctrl/sts*/);
+				while (spi_tgt_done) ; spi_tgt_done = true;
+				wtmp = (TX_Rf_Params.params_tx.tone_on)?1:0; *pth = 0xb000 | (0x0ff & wtmp);
+				spi_tx_transfer(pth, 2/2, &wtmp, 2/2, 0/*ctrl/sts*/);
+				while (spi_tgt_done) ;
+		delay_s(1);
+		spi_tgt_done = true;
+		*pth = 0xc000 | (0xfff & 65); // reg 78d
+		spi_tx_transfer(pth, 2/2, &wtmp, 2/2, 0/*ctrl/sts*/);
+		while (spi_tgt_done) ; spi_tgt_done = true;
+		delay_us(1);
+		wtmp = 0x40; *pth = 0xb000 | (0x0ff & wtmp);//*pth = 0x40; // set reg check-in bit
+		spi_tx_transfer(pth, 2/2, &wtmp, 2/2, 0/*ctrl/sts*/);
+		while (spi_tgt_done) ; spi_tgt_done = true;
+		delay_s(1);
+#ifdef NOIS_EXTRACTED
+  #ifdef SPI0_FOR_SPI5
+		spi0_set_peripheral();
+		spi_master_initialize(0, SPI0_MASTER_BASE, BOARD_FLEXCOM_SPI0);// fpga ctrl pipe
+		spi_configure_cs_behavior(SPI0_MASTER_BASE, 0, SPI_CS_RISE_NO_TX);
+  #endif
+		rf_dvbt_control();
+  #ifdef SPI0_FOR_SPI5
+		spi0_set_peripheral();
+		spi_master_initialize(0, SPI0_MASTER_BASE, BOARD_FLEXCOM_SPI0);// fpga ctrl pipe
+		spi_configure_cs_behavior(SPI0_MASTER_BASE, 0, SPI_CS_RISE_NO_TX);
+  #endif
+#endif
+}
+/***********************************************/
  static void rf_params_cb() {
 	memcpy(&TX_Rf_Params.params_tx,
 						udd_g_ctrlreq.payload,
@@ -1071,6 +1114,9 @@ static void attenuation_select() {
 	 	else if (RF_TX_ATTN_VAL == udd_g_ctrlreq.req.wValue) {
 		 	attenuation_select();
 	 	}
+		else if (RF_TX_CARRIER == udd_g_ctrlreq.req.wValue) {
+			tone_generation();  // carrier tone generation test
+		}
 		return;
 	}
 	set_rf_params = true;
@@ -2447,7 +2493,8 @@ volatile bool main_vender_specific() {
 #ifdef RFFE_PARAMS
 	 else if (RF_TX_VAL == udd_g_ctrlreq.req.wValue ||
 	 				RF_TX_FREQ_VAL == udd_g_ctrlreq.req.wValue ||
-	 				RF_TX_ATTN_VAL == udd_g_ctrlreq.req.wValue) {
+	 				RF_TX_ATTN_VAL == udd_g_ctrlreq.req.wValue ||
+	 				RF_TX_CARRIER == udd_g_ctrlreq.req.wValue) {
 		 if (sizeof(TX_Rf_Params.params_tx) != udd_g_ctrlreq.req.wLength) {
 			 return (bool) -1;
 		 }
