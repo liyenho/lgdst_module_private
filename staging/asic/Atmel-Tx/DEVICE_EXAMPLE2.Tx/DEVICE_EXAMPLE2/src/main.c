@@ -1334,6 +1334,7 @@ int main(void)
 	}
 	pmc_enable_periph_clk(ID_PIOA);
   pio_set_output(PIOA, PIO_PA0, LOW, DISABLE, ENABLE);  // turn fpga into config mode, liyenho
+  pio_set_output(PIOA, PIO_PA26, HIGH, DISABLE, ENABLE); // rf2072 out of reset
 	//pio_set_output(PIOA, PIO_PA19, HIGH, DISABLE, ENABLE); // hold fpga reset (no reset), liyenho
  #ifndef RADIO_SI4463
 	pio_set_output(PIOA, HEALTH_LED, HIGH, DISABLE, ENABLE);
@@ -1878,6 +1879,11 @@ _reg_acs:
 			uint16_t tmp, tmpw, *pth = &tmp;
 			#include <assert.h>
 			switch (pt->access) {
+				case RF2072_RESET:
+						pio_clear (PIOA, PIO_PA26);
+						delay_ms(1);
+						pio_set (PIOA, PIO_PA26);
+						break;
 				case RF2072_READ:
 						assert(!(pt->dcnt & 1));
 						while (spi_tgt_done) ; // flush any pending spi xfer

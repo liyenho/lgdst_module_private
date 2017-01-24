@@ -93,6 +93,7 @@
 	#define CPLD_2072_TRIG    PIO_PA25
 #endif
 typedef enum {
+	RF2072_RESET=  0, // lastly added for rf2072 reset
 	IT951X_READ = 1,
 	IT951X_WRITE= 2,
 	RF2072_READ=  3,

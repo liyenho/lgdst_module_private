@@ -1259,10 +1259,10 @@ static void _app_exec(void *addr)
 				fdo.page_size =  16 * 1024 / 8;	// page size of max 10 CFM0 in byte
 				// the rest fields are not used at all
 /*****************************************************/
-				pio_set(PIOA, PIO_PA0);
+//				pio_set(PIOA, PIO_PA0);
 		extern void download_cpld_fw(cpld_flash_map* fdo, uint32_t *upgrade_fw_hdr );
 				download_cpld_fw(&fdo, upgrade_fw_hdr );
-				pio_clear(PIOA, PIO_PA0);
+//				pio_clear(PIOA, PIO_PA0);
 				delay_ms(100);
 /*****************************************************/
 				/* stop usb device operation */
@@ -1445,7 +1445,7 @@ int main(void)
 	// Start USB stack to authorize VBus monitoring
 	udc_start();
 system_restart:  // system restart entry, liyenho
-	pio_set_output(PIOA, PIO_PA0, LOW, DISABLE, ENABLE); // flag of cpld remote upgrade, liyenho
+	//pio_set_output(PIOA, PIO_PA0, LOW, DISABLE, ENABLE); // flag of cpld remote upgrade, liyenho
 	system_main_restart = false;
 #ifdef  RADIO_SI4463
 	si4463_radio_started = false;
@@ -1483,6 +1483,7 @@ system_restart:  // system restart entry, liyenho
  #endif
 #endif
  #ifdef CONFIG_RF2072
+		pio_set_output(PIOA, PIO_PA16, HIGH, DISABLE, ENABLE); // rf2072 out of reset
 		pio_set_output(PIOA, CPLD_2072_TRIG, HIGH, DISABLE, ENABLE); // extra trigger line for 2072 access with cpld, liyenho
 		if (system_upgrade)
 			upgrade_sys_fw(system_upgrade);
@@ -1790,6 +1791,11 @@ _reg_acs:
 			uint16_t tmp, tmpw, *pth = &tmp;
 			#include <assert.h>
 			switch (pt->access) {
+				case RF2072_RESET:
+						pio_clear (PIOA, PIO_PA16);
+						delay_ms(1);
+						pio_set (PIOA, PIO_PA16);
+						break;
 				case RF2072_READ:
 						assert(!(pt->dcnt & 1));
 						while (spi_tgt_done) ; // flush any pending spi xfer

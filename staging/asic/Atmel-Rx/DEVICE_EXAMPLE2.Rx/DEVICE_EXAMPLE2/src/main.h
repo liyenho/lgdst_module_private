@@ -146,6 +146,7 @@
 #endif
 #define RFFE_PARAMS
 typedef enum {
+	RF2072_RESET=  0, // lastly added for rf2072 reset
 	IT913X_READ = 1,
 	IT913X_WRITE= 2,
 	RF2072_READ=  3,
