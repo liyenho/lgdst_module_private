@@ -1895,10 +1895,10 @@ _reg_acs:
 							while (spi_tgt_done);  spi_tgt_done = true;
 							spi_rx_transfer(pth, 1, &tmpw, 1, 0/*ctrl/sts*/); // high byte
 							while (spi_tgt_done) ; spi_tgt_done = true;
-							pr->data[0] = 0xff00 & (tmpw<<8);
+							pr->data[2*i+1] = 0xff & tmpw;
 							spi_rx_transfer(pth, 1, &tmpw, 1, 0/*ctrl/sts*/); // low byte
 							while (spi_tgt_done) ;
-							pr->data[0] |= (0xff & tmpw);
+							pr->data[2*i] = (0xff & tmpw);
 						}
 #ifdef TEST_FLASH
 	wtmp = *(uint32_t*)(~0x3&(ul_page_addr_c+pt->addr));
@@ -1917,10 +1917,10 @@ _reg_acs:
 							spi_tx_transfer(pth, 1, &tmpw, 1, 0/*ctrl/sts*/);
 						for (i=0; i<pt->dcnt/2; i++) {
 							while (spi_tgt_done) ; spi_tgt_done = true;
-							*pth = (0x0ff & (pt->data[0]>>8)); // high byte
+							*pth = (uint16_t)pt->data[2*i+1]; // high byte
 							spi_tx_transfer(pth, 1, &tmpw, 1, 0/*ctrl/sts*/);
 							while (spi_tgt_done) ; spi_tgt_done = true;
-							*pth = (0x0ff & pt->data[0]); // low byte
+							*pth = (uint16_t)pt->data[2*i]; // low byte
 							spi_tx_transfer(pth, 1, &tmpw, 1, 0/*ctrl/sts*/);
 							while (spi_tgt_done) ;
 						} delay_us(1);
