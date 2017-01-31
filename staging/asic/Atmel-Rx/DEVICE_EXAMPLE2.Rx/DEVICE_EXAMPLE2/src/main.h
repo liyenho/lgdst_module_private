@@ -30,7 +30,7 @@
   #define USB_STREAM_LEN								0
 #define USB_HOST_MSG_TX_VAL						0x5
 #define USB_HOST_MSG_RX_VAL						0x9
-  #define HOST_BUFFER_SIZE							(128-1)
+  #define HOST_BUFFER_SIZE							(256-1)
   #define USB_HOST_MSG_IDX						0x1	// data instead comm interface
   #define USB_HOST_MSG_LEN						sizeof(dev_access)
 #define RADIO_SPI_BR								1000000
