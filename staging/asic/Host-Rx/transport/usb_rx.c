@@ -36,9 +36,6 @@ char upgrade_fwm_path[160]; // upgrade firmware path
 #define ATMEL_END2END
 #ifdef ATMEL_END2END
 	volatile uint8_t main_loop_on = false;  // run time indicator
-  #define CTRL_OUT		(LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_ENDPOINT_OUT)
-  #define CTRL_IN		(LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_ENDPOINT_IN)
-  #define USB_RQ			0x04
  #include "usb_rx.h"  // definitions for host/fpga access @ rx
  int shmid_Lgdst = -1;
  volatile ipcLgdst *shmLgdst_proc = 0;
@@ -143,7 +140,7 @@ static unsigned char radio_rpacket[RADIO_USR_RX_LEN+RADIO_INFO_LEN]__attribute__
 #endif
 
 static bool detached = false;
-static struct libusb_device_handle *devh = NULL;
+/*static*/ struct libusb_device_handle *devh = NULL;
 /*static*/volatile int do_exit = 0;	// main loop breaker
 static pthread_t poll_thread= 0,
 									lgdst_thread = 0,
@@ -237,7 +234,6 @@ static void perror_exit(char *message, int status)
 #if (TEST==2)
 static int stream_block() {
 	int r = 0, transferred;
-//#if !defined(PES_HDR_PROT) && !defined(PES_FRM_PROT)
 	r=libusb_bulk_transfer(
 		devh,
 		EP_DATA,
@@ -259,17 +255,6 @@ skip:
 		//if (0!=transferred)
 		  //printf("xxx transferred = %d xxx\n",transferred);
 		return -2; }
-/*#else
-	static FILE *fdbg = 0;
- #if !defined(PES_FRM_PROT)
-	if (!fdbg) fdbg = fopen("php_tx.dbg", "rb");
- #else
-	if (!fdbg) fdbg = fopen("tsp_tx.dbg", "rb");
- #endif
-	r = fread(audbuf, 1, FRAME_SIZE_A, fdbg);
-	if (FRAME_SIZE_A != r)
-		return -1;	// eof
-#endif*/
 	return 0;
 }
 #endif
@@ -656,394 +641,7 @@ bool open_ini(int *setting_rec)
 	return true;
 }
 #endif
-#ifdef PES_HDR_PROT
- //#define PHP_DBG
-  	uint32_t chksm_exam_pes_hdr(uint32_t size, uint8_t *tsbuf)
- 		{
-	 		bool skip_pkt = false;
-	 		uint32_t  frames = size;
-	 		uint8_t adp, *pbp, *pb = tsbuf;
-	 		uint16_t chk1, chksm=0;
-	 		uint32_t i, n;
-			for (i=0; i<size/188; chksm=0, i++) {
-				if (skip_pkt) {
-					memcpy(pb-188, pb, 188);
-					frames -= 188;
-				}
-				adp = 0x30 & *(pb+0x3) ;
-				if ((0x40 == *(pb+0x1)) && (0x10 & adp)) {
-					if (*(pb+0x4) && 0x0==*(pb+0x5)) {
-						if (2<*(pb+0x4)) {
-							// packets from pre-defined tables, all 0xff came after 0x0 are stuffing bytes
-							chk1 = *(uint16_t*)(pb+0x6);
-							*(uint16_t*)(pb+0x6) = 0xffff;
-							for (n=0; n<188; n+=sizeof(uint16_t)) {
-								chksm ^= (uint16_t)*(pb+n);
-							}
-							if (chksm != chk1) {
-	 #ifdef PHP_DBG
-	 			fprintf(stderr, "0x%02x, 0x%02x, 0x%02x, 0x%02x, 0x%02x, 0x%02x, 0x%02x, 0x%02x\n",
-	 							*(pb+0), *(pb+1), *(pb+2), *(pb+3), *(pb+4), *(pb+5), *(pb+6), *(pb+7));
-	 #endif
-								skip_pkt = true;
-							} else {
-								skip_pkt =false;
-							}
-						}
-					}
-					else if (0x10 == adp ) {
-						pbp = pb + 0x4; // jump to start adr of pes
-						chk1 = *(uint16_t*)pbp;
-						*(uint16_t*)pbp = 0x0000;
-						for (n=0; n<188; n+=sizeof(uint16_t)) {
-							chksm ^= (uint16_t)*(pb+n);
-						}
-						if (chksm != chk1) {
- #ifdef PHP_DBG
- 			fprintf(stderr, "0x%02x, 0x%02x, 0x%02x, 0x%02x, 0x%02x, 0x%02x\n",
- 							*(pb+0), *(pb+1), *(pb+2), *(pb+3), *(pb+4), *(pb+5));
- #endif
-							skip_pkt = true;
-						} else {
-							skip_pkt =false;
-						}
-					} else { // with adaptation field
-						if (2<*(pb+0x4)) {
-							pbp = (pb+0x4)+ *(pb+0x4)+1; // jump to start adr of pes
-							for (chk1 = 0,n=0; n<sizeof(uint16_t); n++) {
-								chk1 |= ((uint16_t)*pbp)<<(n*8);
-								*pbp++ = 0x00;
-							}
-							for (n=0; n<188; n+=sizeof(uint16_t)) {
-								chksm ^= (uint16_t)*(pb+n);
-							}
-							if (chksm != chk1) {
-	 #ifdef PHP_DBG
-	 			fprintf(stderr, "0x%02x, 0x%02x, 0x%02x, 0x%02x\n", *(pb+0), *(pb+1), *(pb+2), *(pb+3));
-	 			uint32_t n1 = *(pb+4)>>2;
-	 			for (n=0; n<n1; n++)
-		 			fprintf(stderr, "0x%02x, 0x%02x, 0x%02x, 0x%02x\n",
-	 							*(pb+4*n+4), *(pb+4*n+5), *(pb+4*n+6), *(pb+4*n+7));
-	 			if (3 & *(pb+4)) {
-		 			switch(3 & *(pb+4)) { // last two are of chksum
-			 			case 1 : fprintf(stderr, "0x%02x, 0x%02x, 0x%02x\n",
-			 								*(pb+4*n+4), *(pb+4*n+5), *(pb+4*n+6));
-			 							break;
-			 			case 2 : fprintf(stderr, "0x%02x, 0x%02x, 0x%02x, 0x%02x\n",
-			 								*(pb+4*n+4), *(pb+4*n+5), *(pb+4*n+6),  *(pb+4*n+7));
-			 							break;
-			 			case 3 : fprintf(stderr, "0x%02x, 0x%02x, 0x%02x, 0x%02x, 0x%02x\n",
-			 								*(pb+4*n+4), *(pb+4*n+5), *(pb+4*n+6), *(pb+4*n+7), *(pb+4*n+8));
-			 							break;
-		 			}
-	 			} else { // these are of chksum
-		 			fprintf(stderr, "0x%02x, 0x%02x\n", *(pb+4*n+4), *(pb+4*n+5));
-		 		}
-	 #endif
-								skip_pkt = true;
-							} else {
-								skip_pkt = false;
-							}
-						}
-					}
-				} else
-				skip_pkt = false;
-				pb += 188;
-			}
-			return frames;
-		}
-#endif
-#ifdef PES_FRM_PROT
- //#define TSP_DBG
-	void func_chksm_internal(uint32_t size, uint8_t *pb, bool *skip_pkt) {
-	 	uint16_t chk1, chksm=0;
-		uint32_t i, n;
-		uint8_t tmp;
-			for (i=0; i<size/188; chksm=0, i++) {
-				// scan only video packets
-				tmp = 0xc0 & *(pb+3);
-				if (VIDEO == tmp) {
-					if (0x80 & *(pb+1)) {  // TEI bit flagged
-						*skip_pkt = true;
-					}
-					else if (!(*(pb+1) & 0x20)) {
-						chk1 = *(pb+2);  // fetch 13 bit checksum
-						chk1 |= (0x1f & (uint16_t)*(pb+1)) << 8;
-						// restore pid prior to calc chksm
-						*(pb+0x2) = VIDEO_PID;
-						*(pb+0x1) = (0xc0 & *(pb+0x1)) | (0x1f & (VIDEO_PID>>8));
-						for (n=0; n<188; n+=sizeof(uint16_t)) {
-							chksm ^= *(uint16_t*)(pb+n);
-						}
-						chksm &= 0x1fff;
-						if (chksm != chk1 ) {
-							*skip_pkt = true;
-						}
-					} else {
-					*skip_pkt = true; // there must be error(s)
-					}
-				}
-				pb += 188;
-			}
-		}
-		uint32_t output_packets (uint8_t *chkbuf, uint8_t *retbuf, uint32_t *vb, uint32_t ve, bool *skip_pkt) {
-				uint32_t i, j, retsz = 0;
-				uint8_t tmp, *pb, *pbr;
-				uint16_t chk1, chksm=0;
-				pb = chkbuf + *vb;
-				pbr = retbuf;
-#define ADD_PACKET \
-									*(pb+3) &= ~0xc0; \
-									memcpy(pbr , pb, 188); \
-									pbr += 188; \
-									retsz += 188;
-				for (i=0; i<(ve-*vb)/188; chksm=0, i++) {
-					tmp = 0xc0 & *(pb+3);
-					if (VIDEO != tmp) {
-						if (!(0x80 & *(pb+1))) {
-							if (!(*(pb+1) & 0x20)) {
-								chk1 = *(pb+2);  // fetch 13 bit checksum
-								chk1 |= (0x1f & (uint16_t)*(pb+1)) << 8;
-								// restore pid prior to calc chksm
-									uint16_t pid ;
-									switch(tmp) {
-										case PMT:
-											pid = PMT_PID; break;
-										case AUDIO:
-											pid = AUDIO_PID; break;
-										default: {
-											goto tp_skip; // packet with errors, dropped
-										}
-									}
-									*(pb+0x2) = pid;
-									*(pb+0x1) = (0xc0 & *(pb+0x1)) | (0x1f & (pid>>8));
-								for (j=0; j<188; j+=sizeof(uint16_t)) {
-									chksm ^= *(uint16_t*)(pb+j);
-								}
-								chksm &= 0x1fff;
-								if (chksm == chk1 ) {
-									ADD_PACKET
-								}
-							} else {
-								*(pb+1) &= ~0x20; // reset transport priority bit
-								ADD_PACKET
-							}
-						}
-					} else { // video packets
-						if (!*skip_pkt) {
-							ADD_PACKET
-						}
-					}
-tp_skip:
-					pb += 188;
-				}
-#undef ADD_PACKET
-				*skip_pkt = false;
-				*vb = ve;
-			 	return retsz;
-			}
-  	uint32_t chksm_exam_pkt_ts(uint32_t size, uint8_t *tsbuf, uint8_t *retbuf)
- 		{
-//#include <assert.h>
-	 		const int chkbuf_size = FRAME_SIZE_A*ERR_CHK_BUFFS ;
-			static uint8_t got_video_frame = 0,
-										chkbuf[FRAME_SIZE_A*ERR_CHK_BUFFS ]__attribute__((aligned(8)));
-			static uint32_t vb= 0,  chk1idx =0, chk_index = 0;
-	 		static bool skip_pkt/*[4]*/ = false; // four types of TS expected, concern only video
-	 		uint8_t tmp, *pbr= retbuf, *pb = tsbuf;
-	 		uint16_t pid;
-	 		uint32_t i, n, ve, retsz =0;
-	 		if (!got_video_frame) {
-			 	// if we don't buffer enough TS packets yet
-				for (i=0; i<size/188; i++) {
-					tmp = 0xc0 & *(pb+3);
-					if ((0x40 & *(pb+0x1)) && (VIDEO == tmp)) {
-						vb = i * 188 ;
-						got_video_frame = 1;
-						i ++ ; pb += 188;
-						goto video_start_found;
-					}
-					pb += 188;
-				}
-				return 0;  // not found any video packet yet
-			} else {
-				bool found ;
-				i = 0;
-				pb = chkbuf+chk_index;
-video_start_found:
-				found = false;
-				//assert(chkbuf_size >= chk_index + size);
-				if (chkbuf_size < chk_index + size) {
-					chk1idx = chk_index = 0;
-					got_video_frame = 0;
-					return 0;	// error protection
-				}
-				memcpy(chkbuf+chk_index, tsbuf, size);
-					for (; i<size/188; i++) {
-						tmp = 0xc0 & *(pb+3);
-						if ((0x40 & *(pb+0x1)) && (VIDEO == tmp)) {
-							ve = chk_index + i*188;
-							func_chksm_internal(ve-vb, chkbuf+chk1idx+vb, &skip_pkt);
-							retsz += output_packets (chkbuf, pbr+retsz, &vb, ve, &skip_pkt);
-							found = true;
-						}
-						pb += 188;
-					}
-				if (found) {
-					chk1idx = chk_index;
-				}
-				chk_index += size;
-				if (!retsz)  // not found entire video frame yet
-					return 0;
-			}
-			if (chk_index > size) {
-				memmove(chkbuf, chkbuf+chk_index-size, size);
-			 	vb -= (chk_index-size);
-			 	chk1idx = 0;
-			 	chk_index = size;
-		 	}
-			if (1 & (retsz/188)) { // append a null packet if # of return packets is odd
-			 	memcpy(pbr+retsz, nullts, sizeof(nullts));
-			 	retsz += 188;
-			}
-			return retsz;
-		}
-#elif defined(PES_FRM_PROT1)
-	uint32_t TEI_exam_pkt_ts(uint32_t size, uint8_t *tsbuf, uint8_t *retbuf)
-	{
-//#include <assert.h>
-			const static int chkbuf_size = FRAME_SIZE_A*ERR_CHK_BUFFS ;
-		  const static int pidvid = (TSTYPE==0)?0x40:
-                     				((TSTYPE==1)?0x200:
-                                0x100);
-			static uint8_t got_video_frame = 0,
-										chkbuf[FRAME_SIZE_A*ERR_CHK_BUFFS]__attribute__((aligned(8)));
-			static int32_t vb= 0,  chk_index = 0;
-	 		uint8_t *pbr= retbuf, *pb = tsbuf;
-#ifdef DBG_PROT1
-	 		int32_t remain ;
-#endif
-	 		int32_t i, n, ve, tmp, retsz0= 0, retsz =0;
-	 		if (!got_video_frame) {
-			 	// if we don't buffer enough TS packets yet
-				for (i=0; i<size/188; i++) {
-					if ((0x40 & *(pb+0x1)) &&
-							((*(pb+0x1)&0x1f)==((pidvid>>8)&0x1f))  &&
-          				((*(pb+0x2)&0xff)==((pidvid)   &0xff))) {
-						vb = i * 188 ;
-						got_video_frame = 1;
-						retsz0 = i++ * 188;
-						pb += 188;
-#ifndef DBG_PROT1
-						memcpy(pbr, tsbuf, retsz0);
-						pbr += retsz0;
-#else
-						if (dbg_fp.first_access) {
-						   dbg_fp.wrptr -= retsz0;
-						   dbg_fp.first_access = false;
-						}
-						DBG_PROT1_CHECK1(retsz0, tsbuf)
-#endif
-						retsz += retsz0;
-						goto video_start_found;
-					}
-					pb += 188;
-				}
-#ifndef DBG_PROT1
-				memcpy(retbuf, tsbuf, size);
-#else
-				DBG_PROT1_CHECK
-#endif
-				return size;  // not found any video packet yet
-			} else {
-				i = 0;
-				pb = chkbuf+chk_index;
-video_start_found:
-				//assert(chkbuf_size >= chk_index + size);
-				if (chkbuf_size < chk_index + size) {
-					puts("video TS buffer is too small");
-					chk_index = 0;
-					got_video_frame = 0;
-#ifndef DBG_PROT1
-					memcpy(retbuf, tsbuf, size);
-#else
-					DBG_PROT1_CHECK
-#endif
-					return size;	// error protection
-				}
-				memcpy(chkbuf+chk_index, tsbuf, size);
-					for (; i<size/188; i++) {
-						if ((0x40 & *(pb+0x1)) &&
-							((pb[1]&0x1f)==((pidvid>>8)&0x1f))  &&
-          				((pb[2]&0xff)==((pidvid)   &0xff))) {
-							ve = chk_index + i*188;
-							//assert(0==((ve-vb)%188));
-							if ((ve-vb) != ((ve-vb)/188)*188)
-								perror_exit("invalid video frame size, not divided into 188",-1);
-							uint8_t *pb1 = chkbuf+vb;
-							tmp = ve - vb; // total bytes go out
-							bool bad = false;
-							for (n=0; n<tmp/188; pb1+=188, n++) {
-								if ((0x80 & *(pb1+1)) && // check upon only video packet
-									((pb1[1]&0x1f)==((pidvid>>8)&0x1f))  &&
-          						((pb1[2]&0xff)==((pidvid)   &0xff))) {
-									 // if error flagged by Siano, replaced with null packet
-									 bad = true;
-									 break;
-								}
-							}
-							if (bad) {
-								pb1 = chkbuf+vb;
-								for (n=0; n<tmp/188; pb1+=188, n++) {
-									if (((pb1[1]&0x1f)==((pidvid>>8)&0x1f))  &&
-	          						((pb1[2]&0xff)==((pidvid)   &0xff))) {
-										 // if error flagged by Siano, replaced with null packet
-										 memcpy(pb1, nullts, sizeof(nullts));
-									}
-								}
-							}
-#ifndef DBG_PROT1
-							memcpy(pbr, chkbuf+vb, tmp);
-							pbr += tmp;
-#else
-							DBG_PROT1_CHECK1(tmp, chkbuf+vb)
-#endif
-							retsz += tmp;
-							vb = ve;
-						}
-						pb += 188;
-					}
-				chk_index += size;
-				if (!retsz)  // not found entire video frame yet
-					return 0;
-				if (retsz0 == retsz) {
-				  	 if (1 & (retsz0/188)) {
-#ifndef DBG_PROT1
-				  	 	memcpy(retbuf+retsz0, nullts, sizeof(nullts));
-			 			retsz0 += 188;
-#else
-						DBG_PROT1_CHECK1(188, nullts)
-#endif
-				  	 }
-				  	 return retsz0;
-				}
-			}
-			if (chk_index > size) {
-				memmove(chkbuf, chkbuf+chk_index-size, size);
-			 	vb -= (chk_index-size);
-			 	chk_index = size;
-		 	}
-			if (1 & (retsz/188)) { // append a null packet if # of return packets is odd
-#ifndef DBG_PROT1
-			 	memcpy(pbr, nullts, sizeof(nullts));
-			 	retsz += 188;
-#else
-				DBG_PROT1_CHECK1(188, nullts)
-#endif
-			}
-			return retsz;
-	}
-#endif
+
 int main(int argc,char **argv)
 {
    char udpaddr[20];
@@ -1393,6 +991,23 @@ upgrade_firmware:
 	printf("rx rffe is running...\n");
 	short_sleep(0.5);
  #endif // CONFIG_ADI_6613
+ 	uint8_t var[2], chip_version = 0;
+ 	uint32_t chip_Type, version = 0;
+		r = Standard_readRegisters(0, Processor_LINK, /*chip_version_7_0*/0x0/*???*/, 1, &chip_version);
+		if (r) goto _exit;
+		r = Standard_readRegisters(0, Processor_LINK, /*chip_version_7_0*/0x0+1/*???*/, 2, var);
+		if (r) goto _exit;
+		chip_Type = var[1]<<8 | var[0];
+		r = Standard_getFirmwareVersion (Processor_LINK, &version);
+		if (r) goto _exit;
+		if (version != 0) {
+			puts("IT913X firmware is booted");
+		} else {
+			puts("IT913X firmware is not booted");
+		}
+
+		goto _exit ;	// tentative for debug purpose, liyenho
+
         //Kevin:  Put head here 0xAB0005 for Atmel alginments
 			vidbuf[0] = 0xAB;
 			vidbuf[1] = 0x00;
@@ -1625,35 +1240,12 @@ upgrade_firmware:
 		*((uint16_t*)audbuf+ii++) = ((0xff & llw)<<8) | (0xff & (llw>>8));
  	}
  #endif
- #if defined(PES_HDR_PROT) || defined(PES_FRM_PROT) || defined(PES_FRM_PROT1)
-  		uint32_t frames_len;
-  	 #ifdef PES_HDR_PROT
-  		frames_len = chksm_exam_pes_hdr(sz, audbuf);
-  	 #else
-  	  #ifdef PES_FRM_PROT
-  		frames_len = chksm_exam_pkt_ts(sz, audbuf, retbuf);
-  	  #else // PES_FRM_PROT1
-/*static FILE *f1 = 0;	// enabled video dump for debug, liyenho
-if (!f1) f1 = fopen("video_dbg0.ts","wb");
-fwrite(audbuf, sz, 1, f1);
-fflush(f1);*/
-		 frames_len = TEI_exam_pkt_ts(sz, audbuf, retbuf);
-     #endif
-		if (!frames_len) goto frm_inc;
-  	 #endif
- #endif
 #endif // REC
 #endif // TEST==2
 	#ifdef REC
-	  #if !defined(PES_FRM_PROT) && !defined(PES_FRM_PROT1)
      tsptsadj(audbuf, FRAME_SIZE_A, pidvid, pidpcr);
-     #endif
 		if (ITERS==tag)
-		 #if !defined(PES_HDR_PROT) && !defined(PES_FRM_PROT) && !defined(PES_FRM_PROT1)
 			r = FILE_LEN - tag*FRAME_SIZE_A;
-		 #else
-			r = frames_len;
-		 #endif
   //#endif
 	#else
 		if (ITERS-1==tag)
@@ -1667,11 +1259,7 @@ fflush(f1);*/
 	#ifndef REC
 			r = FRAME_SIZE_A;
 	#else
-	  #if defined(PES_HDR_PROT) || defined(PES_FRM_PROT) || defined(PES_FRM_PROT1)
-			r = frames_len;
-		#else
 			r = FRAME_SIZE_A;
-		#endif
 	#endif
   //#endif
 #ifdef REC

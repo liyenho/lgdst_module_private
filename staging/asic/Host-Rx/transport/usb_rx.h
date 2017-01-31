@@ -3,12 +3,6 @@
 #define RADIO_SI4463
 #define SI4463_CRYSTAL_32MHZ
 #define RFFE_PARAMS
-//#define PES_HDR_PROT
-//#define PES_FRM_PROT
-//#define PES_FRM_PROT1	// non-intrusive frame level protection...
-#if defined(PES_HDR_PROT) ||defined(PES_FRM_PROT) ||defined(PES_FRM_PROT1)
-	#undef REALIGN_TS_PKT
-#endif
 #define SHMKEY_TX 1234	 //tx shared memory key for IPC between lgdst/core
 #define SHMKEY_RX 5678	 //rx shared memory key for IPC between lgdst/core
 	// do not hard code unless it is spec not easy to change, null packet after each valid packet isn't that persistent, liyenho
@@ -16,6 +10,10 @@
 #define TSTYPE   2/*0*/      //0 sn thinker stream
                          //1 yuneec dvb.ts type
                          //2 yuneec new camera type
+#define CTRL_OUT		(LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_ENDPOINT_OUT)
+#define CTRL_IN		(LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_ENDPOINT_IN)
+#define USB_RQ			0x04
+
 typedef int bool;
 
 #define HOST_BUFFER_SIZE						(128-1) // max data len-1
@@ -96,18 +94,6 @@ typedef enum {
 #define CTRL_RECV_FIFODEPTH  8
 
 #endif
-#if defined(PES_FRM_PROT) || defined(PES_FRM_PROT1)
-	// to encode them into scarmbling control field (2 bits)
-  #define PAT																		(0<<(2+4))
-   #define PAT_PID														0x0
-  #define PMT																	(1<<(2+4))
-   #define PMT_PID														/*0x1*/ 0x100
-  #define VIDEO																(2<<(2+4))
-   #define VIDEO_PID													0x200 /*0x40*/
-  #define AUDIO																(3<<(2+4))
-   #define AUDIO_PID												0x201
-  	#define ERR_CHK_BUFFS									160	// in case of huge I frame size
-#endif
 //#ifdef CONF_BOARD_USB_RX
   #define USB_HOST_MSG_IDX						0x1	// data instead comm interface
   #define USB_HOST_MSG_LEN						sizeof(dev_access)
@@ -121,6 +107,8 @@ typedef enum {
  #ifdef CONFIG_RFFC_2072
   #include "RFFC2072_set.h"
  #endif
+ #include "error.h"
+ #include "cmd.h"
 #ifdef SMS_DVBT2_DOWNLOAD
   #define EXTRA												16  // randomly send more data on bulk pipe
   //#define SMS_FW_FNAME							"SMS4470_A2_DVBT2_MRC_Firmware_(2.0.0.89b).bin"
@@ -136,17 +124,7 @@ typedef enum {
   #define USB_SMS_DATA_VAL					0x8
 	//#define FWM_DNLD_DBG
 	//#define DAT_DNLD_DBG
-/* sms4470 comm header */
- typedef struct SmsMsgHdr_S
- {
-	uint16_t 	msgType;
-	uint8_t	 msgSrcId;
-	uint8_t	 msgDstId;
-	uint16_t	msgLength;	// Length is of the entire message, including header
-	uint16_t	msgFlags;
- } /*SmsMsgHdr_ST*/sms_access;
-  #define USB_SMS_MSG_IDX						0x0
-  #define USB_SMS_MSG_LEN						sizeof(sms_access)
+#endif
 typedef enum
 {
     SMSHOSTLIB_DEVMD_DVBT,
@@ -168,6 +146,7 @@ typedef enum
     SMSHOSTLIB_DEVMD_MAX,
     SMSHOSTLIB_DEVMD_NONE = 0xFFFFFFFF
 } SMSHOSTLIB_DEVICE_MODES_E;
-#endif
+
+#define Cmd_buildCommand(command, processor, chip)  (command + (uint16_t) (processor << 12) + (uint16_t) (chip << 12))
 #endif
 
