@@ -652,14 +652,8 @@ static void spi_slave_initialize(void) // only for video if run on evm
 	spi_set_master_mode(base);
 	spi_disable_mode_fault_detect(base);
 	spi_set_peripheral_chip_select_value(base, SPI_CHIP_SEL);
- #ifdef RADIO_SI4463
- if (2/*data from si4463*/ == ch) {
 	 spi_set_clock_polarity(base, SPI_CHIP_SEL, 0/*clk idle state is low*/);
- 	spi_set_clock_phase(base, SPI_CHIP_SEL, 1/*captured @ rising, transit @ falling*/); }
- else // ctrl/sts/video
- #endif
-	{ spi_set_clock_polarity(base, SPI_CHIP_SEL, SPI_CLK_POLARITY);
-	spi_set_clock_phase(base, SPI_CHIP_SEL, SPI_CLK_PHASE); }
+ 	spi_set_clock_phase(base, SPI_CHIP_SEL, 1/*captured @ rising, transit @ falling*/);
  #ifdef RADIO_SI4463
  if (2/*data from si4463*/ == ch)
 	spi_set_bits_per_transfer(base, SPI_CHIP_SEL,
@@ -670,14 +664,8 @@ static void spi_slave_initialize(void) // only for video if run on evm
 			(ch)?SPI_CSR_BITS_16_BIT:SPI_CSR_BITS_8_BIT);  // either 8 or 16 bit spi xfer, liyenho
 	spi_set_baudrate_div(base, SPI_CHIP_SEL,
 			(sysclk_get_cpu_hz() / gs_ul_spi_clock [ch]));
-#ifdef RADIO_SI4463
-	if (2/*data from si4463*/ == ch)
 		spi_set_transfer_delay(base, SPI_CHIP_SEL, 0x10/*delay between bytes*/,
 			0x10/*delay between spi xfer*/);
-	else // ctrl/sts and video
-#endif
-	spi_set_transfer_delay(base, SPI_CHIP_SEL, SPI_DLYBS,
-			SPI_DLYBCT);
 	spi_enable(base);
 #ifdef TEST_SPI
 	spi_enable_loopback(base);
@@ -1483,7 +1471,9 @@ system_restart:  // system restart entry, liyenho
  #endif
 #endif
  #ifdef CONFIG_RF2072
+ 		pio_set_output(PIOA, PIO_PA17, HIGH, DISABLE, ENABLE); // set enbl to low after inverted
 		pio_set_output(PIOA, PIO_PA16, HIGH, DISABLE, ENABLE); // rf2072 out of reset
+		pio_set_output(PIOA, PIO_PA23, LOW, DISABLE, ENABLE); // flag to signal cpld to insert 1 sdio clk pulse, rf2072 access
 		pio_set_output(PIOA, CPLD_2072_TRIG, HIGH, DISABLE, ENABLE); // extra trigger line for 2072 access with cpld, liyenho
 		if (system_upgrade)
 			upgrade_sys_fw(system_upgrade);
@@ -1795,23 +1785,49 @@ _reg_acs:
 						pio_clear (PIOA, PIO_PA16);
 						delay_ms(1);
 						pio_set (PIOA, PIO_PA16);
+						delay_us(1);
+						pio_clear (PIOA, PIO_PA17); // keep enbl low
+						while (spi_tgt_done) ; // flush any pending spi xfer
+							spi_tgt_done = true;
+							// setup spi to write addressed data
+							pio_clear(PIOA, CPLD_2072_TRIG);
+						delay_us(1);
+						  pio_set(PIOA, PIO_PA23);
+						delay_us(1);
+						  pio_clear(PIOA, PIO_PA23);
+						delay_us(1);
+							*pth = 0x7f & 0x9; // set relock in PLL_CTRL
+							spi_tx_transfer(pth, 1, &tmpw, 1, 0/*ctrl/sts*/);
+							while (spi_tgt_done) ; spi_tgt_done = true;
+							*pth = (uint16_t)0x0; // high byte
+							spi_tx_transfer(pth, 1, &tmpw, 1, 0/*ctrl/sts*/);
+							while (spi_tgt_done) ; spi_tgt_done = true;
+							*pth = (uint16_t)0x8; // low byte
+							spi_tx_transfer(pth, 1, &tmpw, 1, 0/*ctrl/sts*/);
+							while (spi_tgt_done) ;
+						 delay_us(1);
+						 pio_set(PIOA, CPLD_2072_TRIG);
 						break;
 				case RF2072_READ:
 						assert(!(pt->dcnt & 1));
 						while (spi_tgt_done) ; // flush any pending spi xfer
 							spi_tgt_done = true;
 							pio_clear(PIOA, CPLD_2072_TRIG);
-							*pth = 0x1|(pt->addr<<1); // read access
-						 for (i=0; i<pt->dcnt/2; i++) {
+						delay_us(1);
+						  pio_set(PIOA, PIO_PA23);
+						delay_us(1);
+						  pio_clear(PIOA, PIO_PA23);
+						delay_us(1);
+							*pth = 0x80| (0x7f&pt->addr); // read access
 							spi_tx_transfer(pth, 1, &tmpw, 1, 0);
-							while (spi_tgt_done);  spi_tgt_done = true;
+							while (spi_tgt_done);
+							spi_tgt_done = true;
 							spi_rx_transfer(pth, 1, &tmpw, 1, 0/*ctrl/sts*/); // high byte
 							while (spi_tgt_done) ; spi_tgt_done = true;
-							pr->data[2*i+1] = 0xff & tmpw;
+							pr->data[1] = 0xff & tmpw;
 							spi_rx_transfer(pth, 1, &tmpw, 1, 0/*ctrl/sts*/); // low byte
 							while (spi_tgt_done) ;
-							pr->data[2*i] = (0xff & tmpw);
-						}
+							pr->data[0] = (0xff & tmpw);
 #ifdef TEST_FLASH
 	wtmp = *(uint32_t*)(~0x3&(ul_page_addr_c+pt->addr));
 	shf = ((ul_page_addr_c+pt->addr) & 0x3) * 8;
@@ -1825,17 +1841,22 @@ _reg_acs:
 							spi_tgt_done = true;
 							// setup spi to write addressed data
 							pio_clear(PIOA, CPLD_2072_TRIG);
-							*pth = 0xfe & (pt->addr<<1); // write access
-							spi_tx_transfer(pth, 1, &tmpw, 1, 0/*ctrl/sts*/);
-						for (i=0; i<pt->dcnt/2; i++) {
-							while (spi_tgt_done) ; spi_tgt_done = true;
-							*pth = (uint16_t)pt->data[2*i+1]; // high byte
-							spi_tx_transfer(pth, 1, &tmpw, 1, 0/*ctrl/sts*/);
-							while (spi_tgt_done) ; spi_tgt_done = true;
-							*pth = (uint16_t)pt->data[2*i]; // low byte
+						delay_us(1);
+						  pio_set(PIOA, PIO_PA23);
+						delay_us(1);
+						  pio_clear(PIOA, PIO_PA23);
+						delay_us(1);
+							*pth = 0x7f & pt->addr; // write access
 							spi_tx_transfer(pth, 1, &tmpw, 1, 0/*ctrl/sts*/);
 							while (spi_tgt_done) ;
-						} delay_us(1);
+							spi_tgt_done = true;
+							*pth = (uint16_t)pt->data[1]; // high byte
+							spi_tx_transfer(pth, 1, &tmpw, 1, 0/*ctrl/sts*/);
+							while (spi_tgt_done) ; spi_tgt_done = true;
+							*pth = (uint16_t)pt->data[0]; // low byte
+							spi_tx_transfer(pth, 1, &tmpw, 1, 0/*ctrl/sts*/);
+							while (spi_tgt_done) ;
+						  delay_us(1);
 							pio_set(PIOA, CPLD_2072_TRIG);
 							break;
 				case IT913X_READ:

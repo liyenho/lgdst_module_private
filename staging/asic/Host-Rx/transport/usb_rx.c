@@ -563,8 +563,9 @@ static void *lgdst_thread_main(void *arg)
 
 static void rffe_write_regs(dev_cfg* pregs, int size)
 {
-	int32_t i, msg[80]; // access buffer
-  	dev_access *acs = (dev_access*)msg;
+	int32_t i, msg[2][80]; // access buffer
+  	dev_access *acs = (dev_access*)msg[0],
+  							*ech = (dev_access*)msg[1];
 	uint16_t *conv= (uint16_t*)acs->data; // 2 bytes to 1 short, liyenho
 	 	dev_access echo; // atmel shall echo write cmd hdr back
     	  acs->dcnt = sizeof(pregs[i].data);
@@ -579,7 +580,7 @@ retry:
 						USB_HOST_MSG_IDX,
 						acs, sizeof(*acs)+(acs->dcnt-1), 0);
 		short_sleep(0.1); 	// validate echo after 0.1 sec
-		printf("xxxxxx 0x%04x @ 0x%x written xxxxxx\n",acs->data[0],acs->addr);
+		printf("xxxxxx 0x%04x @ 0x%x written xxxxxx\n",*(uint16_t*)acs->data,acs->addr);
     	  acs->access = RF2072_READ;
     	  acs->addr = pregs[i].addr;
 		  libusb_control_transfer(devh,
@@ -592,16 +593,16 @@ retry:
 					  	CTRL_IN, USB_RQ,
 					  	USB_HOST_MSG_RX_VAL,
 					  	USB_HOST_MSG_IDX,
-					  	&echo, sizeof(*acs), 0))
+					  	ech, sizeof(*acs)+(acs->dcnt-1), 0))
 			short_sleep(0.0005);
 		short_sleep(0.1); // gap after 0.1 sec
 #if false
-   	if(echo.data[0] != pregs[i].data) {
-	   	printf("xxxxxx 0x%04x @ 0x%x mis-matched xxxxxx\n",echo.data[0],acs->addr);
+   	if(*(uint16_t*)ech->data != pregs[i].data) {
+	   	printf("xxxxxx 0x%04x @ 0x%x mis-matched xxxxxx\n",*(uint16_t*)ech->data,ech->addr);
 			goto retry;
 		}
 #else
-		printf("xxxxxx 0x%04x @ 0x%x received xxxxxx\n",echo.data[0],acs->addr);
+		printf("xxxxxx 0x%04x @ 0x%x received xxxxxx\n",*(uint16_t*)ech->data,ech->addr);
 #endif
 	}
 }
@@ -970,13 +971,24 @@ upgrade_firmware:
 		perror_exit("lgdst thread creation error", r);
   #ifdef ATMEL_END2END
     extern int short_sleep(double sleep_time);
-  	static int32_t i, sz, msg[80]; // access buffer
+  	static int32_t i, sz, msg[2][80]; // access buffer
+	dev_access *acs = (dev_access*)msg[0],
+							*ech = (dev_access*)msg[1];
   #endif
 #ifdef REC
-	dAccess cmMem ;
-	dev_access *acs = &cmMem.hdr;
-	open_ini(&chsel_2072);
+	do {
+		 libusb_control_transfer(devh,
+				CTRL_IN, USB_RQ,
+				USB_STREAM_ON_VAL,
+				USB_QUERY_IDX,
+				&main_loop_on, sizeof(main_loop_on), 0);
+		if (!main_loop_on) {
+			short_sleep(1); 	// setup & settle in 1 sec
+		} else
+		break;
+	} while (1);
  #ifdef CONFIG_RFFC_2072
+	open_ini(&chsel_2072);
 	acs->access = RF2072_RESET;
 	acs->dcnt = 0; // no param
 	acs->addr = 0x0; // by wire not addr
@@ -986,11 +998,14 @@ upgrade_firmware:
 									USB_HOST_MSG_TX_VAL,
 									USB_HOST_MSG_IDX,
 									acs, sizeof(*acs), 0);
+	short_sleep(0.1);
  	sz = ARRAY_SIZE(chsel_2072);
 	rffe_write_regs(GET_ARRAY(chsel_2072), sz);
 	printf("rx rffe is running...\n");
 	short_sleep(0.5);
  #endif // CONFIG_ADI_6613
+		ready_wait_for_mloop = true;	// tentative for debug purpose, liyenho
+
  	uint8_t var[2], chip_version = 0;
  	uint32_t chip_Type, version = 0;
 		r = Standard_readRegisters(0, Processor_LINK, /*chip_version_7_0*/0x0/*???*/, 1, &chip_version);
