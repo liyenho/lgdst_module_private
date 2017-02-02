@@ -563,14 +563,12 @@ static void *lgdst_thread_main(void *arg)
 
 static void rffe_write_regs(dev_cfg* pregs, int size)
 {
-	int32_t i, msg[2][80]; // access buffer
-  	dev_access *acs = (dev_access*)msg[0],
-  							*ech = (dev_access*)msg[1];
+	int32_t i, msg[80]; // access buffer
+  	dev_access *acs = (dev_access*)msg;
 	uint16_t *conv= (uint16_t*)acs->data; // 2 bytes to 1 short, liyenho
 	 	dev_access echo; // atmel shall echo write cmd hdr back
     	  acs->dcnt = sizeof(pregs[i].data);
     for (i=0; i<size; i++) {
-retry:
     	  acs->access = RF2072_WRITE;
     	  acs->addr = pregs[i].addr;
     	  *conv = pregs[i].data;
@@ -581,29 +579,6 @@ retry:
 						acs, sizeof(*acs)+(acs->dcnt-1), 0);
 		short_sleep(0.1); 	// validate echo after 0.1 sec
 		printf("xxxxxx 0x%04x @ 0x%x written xxxxxx\n",*(uint16_t*)acs->data,acs->addr);
-    	  acs->access = RF2072_READ;
-    	  acs->addr = pregs[i].addr;
-		  libusb_control_transfer(devh,
-						CTRL_OUT, USB_RQ,
-						USB_HOST_MSG_TX_VAL,
-						USB_HOST_MSG_IDX,
-						acs, sizeof(*acs)+(acs->dcnt-1), 0);
-		short_sleep(0.1); 	// receive readback after 0.1 sec
-	  	 while(0==libusb_control_transfer(devh,
-					  	CTRL_IN, USB_RQ,
-					  	USB_HOST_MSG_RX_VAL,
-					  	USB_HOST_MSG_IDX,
-					  	ech, sizeof(*acs)+(acs->dcnt-1), 0))
-			short_sleep(0.0005);
-		short_sleep(0.1); // gap after 0.1 sec
-#if false
-   	if(*(uint16_t*)ech->data != pregs[i].data) {
-	   	printf("xxxxxx 0x%04x @ 0x%x mis-matched xxxxxx\n",*(uint16_t*)ech->data,ech->addr);
-			goto retry;
-		}
-#else
-		printf("xxxxxx 0x%04x @ 0x%x received xxxxxx\n",*(uint16_t*)ech->data,ech->addr);
-#endif
 	}
 }
 static void sigint_handler(int signum)
@@ -971,9 +946,8 @@ upgrade_firmware:
 		perror_exit("lgdst thread creation error", r);
   #ifdef ATMEL_END2END
     extern int short_sleep(double sleep_time);
-  	static int32_t i, sz, msg[2][80]; // access buffer
-	dev_access *acs = (dev_access*)msg[0],
-							*ech = (dev_access*)msg[1];
+  	static int32_t i, sz, msg[80]; // access buffer
+	dev_access *acs = (dev_access*)msg;
   #endif
 #ifdef REC
 	do {
@@ -1005,11 +979,15 @@ upgrade_firmware:
 	short_sleep(0.5);
  #endif // CONFIG_ADI_6613
 		ready_wait_for_mloop = true;	// tentative for debug purpose, liyenho
-
- 	uint8_t var[2], chip_version = 0;
+ 	uint8_t *prb, var[2], chip_version = 0;
  	uint32_t chip_Type, version = 0;
-		r = Standard_readRegisters(0, Processor_LINK, /*chip_version_7_0*/0x0/*???*/, 1, &chip_version);
-		if (r) goto _exit;
+	 msg[0] = 0x1;
+	 	r = Cmd_sendCommand (Command_QUERYINFO, 0, Processor_LINK, 1, &msg[0], 4, &msg[sizeof(msg)/2]);
+		//r = Standard_readRegisters(0, Processor_LINK, /*chip_version_7_0*/0x0/*???*/, 1, &chip_version);
+		if (r) { printf("error code = 0x%08x\n", r); goto _exit; }
+		prb = &msg[sizeof(msg)/2] ;
+		version = (uint32_t)prb[0]<<24 | (uint32_t)prb[1]<<16 | (uint32_t)prb[2]<<8 | (uint32_t)prb[3];
+		printf("firmware version (old type) = 0x%08x\n", version);
 		r = Standard_readRegisters(0, Processor_LINK, /*chip_version_7_0*/0x0+1/*???*/, 2, var);
 		if (r) goto _exit;
 		chip_Type = var[1]<<8 | var[0];
@@ -1020,7 +998,6 @@ upgrade_firmware:
 		} else {
 			puts("IT913X firmware is not booted");
 		}
-
 		goto _exit ;	// tentative for debug purpose, liyenho
 
         //Kevin:  Put head here 0xAB0005 for Atmel alginments
