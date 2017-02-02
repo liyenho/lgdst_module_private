@@ -1819,7 +1819,6 @@ _reg_acs:
 	shf = ((ul_page_addr_c+pt->addr) & 0x3) * 8;
   *(uint8_t*)pr->data = 0xff & (wtmp >> shf);
 #endif
-  volatile uint16_t readv = *(uint16_t*)pr->data; // for debug
 							READ_END_REV_2072
 							break;
 				case RF2072_WRITE:
