@@ -91,6 +91,29 @@
 #ifdef RFFE_PARAMS
  #define CONFIG_RF2072 // forced to configure rf2072 prior to startup
 	#define CPLD_2072_TRIG    PIO_PA25
+	#define ACCESS_PROLOG_2072 \
+							pio_configure(PIOB, PIO_INPUT, PIO_PB0, 0); \
+						  pio_set(PIOA, PIO_PA1); \
+						/*delay_cycles(0);*/ \
+							pio_clear(PIOA, CPLD_2072_TRIG); \
+						/*delay_cycles(0);*/ \
+						  pio_clear(PIOA, PIO_PA1); \
+						delay_us(1); /*gap active cs from 1st clk*/ \
+						  pio_set(PIOA, PIO_PA1); \
+						/*delay_cycles(0);*/ \
+						  pio_clear(PIOA, PIO_PA1); \
+						  pio_set_peripheral(PIOB, PIO_PERIPH_A, PIO_PB0);
+	#define READ_MID_PROC_2072 \
+							pio_configure(PIOB, PIO_INPUT, PIO_PB0, 0); \
+						  pio_set(PIOA, PIO_PA1); \
+						/*delay_cycles(0);*/ \
+						  pio_clear(PIOA, PIO_PA1); \
+						  pio_set_peripheral(PIOB, PIO_PERIPH_A, PIO_PB0); \
+ 						 spi_set_clock_phase(SPI0, SPI_CHIP_SEL, 0/*captured @ falling, transit @ rising*/); \
+						/*delay_cycles(0);*/
+	#define READ_END_REV_2072 \
+						 spi_set_clock_phase(SPI0, SPI_CHIP_SEL, 1/*captured @ rising, transit @ falling*/); \
+						 pio_set(PIOA, CPLD_2072_TRIG);
 #endif
 typedef enum {
 	RF2072_RESET=  0, // lastly added for rf2072 reset

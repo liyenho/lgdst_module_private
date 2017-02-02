@@ -1483,8 +1483,6 @@ system_restart:  // system restart entry, liyenho
 #endif
 //////////////////////////////////////////////////////////////////////////////
 	init_4463();  // this init function has to be after siano came up!? liyenho
-    pio_set_output(PIOA, PIO_PA17, HIGH, DISABLE, ENABLE);  //setup ctrl led monitoring control
-	pio_set(PIOA, PIO_PA17);  //turns off wifiled
 #ifdef RADIO_CTRL_AUTO
 		/* init radio stats obj */
 		{
@@ -1524,18 +1522,15 @@ system_restart:  // system restart entry, liyenho
 	  if(ctrl_sndflag == (100-1) ) {
 		if(ctrl_ledstate ==0)
 	    {
-			pio_set(PIOA, PIO_PA17);
 			ctrl_ledstate=1;
 			}
 		else
 		{
-			pio_clear(PIOA, PIO_PA17);
 			ctrl_ledstate=0;
 			} //force blinking if ctrl too fast
 	  }
 
 	  if(ctrl_sndflag ==1)  {
-	    pio_clear(PIOA, PIO_PA17);
 		ctrl_ledstate = 0;  }
 
 	  // ctrl RX Processing -----------------------------------------------
@@ -1789,13 +1784,8 @@ _reg_acs:
 						pio_clear (PIOA, PIO_PA17); // keep enbl low
 						while (spi_tgt_done) ; // flush any pending spi xfer
 							spi_tgt_done = true;
+							ACCESS_PROLOG_2072
 							// setup spi to write addressed data
-							pio_clear(PIOA, CPLD_2072_TRIG);
-						delay_us(1);
-						  pio_set(PIOA, PIO_PA23);
-						delay_us(1);
-						  pio_clear(PIOA, PIO_PA23);
-						delay_us(1);
 							*pth = 0x7f & 0x9; // set relock in PLL_CTRL
 							spi_tx_transfer(pth, 1, &tmpw, 1, 0/*ctrl/sts*/);
 							while (spi_tgt_done) ; spi_tgt_done = true;
@@ -1812,16 +1802,12 @@ _reg_acs:
 						assert(!(pt->dcnt & 1));
 						while (spi_tgt_done) ; // flush any pending spi xfer
 							spi_tgt_done = true;
-							pio_clear(PIOA, CPLD_2072_TRIG);
-						delay_us(1);
-						  pio_set(PIOA, PIO_PA23);
-						delay_us(1);
-						  pio_clear(PIOA, PIO_PA23);
-						delay_us(1);
+							ACCESS_PROLOG_2072
 							*pth = 0x80| (0x7f&pt->addr); // read access
 							spi_tx_transfer(pth, 1, &tmpw, 1, 0);
 							while (spi_tgt_done);
 							spi_tgt_done = true;
+							READ_MID_PROC_2072
 							spi_rx_transfer(pth, 1, &tmpw, 1, 0/*ctrl/sts*/); // high byte
 							while (spi_tgt_done) ; spi_tgt_done = true;
 							pr->data[1] = 0xff & tmpw;
@@ -1833,19 +1819,15 @@ _reg_acs:
 	shf = ((ul_page_addr_c+pt->addr) & 0x3) * 8;
   *(uint8_t*)pr->data = 0xff & (wtmp >> shf);
 #endif
-							pio_set(PIOA, CPLD_2072_TRIG);
+  volatile uint16_t readv = *(uint16_t*)pr->data; // for debug
+							READ_END_REV_2072
 							break;
 				case RF2072_WRITE:
 						assert(!(pt->dcnt & 1));
 						while (spi_tgt_done) ; // flush any pending spi xfer
 							spi_tgt_done = true;
+							ACCESS_PROLOG_2072
 							// setup spi to write addressed data
-							pio_clear(PIOA, CPLD_2072_TRIG);
-						delay_us(1);
-						  pio_set(PIOA, PIO_PA23);
-						delay_us(1);
-						  pio_clear(PIOA, PIO_PA23);
-						delay_us(1);
 							*pth = 0x7f & pt->addr; // write access
 							spi_tx_transfer(pth, 1, &tmpw, 1, 0/*ctrl/sts*/);
 							while (spi_tgt_done) ;
