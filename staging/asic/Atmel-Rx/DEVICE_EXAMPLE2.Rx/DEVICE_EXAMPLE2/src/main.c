@@ -1423,6 +1423,9 @@ int main(void)
 		}
 	}
  #ifdef RECV_IT913X
+	pio_set_output(PIOA, PIO_PA2, LOW, DISABLE, ENABLE);
+	delay_ms(10);  // reset IT931x
+	pio_set(PIOA, PIO_PA2);
  	pio_set_output(PIOB, PIO_PB9, LOW, DISABLE, ENABLE); //stop TS gate
  	delay_ms(10); // flush all data from Pipe
  #endif
@@ -1774,6 +1777,7 @@ _reg_acs:
 #if defined(CONFIG_RF2072)
 			dev_access *pr=(dev_access*)gs_uc_hrbuffer, *pt = (dev_access*)gs_uc_htbuffer;
 			uint16_t tmp, tmpw, *pth = &tmp;
+			uint8_t *pdbg = pt->data;  // to watch data content
 			#include <assert.h>
 			switch (pt->access) {
 				case RF2072_RESET:
@@ -1820,6 +1824,7 @@ _reg_acs:
   *(uint8_t*)pr->data = 0xff & (wtmp >> shf);
 #endif
 							READ_END_REV_2072
+  volatile uint16_t readv = *(uint16_t*)pr->data; // for debug
 							break;
 				case RF2072_WRITE:
 						assert(!(pt->dcnt & 1));
