@@ -16,7 +16,7 @@
 
 typedef int bool;
 
-#define HOST_BUFFER_SIZE						(128-1) // max data len-1
+#define HOST_BUFFER_SIZE						(256-1) // max data len-1
 enum TYPE {
 	CMD0,	/*w/o params*/
 	CMD1,	/*w single param*/
@@ -30,7 +30,7 @@ typedef struct {
 } dev_access;
 typedef struct {
 	dev_access hdr;
-	uint16_t data[HOST_BUFFER_SIZE];
+	uint8_t data[HOST_BUFFER_SIZE];
 } dAccess; // dev access of ctrl xfer
 typedef struct {
 	uint16_t  wDir;  // usb direction
