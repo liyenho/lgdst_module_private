@@ -1928,7 +1928,7 @@ volatile bool main_usb_host_reply()
 		// must setup packet size
 		if (!cnf_echo) {
 			udd_set_setup_payload( gs_uc_hrbuffer,
-				USB_HOST_MSG_LEN+(ps->dcnt-1)*sizeof(uint16_t));
+				USB_HOST_MSG_LEN+(ps->dcnt-1)*sizeof(uint8_t));
 		} else { //confirmation by echo, 1 data entry is included
 			udd_set_setup_payload( gs_uc_hrbuffer,
 				USB_HOST_MSG_LEN-sizeof(ps->data[0]));

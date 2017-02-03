@@ -1262,7 +1262,6 @@ int main(void)
 	//control path related
 	U8 sndflag;
 	U8 radioini_failcnt=0;
-	uint16_t ledoncnt;
 
 #elif defined(FWM_DNLD_DBG)
 	volatile uint32_t ul_page_end, ul_page_addr=PAGE_ADDRESS ;
@@ -1336,7 +1335,6 @@ int main(void)
   pio_set_output(PIOA, PIO_PA0, LOW, DISABLE, ENABLE);  // turn fpga into config mode, liyenho
   pio_set_output(PIOA, PIO_PA26, HIGH, DISABLE, ENABLE); // rf2072 out of reset
 	//pio_set_output(PIOA, PIO_PA19, HIGH, DISABLE, ENABLE); // hold fpga reset (no reset), liyenho
-	pio_set_output(PIOA, PIO_PA1, LOW, DISABLE, ENABLE); // flag to signal cpld to insert 1 sdio clk pulse, rf2072 access
  #ifndef RADIO_SI4463
 	pio_set_output(PIOA, HEALTH_LED, HIGH, DISABLE, ENABLE);
  #else //RADIO_SI4463
@@ -2020,7 +2018,7 @@ volatile bool main_usb_host_reply()
 		// must setup packet size
 		if (!cnf_echo) {
 			udd_set_setup_payload( gs_uc_hrbuffer,
-				USB_HOST_MSG_LEN+(ps->dcnt-1)*sizeof(uint16_t));
+				USB_HOST_MSG_LEN+(ps->dcnt-1)*sizeof(uint8_t));
 		} else { //confirmation by echo, 1 data entry is included
 			udd_set_setup_payload( gs_uc_hrbuffer,
 				USB_HOST_MSG_LEN-sizeof(ps->data[0]));
