@@ -979,25 +979,13 @@ upgrade_firmware:
 	short_sleep(0.5);
  #endif // CONFIG_ADI_6613
 		ready_wait_for_mloop = true;	// tentative for debug purpose, liyenho
- 	uint8_t *prb, var[2], chip_version = 0;
- 	uint32_t chip_Type, version = 0;
-	 msg[0] = 0x1;
-	 	r = Cmd_sendCommand (Command_QUERYINFO, 0, Processor_LINK, 1, &msg[0], 4, &msg[sizeof(msg)/2]);
-		//r = Standard_readRegisters(0, Processor_LINK, /*chip_version_7_0*/0x0/*???*/, 1, &chip_version);
+ 	 uint8_t val /*read default register values*/;
+		r = Standard_readRegisters(0, Processor_LINK, 0xF000, 1, &val);
 		if (r) { printf("error code = 0x%08x\n", r); goto _exit; }
-		prb = &msg[sizeof(msg)/2] ;
-		version = (uint32_t)prb[0]<<24 | (uint32_t)prb[1]<<16 | (uint32_t)prb[2]<<8 | (uint32_t)prb[3];
-		printf("firmware version (old type) = 0x%08x\n", version);
-		r = Standard_readRegisters(0, Processor_LINK, /*chip_version_7_0*/0x0+1/*???*/, 2, var);
-		if (r) goto _exit;
-		chip_Type = var[1]<<8 | var[0];
-		r = Standard_getFirmwareVersion (Processor_LINK, &version);
-		if (r) goto _exit;
-		if (version != 0) {
-			puts("IT913X firmware is booted");
-		} else {
-			puts("IT913X firmware is not booted");
-		}
+		printf("register @ 0xf000 = %x, default to be 0xAE\n", val);
+		r = Standard_readRegisters(0, Processor_LINK, 0xF103, 1, &val);
+		if (r) { printf("error code = 0x%08x\n", r); goto _exit; }
+		printf("register @ 0xf103 = %x, default to be 0x0D\n", val);
 		goto _exit ;	// tentative for debug purpose, liyenho
 
         //Kevin:  Put head here 0xAB0005 for Atmel alginments
