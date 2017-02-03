@@ -70,7 +70,7 @@ typedef enum {
 #define FW_UPGRADE_HDR_LEN					(12)
 #define ATMEL_UPGRADE_HDR_LEN		(12-4) // starting address would be calc by atmel bootloader
 #define USB_CPLD_UPGRADE_VAL				0x21  // cpld upgrade cmd
-#define USB_FPGA_UPGRADE_VAL				0x22  // fpga upgrade cmd
+//#define USB_FPGA_UPGRADE_VAL				0x22  // fpga upgrade cmd
 // these two are pertaining only to atmel operation
 #define USB_FWM_BOOTUP_VAL					0xbe
 #define USB_FWM_UPDATE_VAL					0xef
