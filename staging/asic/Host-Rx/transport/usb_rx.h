@@ -58,7 +58,6 @@ typedef enum {
 
  #define CONF_BOARD_USB_TX
  #define CONFIG_RFFC_2072
- #define RF_RX_VAL												0x12
  #define SMS_DVBT2_DOWNLOAD //Kevin: Need comment out if SMS is broken
  #define RECV_SMS4470
 #define DVBT  0
