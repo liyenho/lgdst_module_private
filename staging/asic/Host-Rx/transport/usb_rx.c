@@ -95,45 +95,6 @@ typedef int bool;
 static FILE *file = NULL;
 static unsigned char audbuf[FRAME_SIZE_A*FRAME_BUFFS]__attribute__((aligned(8)));
 static unsigned char vidbuf[FRAME_SIZE_V2*FRAME_BUFFS]__attribute__((aligned(8)));
-  #if defined(PES_FRM_PROT) || defined(PES_FRM_PROT1)
-	 static unsigned char retbuf[FRAME_SIZE_A*ERR_CHK_BUFFS /*+ 188*/]__attribute__((aligned(8)));
-	//#define DBG_PROT1
-    #ifdef DBG_PROT1
-    	typedef struct {
-	    	uint8_t *buf_end;
-	    	bool first_access;
-	    	uint8_t *wrptr;
-	    	uint8_t *rdptr;
-    	} dbg_frm_prot1;
-    	#define DBG_PROT1_CHECK \
-    		if (dbg_fp.first_access) { \
-				memcpy(dbg_fp.buf_end-size, tsbuf, size); \
-				dbg_fp.first_access = false; \
-			} else { \
-				memcpy(dbg_fp.wrptr, tsbuf, size); \
-			} \
-			dbg_fp.wrptr += size; \
-			if (dbg_fp.buf_end<=dbg_fp.wrptr) \
-				dbg_fp.wrptr = retbuf;
-		#define DBG_PROT1_CHECK1(size, sbuf) \
-			remain = (int32_t)(dbg_fp.buf_end -dbg_fp.wrptr); \
-			if (0>remain) perror_exit("invalid size",-255); \
-			if ((size) < remain) { \
-				memcpy(dbg_fp.wrptr, (sbuf), (size)); \
-				dbg_fp.wrptr += (size); \
-			} else { \
-				memcpy(dbg_fp.wrptr, (sbuf), remain); \
-				memcpy(retbuf, (sbuf)+remain, (size)-remain); \
-				dbg_fp.wrptr = retbuf+ (size)-remain; \
-			}
-		static dbg_frm_prot1 dbg_fp = {
-			.buf_end = retbuf+sizeof(retbuf),
-			.first_access = true,
-			.wrptr = retbuf+sizeof(retbuf), // not finished yet
-			.rdptr = retbuf,
-		};
-    #endif
-  #endif
 #ifdef RADIO_SI4463
 static unsigned char radio_tpacket[RADIO_USR_TX_LEN]__attribute__((aligned(8)));
 static unsigned char radio_rpacket[RADIO_USR_RX_LEN+RADIO_INFO_LEN]__attribute__((aligned(8)));
@@ -1243,11 +1204,6 @@ upgrade_firmware:
 	#endif
   //#endif
 #ifdef REC
-	  #if defined(PES_FRM_PROT) || defined(PES_FRM_PROT1)
-  #ifndef DBG_PROT1
-    tsptsadj(retbuf, r, pidvid, pidpcr);
-  #endif
-     #endif
   #if defined(REALIGN_TS_PKT)
    	unsigned char chkbuf[FRAME_SIZE_A+188]__attribute__((aligned(8)));
    	static uint32_t chki = 0;
@@ -1314,11 +1270,7 @@ upgrade_firmware:
    #endif
   #ifndef SRC_FRM_ENET // extract ts packets from socket
     #ifndef REALIGN_TS_PKT
-      #if !defined(PES_FRM_PROT) && !defined(PES_FRM_PROT1)
 			fwrite(audbuf, r, 1, file);
-  		#else
-			fwrite(retbuf, r, 1, file);
-		#endif
 	  #else
 			fwrite(tsbuf, r1, 1, file);
 	  #endif
@@ -1326,7 +1278,6 @@ upgrade_firmware:
 	int frag, sentsize;
 	unsigned char *pb = audbuf;
     #ifndef REALIGN_TS_PKT
-    	#if !defined(PES_FRM_PROT) && !defined(PES_FRM_PROT1)
 static FILE *f2 = 0;	// enabled video dump for debug, liyenho
 if (!f2) f2 = fopen("video_dbg.ts","wb");
 fwrite(audbuf, r, 1, f2);
@@ -1337,32 +1288,6 @@ fflush(f2);
 	      if (sentsize < 0) printf("send pack ERorr\n");
 	      		pb += r/5;
       		}
-      #else
-			       {
-				pb = retbuf;
-/*static FILE *f3 = 0;	// enabled video dump for debug, liyenho
-if (!f3) f3 = fopen("video_dbg.ts","wb");
-fwrite(retbuf, r, 1, f3);
-fflush(f3);*/
-		#ifndef DBG_PROT1
-						for (frag=0; frag<r/(188*2); frag++) {
-							sentsize=sendto(udpout_socket, pb, 188*2,0,(struct sockaddr *)&udpout,
-			                  udpout_len);
-			      if (sentsize < 0) printf("send pack ERorr\n");
-			      		pb += 188*2;
-		      		}
-		#else
-						for (frag=0; frag<r/(188*2); frag++) {
-							sentsize=sendto(udpout_socket, dbg_fp.rdptr, 188*2,0,(struct sockaddr *)&udpout,
-			                  udpout_len);
-			      if (sentsize < 0) printf("send pack ERorr\n");
-			      		dbg_fp.rdptr += 188*2;
-			      		if (dbg_fp.buf_end < dbg_fp.rdptr)
-			      			dbg_fp.rdptr = retbuf;
-		      		}
-		#endif
-			       }
-      #endif
     #else
 				sentsize=sendto(udpout_socket, tsbuf, r1,
 						0, (struct sockaddr *)&udpout, udpout_len);
