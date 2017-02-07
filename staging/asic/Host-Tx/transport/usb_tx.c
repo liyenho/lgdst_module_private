@@ -962,7 +962,7 @@ download:
 					  	USB_HOST_MSG_RX_VAL,
 					  	USB_HOST_MSG_IDX,
 					  	ech, sizeof(*acs)+(acs->dcnt-1), 0))
-			short_sleep(0.0005);
+				short_sleep(0.0005);
 		 getline(&pl, &lenb, stdin);
 		printf("device id = 0x%04x @ 0x%x\n",*(uint16_t*)ech->data,ech->addr);
 	///////////////////////////////////////////////////////////////

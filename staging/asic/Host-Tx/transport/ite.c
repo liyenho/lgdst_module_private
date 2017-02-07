@@ -67,7 +67,7 @@ uint32_t Cmd_busRx (
 					  	USB_HOST_MSG_RX_VAL,
 					  	USB_HOST_MSG_IDX,
 					  	acs, sizeof(*acs)+(acs->dcnt-1), 0))
-			short_sleep(0.0005);
+				short_sleep(0.0005);
 			break ;
     }
 
