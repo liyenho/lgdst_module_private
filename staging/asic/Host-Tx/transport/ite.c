@@ -70,7 +70,7 @@ uint32_t Cmd_busRx (
 				short_sleep(0.0005);
 			break ;
     }
-
+	memcpy(buffer, acs->data, bufferLength);
 exit:
     return (error);
 }
