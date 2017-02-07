@@ -934,7 +934,35 @@ upgrade_firmware:
 									USB_HOST_MSG_IDX,
 									acs, sizeof(*acs), 0);
 	short_sleep(0.1);
- 	sz = ARRAY_SIZE(chsel_2072);
+ 	// read rffc 2072 device id value.......
+    	  acs->access = RF2072_WRITE;
+    	  acs->dcnt = sizeof(uint16_t);
+    	  acs->addr = 0x1D;
+    	  uint16_t *conv= (uint16_t*)acs->data;
+    	  *conv = 0x0001;
+		libusb_control_transfer(devh,
+						CTRL_OUT, USB_RQ,
+						USB_HOST_MSG_TX_VAL,
+						USB_HOST_MSG_IDX,
+						acs, sizeof(*acs)+(acs->dcnt-1), 0);
+		printf("setup device control = 0x%04x @ 0x%x\n",*(uint16_t*)acs->data,acs->addr);
+	short_sleep(0.1);
+    	  acs->access = RF2072_READ;
+    	  acs->addr = 0x1F;
+		  libusb_control_transfer(devh,
+						CTRL_OUT, USB_RQ,
+						USB_HOST_MSG_TX_VAL,
+						USB_HOST_MSG_IDX,
+						acs, sizeof(*acs)+(acs->dcnt-1), 0);
+	short_sleep(0.1);
+	  	 while(0==libusb_control_transfer(devh,
+					  	CTRL_IN, USB_RQ,
+					  	USB_HOST_MSG_RX_VAL,
+					  	USB_HOST_MSG_IDX,
+					  	ech, sizeof(*acs)+(acs->dcnt-1), 0))
+				short_sleep(0.0005);
+		printf("device id = 0x%04x @ 0x%x\n",*(uint16_t*)ech->data,ech->addr);
+	sz = ARRAY_SIZE(chsel_2072);
 	rffe_write_regs(GET_ARRAY(chsel_2072), sz);
 	printf("rx rffe is running...\n");
 	short_sleep(0.5);
