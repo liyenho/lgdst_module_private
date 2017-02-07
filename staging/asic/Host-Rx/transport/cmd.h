@@ -71,7 +71,9 @@
 
 #define User_MAX_PKT_SIZE               255
 #define User_RETRY_MAX_LIMIT        500
-#define IT913X_ADDRESS        				0x38 // (gpioh6, gpioh5)= (0,0)
+// shift down 1 bit due to the fact ITE was using 8 bit address
+// which included read/write indicator for their device
+#define IT913X_ADDRESS        				(0x38>>1) // (gpioh6, gpioh5)= (0,0),
 
 #define Cmd_buildCommand(command, processor, chip)  (command + (uint16_t) (processor << 12) + (uint16_t) (chip << 12))
 /**
