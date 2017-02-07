@@ -1778,7 +1778,6 @@ _reg_acs:
 #if defined(CONFIG_RF2072)
 			dev_access *pr=(dev_access*)gs_uc_hrbuffer, *pt = (dev_access*)gs_uc_htbuffer;
 			uint16_t tmp, tmpw, *pth = &tmp;
-			uint8_t *pdbg = pt->data;  // to watch data content
 			#include <assert.h>
 			switch (pt->access) {
 				case RF2072_RESET:
@@ -1825,7 +1824,6 @@ _reg_acs:
   *(uint8_t*)pr->data = 0xff & (wtmp >> shf);
 #endif
 							READ_END_REV_2072
-  volatile uint16_t readv = *(uint16_t*)pr->data; // for debug
 							break;
 				case RF2072_WRITE:
 						assert(!(pt->dcnt & 1));
