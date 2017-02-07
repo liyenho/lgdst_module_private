@@ -933,9 +933,6 @@ download:
 									USB_HOST_MSG_IDX,
 									acs, sizeof(*acs), 0);
 	short_sleep(0.1);
-		char tmpb[8], *pl=tmpb;
-		size_t lenb = sizeof(tmpb);
-		 getline(&pl, &lenb, stdin);
 	// read rffc 2072 device id value.......
     	  acs->access = RF2072_WRITE;
     	  acs->dcnt = sizeof(uint16_t);
@@ -947,7 +944,7 @@ download:
 						USB_HOST_MSG_TX_VAL,
 						USB_HOST_MSG_IDX,
 						acs, sizeof(*acs)+(acs->dcnt-1), 0);
-		 getline(&pl, &lenb, stdin);
+	short_sleep(0.1);
 		printf("setup device control = 0x%04x @ 0x%x\n",*(uint16_t*)acs->data,acs->addr);
     	  acs->access = RF2072_READ;
     	  acs->addr = 0x1F;
@@ -956,14 +953,14 @@ download:
 						USB_HOST_MSG_TX_VAL,
 						USB_HOST_MSG_IDX,
 						acs, sizeof(*acs)+(acs->dcnt-1), 0);
-		 getline(&pl, &lenb, stdin);
+	short_sleep(0.1);
 	  	 while(0==libusb_control_transfer(devh,
 					  	CTRL_IN, USB_RQ,
 					  	USB_HOST_MSG_RX_VAL,
 					  	USB_HOST_MSG_IDX,
 					  	ech, sizeof(*acs)+(acs->dcnt-1), 0))
 				short_sleep(0.0005);
-		 getline(&pl, &lenb, stdin);
+	short_sleep(0.1);
 		printf("device id = 0x%04x @ 0x%x\n",*(uint16_t*)ech->data,ech->addr);
 	///////////////////////////////////////////////////////////////
  	sz = ARRAY_SIZE(chsel_tx);
@@ -974,15 +971,13 @@ download:
  		ready_wait_for_mloop = true;	// tentative for debug purpose, liyenho
 
  	uint8_t val /*read default register values*/;
-	 getline(&pl, &lenb, stdin); puts("query IT931x register @ 0xf000");
+	 puts("query IT931x register @ 0xf000");
 		r = Standard_readRegisters(0, Processor_LINK, 0xF000, 1, &val);
 		if (r) { printf("error code = 0x%08x\n", r); goto _exit; }
 		printf("register @ 0xf000 = %x, default to be 0xAE\n", val);
-	 getline(&pl, &lenb, stdin);
 		r = Standard_readRegisters(0, Processor_LINK, 0xF103, 1, &val);
 		if (r) { printf("error code = 0x%08x\n", r); goto _exit; }
 		printf("register @ 0xf103 = %x, default to be 0x0D\n", val);
-	 getline(&pl, &lenb, stdin);
 		goto _exit ;	// tentative for debug purpose, liyenho
 
 	file = fopen(FILE_NAME,"rb");
