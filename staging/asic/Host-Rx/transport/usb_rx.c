@@ -527,7 +527,7 @@ static void rffe_write_regs(dev_cfg* pregs, int size)
 	int32_t i, msg[80]; // access buffer
   	dev_access *acs = (dev_access*)msg;
 	uint16_t *conv= (uint16_t*)acs->data; // 2 bytes to 1 short, liyenho
-	 	dev_access echo; // atmel shall echo write cmd hdr back
+
     	  acs->dcnt = sizeof(pregs[i].data);
     for (i=0; i<size; i++) {
     	  acs->access = RF2072_WRITE;
@@ -934,7 +934,7 @@ upgrade_firmware:
 									USB_HOST_MSG_IDX,
 									acs, sizeof(*acs), 0);
 	short_sleep(0.1);
- 	// read rffc 2072 device id value.......
+	// read rffc 2072 device id value.......
     	  acs->access = RF2072_WRITE;
     	  acs->dcnt = sizeof(uint16_t);
     	  acs->addr = 0x1D;
@@ -945,8 +945,8 @@ upgrade_firmware:
 						USB_HOST_MSG_TX_VAL,
 						USB_HOST_MSG_IDX,
 						acs, sizeof(*acs)+(acs->dcnt-1), 0);
-		printf("setup device control = 0x%04x @ 0x%x\n",*(uint16_t*)acs->data,acs->addr);
 	short_sleep(0.1);
+		printf("setup device control = 0x%04x @ 0x%x\n",*(uint16_t*)acs->data,acs->addr);
     	  acs->access = RF2072_READ;
     	  acs->addr = 0x1F;
 		  libusb_control_transfer(devh,
@@ -959,16 +959,19 @@ upgrade_firmware:
 					  	CTRL_IN, USB_RQ,
 					  	USB_HOST_MSG_RX_VAL,
 					  	USB_HOST_MSG_IDX,
-					  	ech, sizeof(*acs)+(acs->dcnt-1), 0))
+					  	acs, sizeof(*acs)+(acs->dcnt-1), 0))
 				short_sleep(0.0005);
-		printf("device id = 0x%04x @ 0x%x\n",*(uint16_t*)ech->data,ech->addr);
-	sz = ARRAY_SIZE(chsel_2072);
+	short_sleep(0.1);
+		printf("device id = 0x%04x @ 0x%x\n",*(uint16_t*)acs->data,acs->addr);
+	///////////////////////////////////////////////////////////////
+ 	sz = ARRAY_SIZE(chsel_2072);
 	rffe_write_regs(GET_ARRAY(chsel_2072), sz);
 	printf("rx rffe is running...\n");
 	short_sleep(0.5);
  #endif // CONFIG_ADI_6613
 		ready_wait_for_mloop = true;	// tentative for debug purpose, liyenho
- 	 uint8_t val /*read default register values*/;
+
+ 	uint8_t val /*read default register values*/;
 		r = Standard_readRegisters(0, Processor_LINK, 0xF000, 1, &val);
 		if (r) { printf("error code = 0x%08x\n", r); goto _exit; }
 		printf("register @ 0xf000 = %x, default to be 0xAE\n", val);

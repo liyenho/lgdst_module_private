@@ -195,6 +195,8 @@ uint32_t Cmd_readRegisters (
         remainLength -= i;
     }
 
+    usleep(100000);  // gap write and read ops with sufficient delay
+
     /** get reply frame */
     bufferLength = 5 + readBufferLength;
     error = Cmd_busRx (bufferLength, buffer);
@@ -257,7 +259,9 @@ uint32_t Cmd_writeRegisters (
         buffer[10 + i] = writeBuffer[i];
     }
 
-    /** add frame check-sum */
+    usleep(100000);  // gap write and read ops with sufficient delay
+
+        /** add frame check-sum */
     bufferLength = 10 + writeBufferLength;
     error = Cmd_addChecksum (&bufferLength, buffer);
     if (error) goto exit;
@@ -368,6 +372,7 @@ uint32_t Cmd_sendCommand (
         }
     }
 
+    usleep(100000);  // gap write and read ops with sufficient delay
     bufferLength = 5 + readBufferLength;
 
     error = Cmd_busRx (bufferLength, buffer);

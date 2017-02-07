@@ -194,18 +194,14 @@ uint32_t Cmd_readRegisters (
         sendLength   += i;
         remainLength -= i;
     }
- char tmpb[8], *pl=tmpb;
- size_t lenb = sizeof(tmpb);
-  getline(&pl, &lenb, stdin); // for debug i2c comm on asic board, liyenho
+
+    usleep(100000);  // gap write and read ops with sufficient delay
+
     /** get reply frame */
     bufferLength = 5 + readBufferLength;
     error = Cmd_busRx (bufferLength, buffer);
     if (error) goto exit;
 
-for (k=0; k<bufferLength-1; k++)
-	printf("buffer[%d] = %x\n", k+1, buffer[k+1]);
-
-  getline(&pl, &lenb, stdin); // for debug i2c comm on asic board, liyenho
     /** remove check-sum from reply frame */
     error = Cmd_removeChecksum (&bufferLength, buffer);
     if (error) goto exit;
@@ -280,6 +276,8 @@ uint32_t Cmd_writeRegisters (
         sendLength   += i;
         remainLength -= i;
     }
+
+    usleep(100000);  // gap write and read ops with sufficient delay
 
     /** get reply frame */  // spec from China team not the Asic requirement! liyenho
     bufferLength = 5;
@@ -374,6 +372,7 @@ uint32_t Cmd_sendCommand (
         }
     }
 
+    usleep(100000);  // gap write and read ops with sufficient delay
     bufferLength = 5 + readBufferLength;
 
     error = Cmd_busRx (bufferLength, buffer);
