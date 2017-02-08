@@ -92,8 +92,7 @@
  #define CONFIG_RF2072 // forced to configure rf2072 prior to startup
 	#define CPLD_2072_TRIG    PIO_PA25
 	#define ACCESS_PROLOG_2072 \
-							pio_configure(PIOB, PIO_INPUT, PIO_PB0, 0); \
-						  pio_set(PIOB, PIO_PB0); \
+							pio_configure(PIOB, PIO_OUTPUT1, PIO_PB0, 0); \
 						/*delay_cycles(0);*/ \
 							pio_clear(PIOA, CPLD_2072_TRIG); \
 						/*delay_cycles(0);*/ \
@@ -104,8 +103,7 @@
 						  pio_clear(PIOB, PIO_PB0); \
 						  pio_set_peripheral(PIOB, PIO_PERIPH_A, PIO_PB0);
 	#define READ_MID_PROC_2072 \
-							pio_configure(PIOB, PIO_INPUT, PIO_PB0, 0); \
-						  pio_set(PIOB, PIO_PB0); \
+							pio_configure(PIOB, PIO_OUTPUT1, PIO_PB0, 0); \
 						/*delay_cycles(0);*/ \
 						  pio_clear(PIOB, PIO_PB0); \
 						  pio_set_peripheral(PIOB, PIO_PERIPH_A, PIO_PB0); \
