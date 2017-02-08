@@ -45,11 +45,11 @@ typedef struct {
 
 enum access_mode {
 	RF2072_RESET=  0, // lastly added for rf2072 reset
-	IT913X_READ = 1,
-	IT913X_WRITE= 2,
+	IT951X_READ = 1,
+	IT951X_WRITE= 2,
 	RF2072_READ=  3,
 	RF2072_WRITE= 4,
-	IT913X_DOWNLOAD = 5,
+	IT951X_DOWNLOAD = 5,
 	TS_VID_ACTIVE = 6,
 };
 

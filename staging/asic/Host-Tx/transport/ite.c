@@ -16,9 +16,9 @@ uint32_t Cmd_busTx (
 	 dev_access *acs = (dev_access*)msg;
     uint32_t     error = Error_NO_ERROR;
 
-     acs->access = IT913X_WRITE;
+     acs->access = IT951X_WRITE;
      acs->dcnt = bufferLength;
-     acs->addr = IT913X_ADDRESS;
+     acs->addr = IT951X_ADDRESS;
      memcpy(acs->data, buffer, bufferLength);
 
     for (i = 0; i < User_RETRY_MAX_LIMIT; i++) {
@@ -46,9 +46,9 @@ uint32_t Cmd_busRx (
 	 dev_access *acs = (dev_access*)msg;
     uint32_t     error = Error_NO_ERROR;
 
-     acs->access = IT913X_READ;
+     acs->access = IT951X_READ;
      acs->dcnt = bufferLength;
-     acs->addr = IT913X_ADDRESS;
+     acs->addr = IT951X_ADDRESS;
 
     for (i = 0; i < User_RETRY_MAX_LIMIT; i++) {
 
