@@ -972,12 +972,15 @@ upgrade_firmware:
 		ready_wait_for_mloop = true;	// tentative for debug purpose, liyenho
 
  	uint8_t val /*read default register values*/;
-		r = Standard_readRegisters(0, Processor_LINK, 0xF000, 1, &val);
+		r = Standard_readRegisters(0, Processor_LINK, 0x1222, 1, &val);
 		if (r) { printf("error code = 0x%08x\n", r); goto _exit; }
-		printf("register @ 0xf000 = %x, default to be 0xAE\n", val);
-		r = Standard_readRegisters(0, Processor_LINK, 0xF103, 1, &val);
+		printf("register @ 0x1222 = %x, default to be 0x02\n", val);
+		r = Standard_readRegisters(0, Processor_LINK, 0x1223, 1, &val);
 		if (r) { printf("error code = 0x%08x\n", r); goto _exit; }
-		printf("register @ 0xf103 = %x, default to be 0x0D\n", val);
+		printf("register @ 0x1223 = %x, default to be 0x35\n", val);
+		r = Standard_readRegisters(0, Processor_LINK, 0x1224, 1, &val);
+		if (r) { printf("error code = 0x%08x\n", r); goto _exit; }
+		printf("register @ 0x1224 = %x, default to be 0x91\n", val);
 		goto _exit ;	// tentative for debug purpose, liyenho
 
         //Kevin:  Put head here 0xAB0005 for Atmel alginments
