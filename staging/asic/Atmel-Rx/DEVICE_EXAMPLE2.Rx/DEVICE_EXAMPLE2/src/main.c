@@ -1778,6 +1778,7 @@ _reg_acs:
 #if defined(CONFIG_RF2072)
 			dev_access *pr=(dev_access*)gs_uc_hrbuffer, *pt = (dev_access*)gs_uc_htbuffer;
 			uint16_t tmp, tmpw, *pth = &tmp;
+			uint8_t *pdbg = pr->data;  // to watch data content
 			#include <assert.h>
 			switch (pt->access) {
 				case RF2072_RESET:
