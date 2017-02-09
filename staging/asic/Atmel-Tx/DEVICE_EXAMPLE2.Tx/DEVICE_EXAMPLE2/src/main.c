@@ -1333,9 +1333,7 @@ int main(void)
 	}
 	pmc_enable_periph_clk(ID_PIOA);
   pio_set_output(PIOA, PIO_PA0, LOW, DISABLE, ENABLE);  // turn fpga into config mode, liyenho
-  pio_set_output(PIOA, PIO_PA26, HIGH, DISABLE, ENABLE); // rf2072 out of reset
 	//pio_set_output(PIOA, PIO_PA19, HIGH, DISABLE, ENABLE); // hold fpga reset (no reset), liyenho
-  pio_set_output(PIOA, CPLD_2072_TRIG, HIGH, DISABLE, ENABLE); // extra trigger line for 2072 access with cpld, liyenho
  #ifndef RADIO_SI4463
 	pio_set_output(PIOA, HEALTH_LED, HIGH, DISABLE, ENABLE);
  #else //RADIO_SI4463
@@ -1503,6 +1501,10 @@ bypass:
 		if (system_upgrade)
 			upgrade_sys_fw(system_upgrade);
  	}
+ #endif
+ #ifdef CONFIG_RF2072
+  	pio_set_output(PIOA, PIO_PA26, HIGH, DISABLE, ENABLE); // rf2072 out of reset
+  	pio_set_output(PIOA, CPLD_2072_TRIG, HIGH, DISABLE, ENABLE); // extra trigger line for 2072 access with cpld
  #endif
 	init_4463();  // be sure to place this function before next line! liyenho
 	rdptr_rdo_tpacket=0;
