@@ -1335,6 +1335,7 @@ int main(void)
   pio_set_output(PIOA, PIO_PA0, LOW, DISABLE, ENABLE);  // turn fpga into config mode, liyenho
   pio_set_output(PIOA, PIO_PA26, HIGH, DISABLE, ENABLE); // rf2072 out of reset
 	//pio_set_output(PIOA, PIO_PA19, HIGH, DISABLE, ENABLE); // hold fpga reset (no reset), liyenho
+  pio_set_output(PIOA, CPLD_2072_TRIG, HIGH, DISABLE, ENABLE); // extra trigger line for 2072 access with cpld, liyenho
  #ifndef RADIO_SI4463
 	pio_set_output(PIOA, HEALTH_LED, HIGH, DISABLE, ENABLE);
  #else //RADIO_SI4463
@@ -1345,7 +1346,8 @@ int main(void)
   #ifdef RADIO_SI4463
 	spi_master_initialize(2, SPI2_MASTER_BASE, BOARD_FLEXCOM_SPI2);// radio data pipe
   #endif
-	spi_master_initialize(1, SPI_MASTER_BASE, BOARD_FLEXCOM_SPI);// video pipe @ tx end
+  	// for debug asic tx board, to workaround spi0/1 crossing, liyenho
+	//spi_master_initialize(1, SPI_MASTER_BASE, BOARD_FLEXCOM_SPI);// video pipe @ tx end
 #ifdef CONFIG_ON_FLASH
 		if (1!=*(uint8_t*)ul_page_addr_bootapp) {
 			erase_last_sector() ;
