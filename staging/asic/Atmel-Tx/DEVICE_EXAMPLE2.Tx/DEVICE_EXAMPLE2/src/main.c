@@ -29,6 +29,7 @@ static volatile uint8_t system_upgrade = 0;  // system upgrade flag, liyenho
  #include "ctrl.h"
 #endif
 #include "Directional_Antenna_Selection.h"
+#include "USB_Commands/USB_Commands.h"
   #define SPI0_Handler     FLEXCOM0_Handler // spi0 -> spi1 on tx
   #define SPI_Handler     FLEXCOM1_Handler  // spi5 -> spi1 on tx
   #define SPI0_IRQn        FLEXCOM0_IRQn
@@ -768,6 +769,16 @@ extern void recalibrate_capval (void* ul_page_addr_mtemp, uint8_t median);
 		Drone_Yaw = Degrees_To_Radians(*((float *)gs_uc_hrbuffer));
 		//variable related to antenna selection may have changed, so update selection
 		Select_Antenna_To_Broadcast();
+	}
+	else if (RADIO_GET_PROPERTY_IDX == udd_g_ctrlreq.req.wIndex){
+		uint8_t group, num_props,start_ind = 0;
+		uint8_t * prop_ptr; //ptr to memory holding property values
+		group = *(uint8_t*)(gs_uc_hrbuffer);
+		num_props = *((uint8_t*)(gs_uc_hrbuffer)+1);
+		start_ind = *((uint8_t*)(gs_uc_hrbuffer)+2);
+
+		Si4463_GetProperty(group,num_props,start_ind);
+
 	}
 
 }
@@ -2262,6 +2273,17 @@ volatile bool main_vender_specific() {
 			static uint16_t antenna = 0;
 			antenna = Active_Antenna;
 			udd_set_setup_payload(&antenna, sizeof(antenna));
+		}
+		else if (RADIO_GET_PROPERTY_IDX == udd_g_ctrlreq.req.wIndex){
+			//get property
+			udd_set_setup_payload((uint8_t *)gs_uc_hrbuffer, RADIO_GET_PROPERTY_HOST_LEN);
+			udd_g_ctrlreq.callback = si4463_radio_cb; // radio callback
+		}
+		else if (RADIO_GET_PROPERTY_REPLY_IDX == udd_g_ctrlreq.req.wIndex){
+			memcpy(gs_uc_hrbuffer, Si4463_Properties, RADIO_GET_PROPERTY_ATMEL_LEN);
+
+			//sent data back to host
+			udd_set_setup_payload(gs_uc_hrbuffer, RADIO_GET_PROPERTY_ATMEL_LEN);
 		}
 	 }
 #endif

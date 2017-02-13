@@ -260,8 +260,7 @@
     <avrtool>com.atmel.avrdbg.tool.samice</avrtool>
     <avrtoolserialnumber>28020943</avrtoolserialnumber>
     <avrdeviceexpectedsignature>0x24570AE0</avrdeviceexpectedsignature>
-    <avrtoolinterface>
-    </avrtoolinterface>
+    <avrtoolinterface>JTAG</avrtoolinterface>
     <com_atmel_avrdbg_tool_edbg>
       <ToolOptions>
         <InterfaceProperties>
@@ -477,6 +476,7 @@
       <Value>../src/ASF/common/services/flash_efc</Value>
       <Value>../src/ASF/sam/drivers/rtt</Value>
       <Value>../src/ASF/sam/drivers/wdt</Value>
+      <Value>../src/USB_Commands</Value>
     </ListValues>
   </armgcc.compiler.directories.IncludePaths>
   <armgcc.compiler.optimization.OtherFlags>-fdata-sections</armgcc.compiler.optimization.OtherFlags>
@@ -615,6 +615,7 @@
     <Folder Include="src\ASF\thirdparty\CMSIS\Lib\" />
     <Folder Include="src\ASF\thirdparty\CMSIS\Lib\GCC\" />
     <Folder Include="src\config\" />
+    <Folder Include="src\USB_Commands" />
     <Folder Include="src\si4463" />
   </ItemGroup>
   <ItemGroup>
@@ -661,6 +662,12 @@
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="src\Directional_Antenna_Selection.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\USB_Commands\USB_Commands.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\USB_Commands\USB_Commands.h">
       <SubType>compile</SubType>
     </Compile>
     <None Include="src\ASF\sam\drivers\i2sc\i2sc.h">

@@ -78,14 +78,7 @@
 	  PAIRING,
 	  PAIRED,
   } ;
-//directional antenna selection
-  #define DRONE_GPS_IDX								0x10
-  #define DRONE_GPS_LEN								2*sizeof(float) //size in bytes
-  #define DRONE_YAW_IDX								0x11
-  #define DRONE_YAW_LEN								sizeof(float)//size in bytes
-  #define CAMERA_YAW_IDX							0x12
-  #define CAMERA_YAW_LEN							sizeof(float)//size in bytes
-  #define RADIO_ANT_QUERY_IDX						0x13 //query which antenna is selected by yaw algo
+
 #endif
 #define RFFE_PARAMS				// shared between tx/rx platforms from host
 #ifdef RFFE_PARAMS
@@ -103,10 +96,12 @@
 						  pio_clear(PIOB, PIO_PB0); \
 						  pio_set_peripheral(PIOB, PIO_PERIPH_A, PIO_PB0);
 	#define READ_MID_PROC_2072 \
+							delay_cycles(0); \
 							pio_configure(PIOB, PIO_OUTPUT_1, PIO_PB0, 0); \
 						/*delay_cycles(0);*/ \
 						  pio_clear(PIOB, PIO_PB0); \
 						  pio_set_peripheral(PIOB, PIO_PERIPH_A, PIO_PB0); \
+						  delay_cycles(0); \
  						 spi_set_clock_phase(SPI0, SPI_CHIP_SEL, 0/*captured @ falling, transit @ rising*/); \
 						/*delay_cycles(0);*/
 	#define READ_END_REV_2072 \
