@@ -223,6 +223,7 @@ typedef struct {
 } cpld_flash_map;
 
 #define FW_UPGRADE_HDR_LEN		(12)
+#define USB_BOOT_APP_VAL						0xa4
 #define USB_CPLD_UPGRADE_VAL	0x21  // cpld upgrade cmd
 #define USB_ATMEL_UPGRADE_VAL	0x23	// atmel upgrade cmd
 
@@ -321,8 +322,7 @@ void main_sof_action(void);
   //#define MEDIA_ON_FLASH
   #if defined(CONFIG_ON_FLASH) || defined(MEDIA_ON_FLASH)
     #define CHECKED_FLASH_WR(fadr, src, sz) \
-							ul_rc = flash_write((fadr), (src), (sz), 0); \
-							if (ul_rc != FLASH_RC_OK) \
+							if (flash_write((fadr), (src), (sz), 0) != FLASH_RC_OK) \
 								while (1) { \
 									; /* Capture error */ \
 								}
