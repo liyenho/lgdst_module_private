@@ -1,27 +1,7 @@
 //#define TEST_BITSTREAM
-/*
-  bit 15-12: SPI Command defined as following
-	  4'b0000: Read from SPI 8-bit Data Register
-      4'b0010: Read from SPI 8-bit Data Register and
-               Assert a Read Command from the same Address
-      4'b0011: Read from SPI 8-bit Data Register and
-               Assert a Read Command from (Address Register + 1)
-      4'b0100: Read from SPI 12-bit Address Register
-
-      4'b1000: Write to SPI 8-bit Data Register
-      4'b1010: Write to SPI 8-bit Data Register and
-               Assert a Write Command
-      4'b1011: Write to SPI 8-bit Data Register and
-               Assert a Write Command and then
-               Increase Address Register by 1
-      4'b1100: Write to SPI 12-bit Address Register
-      4'b1101: Write to SPI 12-bit Address Register and
-               Prepare data in SPI 8-bit Data Register
-    bit 11-0: Data/Address Field (AD)
-*/
 #define SHMKEY_TX 1234	 //tx shared memory key for IPC between lgdst/core
 #define SHMKEY_RX 5678	 //rx shared memory key for IPC between lgdst/core
-#define HOST_BUFFER_SIZE						(128-1) // max data len-1
+#define HOST_BUFFER_SIZE						(256-1) // max data len-1
 typedef int bool;  // match definition in usb_core.h
 
 enum TYPE {
@@ -30,15 +10,14 @@ enum TYPE {
 	ACS, 	/*regs access*/
 };
 typedef struct {
-	/*enum access_mode*/uint16_t access;
-	uint16_t dcnt;	// data count
-	uint16_t addr;	// first access address, 12 bit
-	uint16_t toflash; // request to burn to flash or not
-	uint16_t data[1]; // only valid on lower half
+	/*enum access_mode*/uint8_t access;
+	uint8_t dcnt;	// data count
+	uint16_t addr;	// first access address
+	uint8_t data[1]; // only valid on lower half
 } dev_access;
 typedef struct {
 	dev_access hdr;
-	uint16_t data[HOST_BUFFER_SIZE];
+	uint8_t data[HOST_BUFFER_SIZE];
 } dAccess; // dev access of ctrl xfer
 typedef struct {
 	uint16_t  wDir;  // usb direction
@@ -54,43 +33,22 @@ typedef struct {
 	dAccess access;
 } ipcLgdst;
 
-enum access_mode {
-	/*! \read data register current content */
-	READ_CUR = 0,
-	/*! \read addressed content from data register */
-	READ_BY_ADDR,
-	/*! \modify data register content */
-	WRITE_CUR,
-	/*! \modify addressed data content */
-	WRITE_BY_ADDR,
-	/*! \burst read at the same fifo address */
-	BURST_FIFO_READ,
-	/*! \burst write at the same fifo address */
-	BURST_FIFO_WRITE,
-	/*! \burst read at contiguous memory address */
-	BURST_MEM_READ,
-	/*! \burst write at contiguous memory address */
-	BURST_MEM_WRITE,
-	/*! \dvbt/2 signal detected from sms4470 @ rec */
-	SIGNAL_DETECTED,
-	/*! \dvbt/2 signal status from sms4470 @ rec */
-	SIGNAL_STATUS,
-	/*! \transmission status from sms4470 @ rec */
-	TRANS_STATUS,
-	/*! \reciever status from sms4470 @ rec */
-	RECV_STATUS,
-	/*! \locked status from sms4470 @ rec */
-	LOCKED_STATUS,
-};
+typedef enum {
+	RF2072_RESET=  0, // lastly added for rf2072 reset
+	IT913X_READ = 1,
+	IT913X_WRITE= 2,
+	RF2072_READ=  3,
+	RF2072_WRITE= 4,
+	IT913X_DOWNLOAD = 5,
+	TS_VID_ACTIVE = 6,
+} access_mode;
 
 #define USB_ATMEL_VER_VAL								0x20
 #define USB_BOOT_APP_VAL								0xa4
 #define USB_CPLD_UPGRADE_VAL				0x21  // cpld upgrade cmd
-#define USB_FPGA_UPGRADE_VAL				0x22  // fpga upgrade cmd
 #define USB_ATMEL_UPGRADE_VAL			0x23	// atmel upgrade cmd
 #define USB_STREAM_OFF_VAL						0xa
 #define USB_STREAM_ON_VAL						0xe
-#define USB_RX_TUNE_VAL						0xf
   #define USB_STREAM_IDX						0x1	// data instead comm interface
   #define USB_STREAM_LEN						0
 
@@ -222,74 +180,4 @@ const uint8_t *chtbl_ctrl_len[/*2*/] = {
 #define RADIO_CTUNE_IDX								0x9
 #define RADIO_CTUNE_LEN							sizeof(uint8_t)
 
-typedef struct Short_Statistics_S
-{
-    //Statistics parameters
-    uint32_t IsDemodLocked;
-    /*uint32_t*/int32_t InBandPwr;
-    uint32_t BER;
-    /*uint32_t*/int32_t SNR;
-    uint32_t TotalTSPackets;
-    uint32_t ErrorTSPackets;
-} Short_Statistics_ST;
-
-typedef struct TRANSMISSION_STATISTICS_S
-{
-	uint32_t Frequency;				//!< Frequency in Hz
-	uint32_t Bandwidth;				//!< Bandwidth in MHz
-	uint32_t TransmissionMode;		//!< FFT mode carriers in Kilos
-	uint32_t GuardInterval;			//!< Guard Interval from SMSHOSTLIB_GUARD_INTERVALS_ET
-	uint32_t CodeRate;				//!< Code Rate from SMSHOSTLIB_CODE_RATE_ET
-	uint32_t LPCodeRate;				//!< Low Priority Code Rate from SMSHOSTLIB_CODE_RATE_ET
-	uint32_t Hierarchy;				//!< Hierarchy from SMSHOSTLIB_HIERARCHY_ET
-	uint32_t Constellation;			//!< Constellation from SMSHOSTLIB_CONSTELLATION_ET
-
-	// DVB-H TPS parameters
-	uint32_t CellId;					//!< TPS Cell ID in bits 15..0, bits 31..16 zero; if set to 0xFFFFFFFF cell_id not yet recovered
-	uint32_t DvbhSrvIndHP;			//!< DVB-H service indication info, bit 1 - Time Slicing indicator, bit 0 - MPE-FEC indicator
-	uint32_t DvbhSrvIndLP;			//!< DVB-H service indication info, bit 1 - Time Slicing indicator, bit 0 - MPE-FEC indicator
-	uint32_t IsDemodLocked;			//!< 0 - not locked, 1 - locked
-}TRANSMISSION_STATISTICS_ST;
-
-typedef struct RECEPTION_STATISTICS_S
-{
-	uint32_t IsRfLocked;				//!< 0 - not locked, 1 - locked
-	uint32_t IsDemodLocked;			//!< 0 - not locked, 1 - locked
-	uint32_t IsExternalLNAOn;			//!< 0 - external LNA off, 1 - external LNA on
-
-	uint32_t ModemState;				//!< from SMSHOSTLIB_DVB_MODEM_STATE_ET
-	int32_t  SNR;						//!< dB
-	uint32_t BER;						//!< Post Viterbi BER [1E-5]
-	uint32_t BERErrorCount;			//!< Number of erroneous SYNC bits.
-	uint32_t BERBitCount;				//!< Total number of SYNC bits.
-	uint32_t TS_PER;					//!< Transport stream PER, 0xFFFFFFFF indicate N/A
-	uint32_t MFER;					//!< DVB-H frame error rate in percentage, 0xFFFFFFFF indicate N/A, valid only for DVB-H
-	int32_t  RSSI;					//!< dBm
-	int32_t  InBandPwr;				//!< In band power in dBM
-	int32_t  CarrierOffset;			//!< Carrier Offset in bin/1024
-	uint32_t ErrorTSPackets;			//!< Number of erroneous transport-stream packets
-	uint32_t TotalTSPackets;			//!< Total number of transport-stream packets
-
-	int32_t  RefDevPPM;
-	int32_t  FreqDevHz;
-
-	int32_t  MRC_SNR;					//!< dB //in non MRC application: maximum dvbt cnt
-	int32_t  MRC_RSSI;				//!< dBm
-	int32_t  MRC_InBandPwr;			//!< In band power in dBM, in Non MRC application: dvbt buffer max count. Should be less than 345*188
-
-	uint32_t ErrorTSPacketsAfterReset;			//!< Number of erroneous transport-stream packets from the last reset
-	uint32_t TotalTSPacketsAfterReset;			//!< Total number of transport-stream packets from the last reset
-}RECEPTION_STATISTICS_ST;
-
- #include "ADRF6612_set.h"
- typedef union {
-	 struct {
-		 uint16_t chan_idx;
-		 uint16_t pwr_att;
-	 } params_tx;
-	 struct {
-		 dev_cfg *pregs_6612;
-	 } params_rx;
- } rf_params;
- #define RF_TX_FREQ_VAL				0x13
- #define RF_TX_ATTN_VAL				0x14
+ #include "RFFC2072_set.h"
