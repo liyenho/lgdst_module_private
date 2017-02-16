@@ -99,8 +99,7 @@
 		 uint16_t tone_on; // tone generation, 1: turn on, 0: turn off
 	 } params_tx;
 	 struct {
-		 uint16_t chan_idx;
-		 uint16_t if_carrier;  // in mhz
+		 void* pregs; /*of dev_cfg type*/
 	 } params_rx;
  } rf_params;
  #define RF_TX_VAL								0x11
