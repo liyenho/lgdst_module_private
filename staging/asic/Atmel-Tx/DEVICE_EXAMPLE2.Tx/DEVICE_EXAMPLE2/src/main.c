@@ -1896,7 +1896,7 @@ _reg_acs:
 			switch (pt->access) {
 				case RF2072_RESET:
 						pio_clear (PIOA, PIO_PA26);
-						delay_ms(1);
+						delay_ms(200);
 						pio_set (PIOA, PIO_PA26);
 						delay_us(1);
 						while (spi_tgt_done) ; // flush any pending spi xfer

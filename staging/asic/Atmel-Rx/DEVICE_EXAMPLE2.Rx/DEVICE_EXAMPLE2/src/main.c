@@ -30,6 +30,7 @@ static volatile uint8_t system_upgrade = 0;  // system upgrade flag, liyenho
   #include "si4463/radio.h"
 #endif
 #include "GPS.h"
+#include "USB_Commands/USB_Commands.h"
 
   #define SPI0_Handler     FLEXCOM0_Handler
   #define SPI_Handler     FLEXCOM5_Handler
@@ -138,7 +139,7 @@ volatile uint32_t upgrade_fw_hdr[FW_UPGRADE_HDR_LEN/sizeof(int)]={-1} ;
 #endif
  // host to fpga/2072 ctrl/sts buffer
 static uint32_t gs_uc_htbuffer[(USB_HOST_MSG_LEN+HOST_BUFFER_SIZE+3)/sizeof(int)];
-static uint32_t gs_uc_hrbuffer[(USB_HOST_MSG_LEN+HOST_BUFFER_SIZE+3)/sizeof(int)];
+uint32_t gs_uc_hrbuffer[(USB_HOST_MSG_LEN+HOST_BUFFER_SIZE+3)/sizeof(int)];
   volatile bool i2c_read_done = false;
   /*static*/ twi_packet_t packet_tx;
 #ifdef RX_SPI_CHAINING
@@ -1819,7 +1820,7 @@ _reg_acs:
 			switch (pt->access) {
 				case RF2072_RESET:
 						pio_clear (PIOA, PIO_PA16);
-						delay_ms(1);
+						delay_ms(200);
 						pio_set (PIOA, PIO_PA16);
 						delay_us(1);
 						pio_clear (PIOA, PIO_PA17); // keep enbl low
@@ -2172,6 +2173,14 @@ volatile bool main_vender_specific() {
 			//update base GPS location
 			udd_set_setup_payload((float *)gs_uc_hrbuffer, BASE_GPS_LEN);
 			udd_g_ctrlreq.callback = si4463_radio_cb; // radio callback
+		}
+		else if (RADIO_GET_PROPERTY_IDX == udd_g_ctrlreq.req.wIndex){
+			//get property
+			udd_set_setup_payload((uint8_t *)gs_uc_hrbuffer, RADIO_GET_PROPERTY_HOST_LEN);
+			udd_g_ctrlreq.callback = Si4463_GetProperty; // radio callback
+		}
+		else if (RADIO_GET_PROPERTY_REPLY_IDX == udd_g_ctrlreq.req.wIndex){
+			USB_Send_Si4463_Props();
 		}
 	}
 #endif
