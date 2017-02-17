@@ -538,7 +538,7 @@ static void rffe_write_regs(dev_cfg* pregs, int size)
 						USB_HOST_MSG_TX_VAL,
 						USB_HOST_MSG_IDX,
 						acs, sizeof(*acs)+(acs->dcnt-1), 0);
-		short_sleep(0.1); 	// validate echo after 0.1 sec
+		short_sleep(0.3); 	// validate echo after 0.1 sec
 		printf("xxxxxx 0x%04x @ 0x%x written xxxxxx\n",*(uint16_t*)acs->data,acs->addr);
 	}
 }
@@ -965,9 +965,28 @@ upgrade_firmware:
 		printf("device id = 0x%04x @ 0x%x\n",*(uint16_t*)acs->data,acs->addr);
 	///////////////////////////////////////////////////////////////
  	sz = ARRAY_SIZE(chsel_2072);
-	rffe_write_regs(GET_ARRAY(chsel_2072), sz);
-	printf("rx rffe is running...\n");
+	dev_cfg* pregs=GET_ARRAY(chsel_2072);
+	rffe_write_regs(pregs, sz);
+		for (i=0; i<sz; i++) {
+			if (0x9 == pregs[i].addr) {
+				acs->access = RF2072_WRITE;
+				acs->dcnt = sizeof(uint16_t);
+				acs->addr = 0x9;
+				break;
+			}
+		}
+		if (sz == i)
+			perror_exit("can't find PLL CTL register in 2072 config array", -8);
+		// set relock bit in PLL CTL register
+		*conv = pregs[i].data | 0x8;
+		libusb_control_transfer(devh,
+						CTRL_OUT, USB_RQ,
+						USB_HOST_MSG_TX_VAL,
+						USB_HOST_MSG_IDX,
+						acs, sizeof(*acs)+(acs->dcnt-1), 0);
+		puts("set relock bit in PLL CTL");
 	short_sleep(0.5);
+	printf("rx rffe is running...\n");
  #endif // CONFIG_ADI_6613
 		ready_wait_for_mloop = true;	// tentative for debug purpose, liyenho
 

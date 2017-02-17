@@ -509,7 +509,7 @@ static void rffe_write_regs(dev_cfg* pregs, int size)
 						USB_HOST_MSG_TX_VAL,
 						USB_HOST_MSG_IDX,
 						acs, sizeof(*acs)+(acs->dcnt-1), 0);
-		short_sleep(0.1); 	// validate echo after 0.1 sec
+		short_sleep(0.3); 	// validate echo after 0.1 sec
 		printf("xxxxxx 0x%04x @ 0x%x written xxxxxx\n",*(uint16_t*)acs->data,acs->addr);
 	}
 }
@@ -932,9 +932,9 @@ download:
 									USB_HOST_MSG_IDX,
 									acs, sizeof(*acs), 0);
 	short_sleep(0.1);
-	char tmpb[8], *pline= tmpb;
-	size_t lenb;
-	getline(&pline, &lenb, stdin);
+	//char tmpb[8], *pline= tmpb;
+	//size_t lenb;
+	//getline(&pline, &lenb, stdin);
 	// read rffc 2072 device id value.......
     	  acs->access = RF2072_WRITE;
     	  acs->dcnt = sizeof(uint16_t);
@@ -947,7 +947,7 @@ download:
 						USB_HOST_MSG_IDX,
 						acs, sizeof(*acs)+(acs->dcnt-1), 0);
 	short_sleep(0.1);
-	getline(&pline, &lenb, stdin);
+	//getline(&pline, &lenb, stdin);
 		printf("setup device control = 0x%04x @ 0x%x\n",*(uint16_t*)acs->data,acs->addr);
     	  acs->access = RF2072_READ;
     	  acs->addr = 0x1F;
@@ -957,7 +957,7 @@ download:
 						USB_HOST_MSG_IDX,
 						acs, sizeof(*acs)+(acs->dcnt-1), 0);
 	short_sleep(0.1);
-	getline(&pline, &lenb, stdin);
+	//getline(&pline, &lenb, stdin);
 	  	 while(0==libusb_control_transfer(devh,
 					  	CTRL_IN, USB_RQ,
 					  	USB_HOST_MSG_RX_VAL,
@@ -965,29 +965,48 @@ download:
 					  	acs, sizeof(*acs)+(acs->dcnt-1), 0))
 				short_sleep(0.0005);
 	short_sleep(0.1);
-	getline(&pline, &lenb, stdin);
+	//getline(&pline, &lenb, stdin);
 		printf("device id = 0x%04x @ 0x%x\n",*(uint16_t*)acs->data,acs->addr);
 	///////////////////////////////////////////////////////////////
  	sz = ARRAY_SIZE(chsel_tx);
-	rffe_write_regs(GET_ARRAY(chsel_tx), sz);
-	printf("rx rffe is running...\n");
+	dev_cfg* pregs=GET_ARRAY(chsel_tx);
+	rffe_write_regs(pregs, sz);
+		for (i=0; i<sz; i++) {
+			if (0x9 == pregs[i].addr) {
+				acs->access = RF2072_WRITE;
+				acs->dcnt = sizeof(uint16_t);
+				acs->addr = 0x9;
+				break;
+			}
+		}
+		if (sz == i)
+			perror_exit("can't find PLL CTL register in 2072 config array", -8);
+		// set relock bit in PLL CTL register
+		*conv = pregs[i].data | 0x8;
+		libusb_control_transfer(devh,
+						CTRL_OUT, USB_RQ,
+						USB_HOST_MSG_TX_VAL,
+						USB_HOST_MSG_IDX,
+						acs, sizeof(*acs)+(acs->dcnt-1), 0);
+		puts("set relock bit in PLL CTL");
 	short_sleep(0.5);
+	printf("rx rffe is running...\n");
  #endif // CONFIG_ADI_6613
  		ready_wait_for_mloop = true;	// tentative for debug purpose, liyenho
 
  	uint8_t val /*read default register values*/;
-	getline(&pline, &lenb, stdin);
+	//getline(&pline, &lenb, stdin);
 		r = Standard_readRegisters(0, Processor_LINK, 0x1222, 1, &val);
 		if (r) { printf("error code = 0x%08x\n", r); goto _exit; }
 		printf("register @ 0x1222 = %x, default to be 0x01\n", val);
 		r = Standard_readRegisters(0, Processor_LINK, 0x1223, 1, &val);
 		if (r) { printf("error code = 0x%08x\n", r); goto _exit; }
 		printf("register @ 0x1223 = %x, default to be 0x17\n", val);
-	getline(&pline, &lenb, stdin);
+	//getline(&pline, &lenb, stdin);
 		r = Standard_readRegisters(0, Processor_LINK, 0x1224, 1, &val);
 		if (r) { printf("error code = 0x%08x\n", r); goto _exit; }
 		printf("register @ 0x1224 = %x, default to be 0x95\n", val);
-	getline(&pline, &lenb, stdin);
+	//getline(&pline, &lenb, stdin);
 		goto _exit ;	// tentative for debug purpose, liyenho
 
 	file = fopen(FILE_NAME,"rb");
