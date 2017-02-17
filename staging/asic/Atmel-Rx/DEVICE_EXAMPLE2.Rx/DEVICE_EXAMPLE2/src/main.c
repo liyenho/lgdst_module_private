@@ -1824,6 +1824,7 @@ _reg_acs:
 						pio_set (PIOA, PIO_PA16);
 						delay_us(1);
 						pio_clear (PIOA, PIO_PA17); // keep enbl low
+#if false  // do not set relock bit prior to program 2072...
 						while (spi_tgt_done) ; // flush any pending spi xfer
 							spi_tgt_done = true;
 							ACCESS_PROLOG_2072
@@ -1837,8 +1838,9 @@ _reg_acs:
 							*pth = (uint16_t)0x8; // low byte
 							spi_tx_transfer(pth, 1, &tmpw, 1, 0/*ctrl/sts*/);
 							while (spi_tgt_done) ;
-						 delay_us(1);
+						 //delay_us(1);
 						 pio_set(PIOA, CPLD_2072_TRIG);
+#endif
 						break;
 				case RF2072_READ:
 						assert(!(pt->dcnt & 1));
@@ -1879,7 +1881,7 @@ _reg_acs:
 							*pth = (uint16_t)pt->data[0]; // low byte
 							spi_tx_transfer(pth, 1, &tmpw, 1, 0/*ctrl/sts*/);
 							while (spi_tgt_done) ;
-						  delay_us(1);
+						  //delay_us(1);
 							pio_set(PIOA, CPLD_2072_TRIG);
 							break;
 				case IT913X_READ:

@@ -90,7 +90,7 @@
 							pio_clear(PIOA, CPLD_2072_TRIG); \
 						/*delay_cycles(0);*/ \
 						  pio_clear(PIOB, PIO_PB0); \
-						delay_us(1); /*gap active cs from 1st clk*/ \
+						/*delay_us(1);*/ /*gap active cs from 1st clk*/ \
 						  pio_set(PIOB, PIO_PB1); \
 						/*delay_cycles(0);*/ \
 						  pio_clear(PIOB, PIO_PB0); \

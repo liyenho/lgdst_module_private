@@ -177,7 +177,7 @@ typedef struct {
 							pio_clear(PIOA, CPLD_2072_TRIG); \
 						/*delay_cycles(0);*/ \
 						  pio_clear(PIOA, PIO_PA23); \
-						delay_us(1); /*gap active cs from 1st clk*/ \
+						/*delay_us(1);*/ /*gap active cs from 1st clk*/ \
 						  pio_set(PIOA, PIO_PA23); \
 						/*delay_cycles(0);*/ \
 						  pio_clear(PIOA, PIO_PA23);
@@ -327,6 +327,8 @@ void main_sof_action(void);
 									; /* Capture error */ \
 								}
   #endif
+extern uint32_t gs_uc_hrbuffer[(USB_HOST_MSG_LEN+HOST_BUFFER_SIZE+3)/sizeof(int)];
+
 //bool main_start_usb_write(); // added by liyenho for sync up host rx
 bool main_vender_specific();
 void main_loop_restart() ; // restart main system process...

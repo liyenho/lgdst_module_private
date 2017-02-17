@@ -1898,6 +1898,7 @@ _reg_acs:
 						pio_clear (PIOA, PIO_PA26);
 						delay_ms(200);
 						pio_set (PIOA, PIO_PA26);
+#if false  // do not set relock bit prior to program 2072...
 						delay_us(1);
 						while (spi_tgt_done) ; // flush any pending spi xfer
 							spi_tgt_done = true;
@@ -1912,8 +1913,9 @@ _reg_acs:
 							*pth = (uint16_t)0x8; // low byte
 							spi_tx_transfer(pth, 1, &tmpw, 1, 0/*ctrl/sts*/);
 							while (spi_tgt_done) ;
-						 delay_us(1);
+						// delay_us(1);
 						 pio_set(PIOA, CPLD_2072_TRIG);
+#endif
 						break;
 				case RF2072_READ:
 						assert(!(pt->dcnt & 1));
@@ -1954,7 +1956,7 @@ _reg_acs:
 							*pth = (uint16_t)pt->data[0]; // low byte
 							spi_tx_transfer(pth, 1, &tmpw, 1, 0/*ctrl/sts*/);
 							while (spi_tgt_done) ;
-						  delay_us(1);
+						  //delay_us(1);
 							pio_set(PIOA, CPLD_2072_TRIG);
 							break;
 				case IT951X_READ:
