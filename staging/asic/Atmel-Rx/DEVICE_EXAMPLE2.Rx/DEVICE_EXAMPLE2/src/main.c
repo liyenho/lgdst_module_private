@@ -1446,7 +1446,7 @@ int main(void)
  #ifdef RECV_IT913X
 	pio_set_output(PIOA, PIO_PA20, LOW, DISABLE, ENABLE); // 12 mhz crystal
 	pio_set_output(PIOA, PIO_PA2, LOW, DISABLE, ENABLE);
-	delay_ms(10);  // reset IT931x
+	delay_ms(100);  // reset IT931x
 	pio_set(PIOA, PIO_PA2);
  	pio_set_output(PIOB, PIO_PB9, LOW, DISABLE, ENABLE); //stop TS gate
  	delay_ms(10); // flush all data from Pipe
