@@ -933,7 +933,7 @@ upgrade_firmware:
 									USB_HOST_MSG_TX_VAL,
 									USB_HOST_MSG_IDX,
 									acs, sizeof(*acs), 0);
-	short_sleep(0.1);
+	short_sleep(0.3);
 	// read rffc 2072 device id value.......
     	  acs->access = RF2072_WRITE;
     	  acs->dcnt = sizeof(uint16_t);
@@ -945,7 +945,7 @@ upgrade_firmware:
 						USB_HOST_MSG_TX_VAL,
 						USB_HOST_MSG_IDX,
 						acs, sizeof(*acs)+(acs->dcnt-1), 0);
-	short_sleep(0.1);
+	short_sleep(0.3);
 		printf("setup device control = 0x%04x @ 0x%x\n",*(uint16_t*)acs->data,acs->addr);
     	  acs->access = RF2072_READ;
     	  acs->addr = 0x1F;
@@ -954,14 +954,14 @@ upgrade_firmware:
 						USB_HOST_MSG_TX_VAL,
 						USB_HOST_MSG_IDX,
 						acs, sizeof(*acs)+(acs->dcnt-1), 0);
-	short_sleep(0.1);
+	short_sleep(0.3);
 	  	 while(0==libusb_control_transfer(devh,
 					  	CTRL_IN, USB_RQ,
 					  	USB_HOST_MSG_RX_VAL,
 					  	USB_HOST_MSG_IDX,
 					  	acs, sizeof(*acs)+(acs->dcnt-1), 0))
 				short_sleep(0.0005);
-	short_sleep(0.1);
+	short_sleep(0.3);
 		printf("device id = 0x%04x @ 0x%x\n",*(uint16_t*)acs->data,acs->addr);
 	///////////////////////////////////////////////////////////////
  	sz = ARRAY_SIZE(chsel_2072);

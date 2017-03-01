@@ -946,7 +946,7 @@ download:
 						USB_HOST_MSG_TX_VAL,
 						USB_HOST_MSG_IDX,
 						acs, sizeof(*acs)+(acs->dcnt-1), 0);
-	short_sleep(0.1);
+	short_sleep(0.3);
 	//getline(&pline, &lenb, stdin);
 		printf("setup device control = 0x%04x @ 0x%x\n",*(uint16_t*)acs->data,acs->addr);
     	  acs->access = RF2072_READ;
@@ -956,7 +956,7 @@ download:
 						USB_HOST_MSG_TX_VAL,
 						USB_HOST_MSG_IDX,
 						acs, sizeof(*acs)+(acs->dcnt-1), 0);
-	short_sleep(0.1);
+	short_sleep(0.3);
 	//getline(&pline, &lenb, stdin);
 	  	 while(0==libusb_control_transfer(devh,
 					  	CTRL_IN, USB_RQ,
@@ -964,7 +964,7 @@ download:
 					  	USB_HOST_MSG_IDX,
 					  	acs, sizeof(*acs)+(acs->dcnt-1), 0))
 				short_sleep(0.0005);
-	short_sleep(0.1);
+	short_sleep(0.3);
 	//getline(&pline, &lenb, stdin);
 		printf("device id = 0x%04x @ 0x%x\n",*(uint16_t*)acs->data,acs->addr);
 	///////////////////////////////////////////////////////////////
