@@ -412,14 +412,8 @@ static void twi_master_initialize(uint32_t speed)
 	spi_set_master_mode(base);
 	spi_disable_mode_fault_detect(base);
 	spi_set_peripheral_chip_select_value(base, SPI_CHIP_SEL);
- #if true
-	if (2/*data from si4463*/ == ch || 0/*2072 access*/ == ch) {
-	  spi_set_clock_polarity(base, SPI_CHIP_SEL, 0/*clk idle state is low*/);
-	  spi_set_clock_phase(base, SPI_CHIP_SEL, 1/*captured @ rising, transit @ falling*/); }
-	else // ctrl/sts/video
- #endif
-	{  spi_set_clock_polarity(base, SPI_CHIP_SEL, SPI_CLK_POLARITY);
-	spi_set_clock_phase(base, SPI_CHIP_SEL, SPI_CLK_PHASE); }
+	spi_set_clock_polarity(base, SPI_CHIP_SEL, 0/*clk idle state is low*/);
+	spi_set_clock_phase(base, SPI_CHIP_SEL, 1/*captured @ rising, transit @ falling*/);
  #if true
 	if (2/*data from si4463*/ == ch || 0/*2072 access*/ == ch)
 	  spi_set_bits_per_transfer(base, SPI_CHIP_SEL,
@@ -430,14 +424,8 @@ static void twi_master_initialize(uint32_t speed)
 			SPI_CSR_BITS_16_BIT);  // either 8 or 16 bit spi xfer, liyenho
 	spi_set_baudrate_div(base, SPI_CHIP_SEL,
 			(sysclk_get_cpu_hz() / gs_ul_spi_clock [ch]));
-#if true
-	if (2/*data from si4463*/ == ch || 0/*2072 access*/ == ch)
-	  spi_set_transfer_delay(base, SPI_CHIP_SEL, 0x10/*delay between bytes*/,
-			0x10/*delay between spi xfer*/);
-	else // ctrl/sts and video
-#endif
-	spi_set_transfer_delay(base, SPI_CHIP_SEL, SPI_DLYBS,
-			SPI_DLYBCT);
+	  spi_set_transfer_delay(base, SPI_CHIP_SEL, 0x3/*delay between bytes*/,
+			0x3/*delay between spi xfer*/);
 	spi_enable(base);
 #ifdef TEST_SPI
 	spi_enable_loopback(base);
@@ -1898,8 +1886,8 @@ _reg_acs:
 						pio_clear (PIOA, PIO_PA26);
 						delay_ms(200);
 						pio_set (PIOA, PIO_PA26);
+						//delay_us(1);
 #if false  // do not set relock bit prior to program 2072...
-						delay_us(1);
 						while (spi_tgt_done) ; // flush any pending spi xfer
 							spi_tgt_done = true;
 							ACCESS_PROLOG_2072

@@ -96,12 +96,11 @@
 						  pio_clear(PIOB, PIO_PB0); \
 						  pio_set_peripheral(PIOB, PIO_PERIPH_A, PIO_PB0);
 	#define READ_MID_PROC_2072 \
-							delay_cycles(0); \
 							pio_configure(PIOB, PIO_OUTPUT_1, PIO_PB0, 0); \
 						/*delay_cycles(0);*/ \
 						  pio_clear(PIOB, PIO_PB0); \
 						  pio_set_peripheral(PIOB, PIO_PERIPH_A, PIO_PB0); \
-						  delay_cycles(0); \
+						  /*delay_cycles(0);*/ \
  						 spi_set_clock_phase(SPI0, SPI_CHIP_SEL, 0/*captured @ falling, transit @ rising*/); \
 						/*delay_cycles(0);*/
 	#define READ_END_REV_2072 \
