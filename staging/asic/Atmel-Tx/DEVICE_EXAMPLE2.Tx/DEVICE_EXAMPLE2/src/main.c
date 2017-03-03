@@ -75,7 +75,7 @@ static volatile bool main_b_cdc_enable = false;
 /* Delay before SPCK. */
 #define SPI_DLYBS /*0x40*/ 0x10
 /* Delay between consecutive transfers. */
-#define SPI_DLYBCT /*0x10*/ 0x0
+#define SPI_DLYBCT 0x10 /*0x0*/
  // 10 TS packet per ping/pong buffer
 //#define I2SC_BUFFER_SIZE		10*188
 /* UART baudrate. */
@@ -424,8 +424,8 @@ static void twi_master_initialize(uint32_t speed)
 			SPI_CSR_BITS_16_BIT);  // either 8 or 16 bit spi xfer, liyenho
 	spi_set_baudrate_div(base, SPI_CHIP_SEL,
 			(sysclk_get_cpu_hz() / gs_ul_spi_clock [ch]));
-	  spi_set_transfer_delay(base, SPI_CHIP_SEL, 0x3/*delay between bytes*/,
-			0x3/*delay between spi xfer*/);
+	  spi_set_transfer_delay(base, SPI_CHIP_SEL, SPI_DLYBS/*delay between bytes*/,
+			SPI_DLYBCT/*delay between spi xfer*/);
 	spi_enable(base);
 #ifdef TEST_SPI
 	spi_enable_loopback(base);
