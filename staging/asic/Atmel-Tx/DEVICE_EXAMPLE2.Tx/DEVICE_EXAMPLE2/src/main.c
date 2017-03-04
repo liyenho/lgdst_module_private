@@ -329,6 +329,8 @@ void SPI_Handler(void)  // video spi pipe
  #ifdef TEST_SPI
 	spi_disable_interrupt(SPI_MASTER_BASE, SPI_IER_RXBUFF) ;
  #endif
+ 	delay_cycles(1*120/8*16); // assumed 120 mhz atmel clk, 8 mhz spi clk, and 16 bit data
+	 pio_set (PIOA, PIO_PA28); // cs disabled @ spi1
 	usb_data_done = false;  // handshake with mainloop
 	status = spi_read_status(SPI_MASTER_BASE) ;
 
@@ -415,6 +417,8 @@ static void twi_master_initialize(uint32_t speed)
 	spi_set_clock_polarity(base, SPI_CHIP_SEL, 0/*clk idle state is low*/);
 	spi_set_clock_phase(base, SPI_CHIP_SEL, 1/*captured @ rising, transit @ falling*/);
  #if true
+ 	if (1 == ch)
+	 	spi_set_clock_phase(base, SPI_CHIP_SEL, 0/*captured @ falling, transit @ rising*/);
 	if (2/*data from si4463*/ == ch || 0/*2072 access*/ == ch)
 	  spi_set_bits_per_transfer(base, SPI_CHIP_SEL,
 			SPI_CSR_BITS_8_BIT);  // 8 bit spi xfer, liyenho
@@ -445,6 +449,9 @@ void spi_tx_transfer(void *p_tbuf, uint32_t tsize, void *p_rbuf,
 		uint32_t rsize, uint32_t ch)
 {
 	pdc_packet_t pdc_spi_packet;
+
+	if (1 == ch) // cs enabled @ spi1
+		pio_clear(PIOA, PIO_PA28);  // must be called prior to pdc_xx_init, liyenho
 
 	pdc_spi_packet.ul_addr = (uint32_t)p_rbuf;
 	pdc_spi_packet.ul_size = rsize;
@@ -1343,8 +1350,8 @@ int main(void)
   #ifdef RADIO_SI4463
 	spi_master_initialize(2, SPI2_MASTER_BASE, BOARD_FLEXCOM_SPI2);// radio data pipe
   #endif
-  	// for debug asic tx board, to workaround spi0/1 crossing, liyenho
-	//spi_master_initialize(1, SPI_MASTER_BASE, BOARD_FLEXCOM_SPI);// video pipe @ tx end
+	spi_master_initialize(1, SPI_MASTER_BASE, BOARD_FLEXCOM_SPI);// video pipe @ tx end
+	  pio_configure(PIOA, PIO_OUTPUT_1, PIO_PA28, 0); // manually controlled cs @ spi1
 #ifdef CONFIG_ON_FLASH
 		if (1!=*(uint8_t*)ul_page_addr_bootapp) {
 			erase_last_sector() ;
@@ -1901,7 +1908,7 @@ _reg_acs:
 							*pth = (uint16_t)0x8; // low byte
 							spi_tx_transfer(pth, 1, &tmpw, 1, 0/*ctrl/sts*/);
 							while (spi_tgt_done) ;
-						// delay_us(1);
+						 //delay_us(1);
 						 pio_set(PIOA, CPLD_2072_TRIG);
 #endif
 						break;
