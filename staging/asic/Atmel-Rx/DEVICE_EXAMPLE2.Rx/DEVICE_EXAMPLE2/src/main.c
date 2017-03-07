@@ -1548,6 +1548,32 @@ system_restart:  // system restart entry, liyenho
 	main_loop_on = true;  // enter run time stage, liyenho
 
 	// The main loop manages
+#if defined(RECV_SMS4470)
+  #if defined(RX_SPI_CHAINING)
+		mon_spidmachainfail_cnt  = 0;
+		mon_ts47bad_cnt = 0;
+	// from spi enabled to start dma can't be longer than 488 us, bad design, liyenho
+		configure_rtt(16); // arm 500us isr for SPI/USB data pipe processing
+  #else //!defined(RX_SPI_CHAINING)
+		sms4470_usb_ctx.usb_failcnt = 0;
+		sms4470_usb_ctx.skip_rd = false;
+		sms4470_usb_ctx.skip_wr = true;
+		sms4470_usb_ctx.buf_start = (uint8_t*)gs_uc_rbuffer;
+		sms4470_usb_ctx.buf_last = (uint8_t*)gs_uc_rbuffer+GRAND_BUFFER_SIZE-I2SC_BUFFER_SIZE;
+		sms4470_usb_ctx.buf_end = (uint8_t*)gs_uc_rbuffer+GRAND_BUFFER_SIZE;
+		sms4470_usb_ctx.spi_buf_rd = (uint8_t*)gs_uc_rbuffer+GRAND_BUFFER_SIZE/2+I2SC_BUFFER_SIZE;
+		sms4470_usb_ctx.usb_buf_wr = (uint8_t*)gs_uc_rbuffer;
+  #endif
+	// now allow video spi to be active, liyenho
+	spi_enable(SPI_SLAVE_BASE);
+#ifndef RX_SPI_CHAINING
+	pio_set(PIOB, PIO_PB9); // enable TS gate
+#else
+	// pull over to here instead init inside main loop to get rid of time constraint, liyenho
+	start_siano_spi(false);
+#endif
+#endif
+
 	while (true) {
 		if (system_main_restart ) goto system_restart;
 		if (system_upgrade)
