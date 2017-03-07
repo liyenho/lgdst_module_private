@@ -75,7 +75,7 @@ static volatile bool main_b_cdc_enable = false;
 /* Delay before SPCK. */
 #define SPI_DLYBS /*0x40*/ 0x10
 /* Delay between consecutive transfers. */
-#define SPI_DLYBCT 0x10 /*0x0*/
+#define SPI_DLYBCT /*0x10*/ 0x0
  // 10 TS packet per ping/pong buffer
 //#define I2SC_BUFFER_SIZE		10*188
 /* UART baudrate. */
@@ -329,7 +329,7 @@ void SPI_Handler(void)  // video spi pipe
  #ifdef TEST_SPI
 	spi_disable_interrupt(SPI_MASTER_BASE, SPI_IER_RXBUFF) ;
  #endif
- 	delay_cycles(1*120/8*16); // assumed 120 mhz atmel clk, 8 mhz spi clk, and 16 bit data
+ 	delay_cycles(0.25*120/8*8); // assumed 120 mhz atmel clk, 8 mhz spi clk, and 8 bit data
 	 pio_set (PIOA, PIO_PA28); // cs disabled @ spi1
 	usb_data_done = false;  // handshake with mainloop
 	status = spi_read_status(SPI_MASTER_BASE) ;
@@ -419,15 +419,15 @@ static void twi_master_initialize(uint32_t speed)
  #if true
  	if (1 == ch)
 	 	spi_set_clock_phase(base, SPI_CHIP_SEL, 0/*captured @ falling, transit @ rising*/);
-	if (2/*data from si4463*/ == ch || 0/*2072 access*/ == ch)
 	  spi_set_bits_per_transfer(base, SPI_CHIP_SEL,
 			SPI_CSR_BITS_8_BIT);  // 8 bit spi xfer, liyenho
-	else // ctrl/sts/video
  #endif
-	  spi_set_bits_per_transfer(base, SPI_CHIP_SEL,
-			SPI_CSR_BITS_16_BIT);  // either 8 or 16 bit spi xfer, liyenho
 	spi_set_baudrate_div(base, SPI_CHIP_SEL,
 			(sysclk_get_cpu_hz() / gs_ul_spi_clock [ch]));
+	if (2 == ch) // delay for ctrl spi link
+	  spi_set_transfer_delay(base, SPI_CHIP_SEL, 0x10/*delay between bytes*/,
+			0x10/*delay between spi xfer*/);
+	else
 	  spi_set_transfer_delay(base, SPI_CHIP_SEL, SPI_DLYBS/*delay between bytes*/,
 			SPI_DLYBCT/*delay between spi xfer*/);
 	spi_enable(base);
@@ -450,9 +450,10 @@ void spi_tx_transfer(void *p_tbuf, uint32_t tsize, void *p_rbuf,
 {
 	pdc_packet_t pdc_spi_packet;
 
-	if (1 == ch) // cs enabled @ spi1
+	if (1 == ch) {// cs enabled @ spi1
+ 		delay_cycles(0.25*120/8*8); // assumed 120 mhz atmel clk, 8 mhz spi clk, and 8 bit data
 		pio_clear(PIOA, PIO_PA28);  // must be called prior to pdc_xx_init, liyenho
-
+	}
 	pdc_spi_packet.ul_addr = (uint32_t)p_rbuf;
 	pdc_spi_packet.ul_size = rsize;
 	pdc_rx_init(g_p_spim_pdc [ch], &pdc_spi_packet, NULL);
@@ -1855,14 +1856,20 @@ tune_done:
   #endif
   #ifndef TEST_USB
   	#ifndef TEST_SPI
-		spi_tx_transfer(pusb, I2SC_BUFFER_SIZE/2,
-			gs_uc_rbuffer/*don't care*/, I2SC_BUFFER_SIZE/2, 1/*video*/);
+  		for (n=0; n<I2SC_BUFFER_SIZE/188; n++) {
+			spi_tx_transfer(pusb, 188,
+				gs_uc_rbuffer/*don't care*/, 188, 1/*video*/);
+			while (usb_data_done) ; // usb pipe overflow, liyenho
+			usb_data_done = true;
+			pusb += 188;  // accommodate cpld to generate ts_syn/ts_valid, liyenho
+		}
    #else
-		spi_tx_transfer(pusb, I2SC_BUFFER_SIZE/2,
-			pusb1, I2SC_BUFFER_SIZE/2, 1/*video*/);
+		spi_tx_transfer(pusb, I2SC_BUFFER_SIZE,
+			pusb1, I2SC_BUFFER_SIZE, 1/*video*/);
+		while (usb_data_done) ; // usb pipe overflow, liyenho
+		usb_data_done = true;
    #endif
   #endif
-		usb_data_done = true;
   #if defined(TEST_USB) || defined(TEST_SPI)
 #ifdef TEST_SPI
 		while (usb_data_done) ;
