@@ -1548,7 +1548,8 @@ system_restart:  // system restart entry, liyenho
 	main_loop_on = true;  // enter run time stage, liyenho
 
 	// The main loop manages
-#if defined(RECV_SMS4470)
+#if defined(RECV_IT913X)
+  #include "ite.h"
   #if defined(RX_SPI_CHAINING)
 		mon_spidmachainfail_cnt  = 0;
 		mon_ts47bad_cnt = 0;
@@ -1566,12 +1567,6 @@ system_restart:  // system restart entry, liyenho
   #endif
 	// now allow video spi to be active, liyenho
 	spi_enable(SPI_SLAVE_BASE);
-#ifndef RX_SPI_CHAINING
-	pio_set(PIOB, PIO_PB9); // enable TS gate
-#else
-	// pull over to here instead init inside main loop to get rid of time constraint, liyenho
-	start_siano_spi(false);
-#endif
 #endif
 
 	while (true) {
