@@ -12,12 +12,9 @@
 
 //#define DEBUG_VIDEOPIPE
 
-#if defined(SMS_DVBT2_DOWNLOAD) || defined(RECV_SMS4470)
- extern uint32_t gs_sms_tbuffer[(USB_SMS_MSG_LEN+SMS_BUFFER_SIZE+3)/sizeof(int)];
- extern uint32_t fw_sms_tbuffer[FW_DNLD_SIZE/sizeof(int)], fw_sms_rbuffer[FW_DNLD_SIZE/sizeof(int)];
+#if defined(SMS_DVBT2_DOWNLOAD) || defined(RECV_IT913X)
  extern uint32_t g_ul_wait_10ms;
  extern twi_packet_t packet_tx, packet_rx;
- extern Sms4470_State sms_state;
  extern bool systick_enabled;
  extern volatile bool i2c_read_done ;
  extern volatile uint32_t sms4470_fw_hdr;
@@ -33,15 +30,7 @@
  extern uint8_t spidma_active;
  extern uint32_t gs_uc_rbuffer[GRAND_BUFFER_SIZE/sizeof(int)];
  extern unsigned char dbg_spififo_lvl_max;
- //extern tRadioConfiguration *pRadioConfiguration;  //YH: cause failure
 
- SMS4470_DEVICE_GROUP_OPERATION_INFORMATION dvbt;  // dvbt/2 ctrl ctx, liyenho
-
-volatile bool sms_dvbt_lock= false;
- extern volatile RECEPTION_STATISTICS_ST recptStatG;
- extern volatile RECEPTION_STATISTICS_ST recptStatG_m;
- extern volatile RECEPTION_STATISTICS_ST recptStatG_s;
- extern volatile Short_Statistics_ST shortStatG;
  extern unsigned int log2a[100];
  extern unsigned char log2p;
 
@@ -214,11 +203,12 @@ void RTT_Handler(void)
 }
 
 /**********************************************************************************************************/
-#define TWI_Handler     FLEXCOM4_Handler
-#define TWI_IRQn        FLEXCOM4_IRQn
-volatile static int sms_poll_count = 0, // i2c message length
+#ifndef RECV_IT913X
+ #define TWI_Handler     FLEXCOM4_Handler
+ #define TWI_IRQn        FLEXCOM4_IRQn
+ volatile static int sms_poll_count = 0, // i2c message length
 									sms_poll_done = 0;
-volatile int sms_poll_error = 0;
+ volatile int sms_poll_error = 0;
 
 void TWI_Handler(void)  // sms4470 i2c polling handler
 {
@@ -241,7 +231,7 @@ void TWI_Handler(void)  // sms4470 i2c polling handler
 			sms_poll_done = (int)true;
 		}
 }
-
+#endif
 /**********************************************************************************************************
  * \brief RTT configuration function.
  *
