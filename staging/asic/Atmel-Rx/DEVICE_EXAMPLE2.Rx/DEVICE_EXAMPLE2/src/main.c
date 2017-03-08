@@ -1443,14 +1443,6 @@ int main(void)
 			/* Capture error */
 		}
 	}
- #ifdef RECV_IT913X
-	pio_set_output(PIOA, PIO_PA20, LOW, DISABLE, ENABLE); // 12 mhz crystal
-	pio_set_output(PIOA, PIO_PA2, LOW, DISABLE, ENABLE);
-	delay_ms(100);  // reset IT931x
-	pio_set(PIOA, PIO_PA2);
- 	pio_set_output(PIOB, PIO_PB9, LOW, DISABLE, ENABLE); //stop TS gate
- 	delay_ms(10); // flush all data from Pipe
- #endif
 	twi_master_initialize(TWI_CLK); // communicate with it913x, liyenho
 	spi_master_initialize(0, SPI0_MASTER_BASE, BOARD_FLEXCOM_SPI0);// 2072 ctrl pipe
 	spi_slave_initialize();  // shall be applied on sms video pipe
@@ -1486,6 +1478,12 @@ system_restart:  // system restart entry, liyenho
 	hop_state = IDLE;
 #endif
 #ifdef RECV_IT913X
+	pio_set_output(PIOA, PIO_PA20, LOW, DISABLE, ENABLE); // 12 mhz crystal
+	pio_set_output(PIOA, PIO_PA2, LOW, DISABLE, ENABLE);
+	delay_ms(100);  // reset IT931x
+	pio_set(PIOA, PIO_PA2);
+ 	pio_set_output(PIOB, PIO_PB9, LOW, DISABLE, ENABLE); //stop TS gate
+ 	delay_ms(10); // flush all data from Pipe
  #ifndef RX_SPI_CHAINING
 	i2c_read_cb_on = false ;
 	first_in = true; // be sure to reset 'first time flag' too
