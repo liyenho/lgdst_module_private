@@ -185,11 +185,13 @@ typedef struct {
 						  pio_set(PIOA, PIO_PA23); \
 						/*delay_cycles(0);*/ \
 						  pio_clear(PIOA, PIO_PA23); \
- 						 spi_set_clock_phase(SPI0, SPI_CHIP_SEL, 0/*captured @ falling, transit @ rising*/); \
+ 						 /*spi_set_clock_phase*/(SPI0, SPI_CHIP_SEL, 0/*captured @ falling, transit @ rising*/); \
+ 						 spi_set_clock_polarity(SPI0, SPI_CHIP_SEL, 1/*clk idle state is high*/);
 						/*delay_cycles(0);*/
 	#define READ_END_REV_2072 \
-						 spi_set_clock_phase(SPI0, SPI_CHIP_SEL, 1/*captured @ rising, transit @ falling*/); \
+						 /*spi_set_clock_phase*/(SPI0, SPI_CHIP_SEL, 1/*captured @ rising, transit @ falling*/); \
 						 pio_set(PIOA, CPLD_2072_TRIG);
+						 spi_set_clock_polarity(SPI0, SPI_CHIP_SEL, 0/*clk idle state is high*/);
 #endif
  #ifdef RADIO_SI4463
  #define SI4463_HOST_INT			PIO_PB8
