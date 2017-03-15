@@ -1574,6 +1574,9 @@ system_restart:  // system restart entry, liyenho
 		if (!stream_flag) goto _reg_acs; // stop TS stream if flag isn't true, liyenho
 
 #ifdef RX_SPI_CHAINING
+	if(spidma_active != TRUE)
+		start_it913x_spi(true);
+
 	  //Ctrl led control -------------------------------------------------
 	  if(ctrl_sndflag >0 )
 	    ctrl_sndflag--;
