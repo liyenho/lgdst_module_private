@@ -66,8 +66,6 @@ static volatile bool main_b_cdc_enable = false;
   /* still need to confirm on these..., done */
   #define ITE_REG_ADDR         0
   #define ITE_REG_ADDR_LENGTH  /*2*/ 0
-/* Chip select. */
-#define SPI_CHIP_SEL 0
 /* Clock polarity. */
 #define SPI_CLK_POLARITY /*0*/ 1
 /* Clock phase. */
@@ -1010,6 +1008,7 @@ uint32_t Cmd_addChecksum (
 					 *pb = fw_ite_rbuffer,
 					 *pe = pb+fw_dnld_size,
 					 Cmd_sequence = 0/*it should be alright...*/;
+#include "type.h"
 	uint16_t command = Cmd_buildCommand ( \
 															Command_SCATTER_WRITE, \
 															Processor_LINK, \
@@ -2061,7 +2060,10 @@ bool main_usb_load_media() {
  	return true;
 }
  #endif
-
+// to enable embedded ITE asic  video subsystem ********************
+extern int init_video_subsystem();
+extern int start_video_subsystem();
+/**********************************************************/
 volatile bool main_vender_specific() {
  #ifdef CONFIG_ON_FLASH
 	if (USB_BOOT_APP_VAL == udd_g_ctrlreq.req.wValue) {
@@ -2072,6 +2074,16 @@ volatile bool main_vender_specific() {
 	if (USB_SYSTEM_RESTART_VAL == udd_g_ctrlreq.req.wValue) {
 		main_loop_restart(); return true;
 	}
+/**********************************************************/
+	if (USB_INIT_VID_SUBSYS == udd_g_ctrlreq.req.wValue) {
+		if (!init_video_subsystem()) return true;
+		else return false ;
+	}
+	if (USB_START_VID_SUBSYS == udd_g_ctrlreq.req.wValue) {
+		if (!start_video_subsystem()) return true;
+		else return false ;
+	}
+/**********************************************************/
 	if (USB_HOST_MSG_TX_VAL == udd_g_ctrlreq.req.wValue ||
 		USB_ATMEL_UPGRADE_VAL == udd_g_ctrlreq.req.wValue
 		|| USB_ITE_FW_VAL == udd_g_ctrlreq.req.wValue

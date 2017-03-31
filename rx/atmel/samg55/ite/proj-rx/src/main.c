@@ -55,9 +55,6 @@ static volatile bool main_b_cdc_enable = false;
   /** TWI Bus Clock 400kHz */
   // slow down to see if it improve data integrity, it does, liyenho
   #define TWI_CLK     /*200000*/ 100000
-  /** The address for TWI IT913X */
-  #define IT913X_ADDRESS        0x3A
-
   /* still need to confirm on these..., done */
   #define ITE_REG_ADDR         0
   #define ITE_REG_ADDR_LENGTH  /*2*/ 0
@@ -1017,30 +1014,11 @@ static void si4463_radio_cb() {
 	}
 }
 #endif
-uint32_t Cmd_addChecksum (
-    uint32_t*          bufferLength,
-    uint8_t*           buffer
-) {
-    uint32_t error  = 0;
-    uint32_t loop   = (*bufferLength - 1) / 2;
-    uint32_t remain = (*bufferLength - 1) % 2;
-    uint32_t i;
-    uint16_t  checksum = 0;
-
-    for (i = 0; i < loop; i++)
-        checksum = checksum + (uint16_t) (buffer[2 * i + 1] << 8) + (uint16_t) (buffer[2 * i + 2]);
-    if (remain)
-        checksum = checksum + (uint16_t) (buffer[*bufferLength - 1] << 8);
-
-    checksum = ~checksum;
-    buffer[*bufferLength]     = (uint8_t) ((checksum & 0xFF00) >> 8);
-    buffer[*bufferLength + 1] = (uint8_t) (checksum & 0x00FF);
-    buffer[0]                 = (uint8_t) (*bufferLength + 1);  // because buffer[0] indicates count which does NOT include itself, liyenho
-    *bufferLength            += 2;
-
-    return (error);
-}
-
+#include "type.h"
+extern uint32_t Cmd_addChecksum (
+uint32_t*          bufferLength,
+uint8_t*           buffer
+) ;
  static void download_ite_fw(uint32_t fw_dnld_size, uint8_t address, uint8_t *chk )
  {
 	uint32_t fw_len0, fw_len = it913x_fw_hdr[0],
@@ -1997,6 +1975,10 @@ volatile bool main_usb_host_reply()
 	return (true != spi_tgt_done);
 }
 
+// to enable embedded ITE asic  video subsystem ********************
+extern int init_video_subsystem();
+extern int start_video_subsystem();
+/**********************************************************/
 volatile bool main_vender_specific() {
  #ifdef CONFIG_ON_FLASH
 	if (USB_BOOT_APP_VAL == udd_g_ctrlreq.req.wValue) {
@@ -2007,6 +1989,16 @@ volatile bool main_vender_specific() {
 	if (USB_SYSTEM_RESTART_VAL == udd_g_ctrlreq.req.wValue) {
 		main_loop_restart(); return true;
 	}
+/**********************************************************/
+	if (USB_INIT_VID_SUBSYS == udd_g_ctrlreq.req.wValue) {
+		if (!init_video_subsystem()) return true;
+		else return false ;
+	}
+	if (USB_START_VID_SUBSYS == udd_g_ctrlreq.req.wValue) {
+		if (!start_video_subsystem()) return true;
+		else return false ;
+	}
+/**********************************************************/
 	if (USB_HOST_MSG_TX_VAL == udd_g_ctrlreq.req.wValue ||
 		USB_CPLD_UPGRADE_VAL == udd_g_ctrlreq.req.wValue ||
 		USB_ATMEL_UPGRADE_VAL == udd_g_ctrlreq.req.wValue

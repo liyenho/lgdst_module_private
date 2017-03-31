@@ -477,6 +477,8 @@
       <Value>../src/ASF/sam/drivers/rtt</Value>
       <Value>../src/ASF/sam/drivers/wdt</Value>
       <Value>../src/USB_Commands</Value>
+      <Value>../src/video</Value>
+      <Value>../src/video/inc</Value>
     </ListValues>
   </armgcc.compiler.directories.IncludePaths>
   <armgcc.compiler.optimization.OtherFlags>-fdata-sections</armgcc.compiler.optimization.OtherFlags>
@@ -615,6 +617,8 @@
     <Folder Include="src\ASF\thirdparty\CMSIS\Lib\" />
     <Folder Include="src\ASF\thirdparty\CMSIS\Lib\GCC\" />
     <Folder Include="src\config\" />
+    <Folder Include="src\video" />
+    <Folder Include="src\video\inc" />
     <Folder Include="src\USB_Commands" />
     <Folder Include="src\si4463" />
   </ItemGroup>
@@ -664,10 +668,70 @@
     <Compile Include="src\Directional_Antenna_Selection.h">
       <SubType>compile</SubType>
     </Compile>
+    <Compile Include="src\ite.c">
+      <SubType>compile</SubType>
+    </Compile>
     <Compile Include="src\USB_Commands\USB_Commands.c">
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="src\USB_Commands\USB_Commands.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\video\inc\error.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\video\inc\firmware.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\video\inc\IQ_fixed_table.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\video\inc\it9510.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\video\inc\orion_cal.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\video\inc\pcr_restamp.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\video\inc\platform_it9517.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\video\inc\register.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\video\inc\rf2072_set.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\video\inc\tuner.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\video\inc\type.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\video\inc\user.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\video\inc\variable.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\video\inc\version.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\video\it9510.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\video\orion_cal.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\video\platform_it9517.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\video\tuner.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\video\user.c">
       <SubType>compile</SubType>
     </Compile>
     <None Include="src\ASF\sam\drivers\i2sc\i2sc.h">

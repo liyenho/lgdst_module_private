@@ -2,7 +2,7 @@
 #define _SMS_H_ // detailed sms4470 header
 #ifdef CONF_BOARD_USB_TX
 #include "main.h"
-
+#define LO_Frequency 							1583000
 //#define MEASURE_TIMING // NEVER enable this option, it can't work!!! liyenho
 #ifdef MEASURE_TIMING
 	extern volatile uint32_t tick_30us ;

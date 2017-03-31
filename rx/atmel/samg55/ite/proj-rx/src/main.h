@@ -22,6 +22,8 @@
 #define USB_DEVICE_SPECIFIC_REQUEST()			main_vender_specific()
 #define USB_DEVICE_SYSTEM_RESTART()			main_loop_restart()  // restart yuneec design if usb restart, liyenho
  #define USB_SYSTEM_RESTART_VAL				0xa5
+#define USB_INIT_VID_SUBSYS								0xa1		// ite video subsystem init
+#define USB_START_VID_SUBSYS							0xa2		// ite video subsystem start
  #define USB_ATMEL_VER_VAL								0x20
 #define USB_STREAM_OFF_VAL							0xa
 #define USB_STREAM_ON_VAL							0xe
@@ -144,6 +146,7 @@
 		uint32_t tm_ended; // sampled calib eval end time
 	} capv_tune_t;
 #endif
+#define SPI_CHIP_SEL 0
 #define RFFE_PARAMS
 typedef enum {
 	RF2072_RESET=  0, // lastly added for rf2072 reset
@@ -203,10 +206,6 @@ typedef struct {
 
 #define Cmd_buildCommand(command, processor, chip)  (command + (uint16_t) (processor << 12) + (uint16_t) (chip << 12))
 #define Command_SCATTER_WRITE           0x0029
-typedef enum {
-    Processor_LINK = 0,
-    Processor_OFDM = 8
-} Processor;
 
 #define FW_DNLD_SIZE		8*1024
   #define ITE_BUFFER_SIZE					    255
@@ -231,6 +230,8 @@ typedef struct {
 
 /** ite 913x to host irq assignment */
 #define ITE_HOST_INT			PIO_PA26 // not used at all...
+  /** The address for TWI IT913X */
+  #define IT913X_ADDRESS        0x3A
 #define _TWI_READ_(adr,buf,len) \
 	packet_rx.chip = adr; \
 	packet_rx.buffer = (uint8_t *)buf; \

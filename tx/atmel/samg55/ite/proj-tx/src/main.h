@@ -19,6 +19,8 @@
 #define USB_DEVICE_SPECIFIC_REQUEST()			main_vender_specific()
 #define USB_DEVICE_SYSTEM_RESTART()			main_loop_restart()  // restart yuneec design if usb restart, liyenho
  #define USB_SYSTEM_RESTART_VAL				0xa5
+#define USB_INIT_VID_SUBSYS								0xa1		// ite video subsystem init
+#define USB_START_VID_SUBSYS							0xa2		// ite video subsystem start
  #define USB_ATMEL_VER_VAL								0x20
 #define USB_STREAM_OFF_VAL							0xa
 #define USB_STREAM_ON_VAL							0xe
@@ -80,6 +82,8 @@
   } ;
 
 #endif
+/* Chip select. */
+#define SPI_CHIP_SEL 0
 #define RFFE_PARAMS				// shared between tx/rx platforms from host
 #ifdef RFFE_PARAMS
  #define CONFIG_RF2072 // forced to configure rf2072 prior to startup
@@ -155,10 +159,6 @@ void main_sof_action(void);
 
 #define Cmd_buildCommand(command, processor, chip)  (command + (uint16_t) (processor << 12) + (uint16_t) (chip << 12))
 #define Command_SCATTER_WRITE           0x0029
-typedef enum {
-    Processor_LINK = 0,
-    Processor_OFDM = 8
-} Processor;
 
 #define FW_DNLD_SIZE		8*1024
   #define ITE_BUFFER_SIZE					    255
@@ -173,6 +173,7 @@ typedef enum {
 #define USB_CPLD_UPGRADE_VAL	0x21  // cpld upgrade cmd
 #define USB_ATMEL_UPGRADE_VAL	0x23	// atmel upgrade cmd
 /** ite 951x to host irq assignment */
+#define LO_Frequency 								1583000
 #define ITE_HOST_INT			PIO_PA26 // not used at all...
 #define _TWI_READ_(adr,buf,len) \
 	packet_rx.chip = adr; \
