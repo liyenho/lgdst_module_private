@@ -1511,6 +1511,9 @@ bypass:
  #ifdef CONFIG_RF2072
   	pio_set_output(PIOA, PIO_PA26, HIGH, DISABLE, ENABLE); // rf2072 out of reset
   	pio_set_output(PIOA, CPLD_2072_TRIG, HIGH, DISABLE, ENABLE); // extra trigger line for 2072 access with cpld
+ //Force PA switch (PA23, PA24) Picks the inner rf port
+    pio_set_output(PIOA, PIO_PA23, HIGH, DISABLE, ENABLE);
+	pio_set_output(PIOA, PIO_PA24, LOW, DISABLE, ENABLE);
  #endif
 	init_4463();  // be sure to place this function before next line! liyenho
 	rdptr_rdo_tpacket=0;
