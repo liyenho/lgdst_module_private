@@ -1512,7 +1512,7 @@ bypass:
   	pio_set_output(PIOA, PIO_PA26, HIGH, DISABLE, ENABLE); // rf2072 out of reset
   	pio_set_output(PIOA, CPLD_2072_TRIG, HIGH, DISABLE, ENABLE); // extra trigger line for 2072 access with cpld
  //Force PA switch (PA23, PA24) Picks the inner rf port
-    pio_set_output(PIOA, PIO_PA23, HIGH, DISABLE, ENABLE);
+   pio_set_output(PIOA, PIO_PA23, HIGH, DISABLE, ENABLE);
 	pio_set_output(PIOA, PIO_PA24, LOW, DISABLE, ENABLE);
  #endif
 	init_4463();  // be sure to place this function before next line! liyenho
@@ -2110,6 +2110,18 @@ volatile bool main_vender_specific() {
 		 	udd_set_setup_payload( &main_loop_on, sizeof(main_loop_on));
 		 return (bool)-1 ;
 	 } // si4462 radio will operate on both rx/tx ends
+	 else if (USB_ANT_SW_VAL == udd_g_ctrlreq.req.wValue) {
+			if (main_loop_on) {
+				if (pio_get(PIOA, PIO_OUTPUT_1, PIO_PA24)) {
+   				pio_set(PIOA, PIO_PA23);
+					pio_clear(PIOA, PIO_PA24);
+				}
+				else {
+   				pio_clear(PIOA, PIO_PA23);
+					pio_set(PIOA, PIO_PA24);
+				}
+			}
+	 }
 #ifdef  RADIO_SI4463
 	 else if (RADIO_COMM_VAL == udd_g_ctrlreq.req.wValue) {
 		 // it should be safe to use wIndex alternatively instead pointer to interface index
