@@ -27,6 +27,7 @@
  #define USB_ATMEL_VER_VAL								0x20
 #define USB_STREAM_OFF_VAL							0xa
 #define USB_STREAM_ON_VAL							0xe
+#define USB_ANT_SW_VAL										0xf
   #define USB_QUERY_IDX									0xff	// used to query run time indicator
   #define USB_STREAM_IDX								0x1	// data instead comm interface
   #define USB_STREAM_LEN								0

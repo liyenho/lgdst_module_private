@@ -99,7 +99,8 @@ extern volatile bool udi_cdc_data_running; // from udi_cdc.c, liyenho
   /*static*/ enum pair_mode hop_state;
   	volatile unsigned char ynsdbyte ; //Take care in Rate Control Section!!! liyenho
 #endif
-volatile bool stream_flag = false; // wait for host to signal TS stream on
+volatile bool stream_flag = false, // wait for host to signal TS stream on
+							vid_ant_switch = false;
 #ifdef CONFIG_ON_FLASH
 uint32_t ul_page_addr_ctune =IFLASH_ADDR + IFLASH_SIZE - NUM_OF_ATMEL_REGS, // 1st atmel reg on flash
 					// temperature @ current tuning @ 2nd atmel reg on flash
@@ -1557,6 +1558,17 @@ bypass:
 	if (system_upgrade)
 		upgrade_sys_fw(system_upgrade);
 		if (!stream_flag) goto _reg_acs; // stop TS stream if flag isn't true, liyenho
+		if (vid_ant_switch) {
+			if (pio_get(PIOA, PIO_OUTPUT_1, PIO_PA24)) {
+   			pio_set(PIOA, PIO_PA23);
+				pio_clear(PIOA, PIO_PA24);
+			}
+			else {
+   			pio_clear(PIOA, PIO_PA23);
+				pio_set(PIOA, PIO_PA24);
+			}
+			vid_ant_switch = false;
+	 }
 #ifdef RADIO_SI4463
   #ifdef TEMPERATURE_MEASURE
     static int once = false;
@@ -2110,18 +2122,6 @@ volatile bool main_vender_specific() {
 		 	udd_set_setup_payload( &main_loop_on, sizeof(main_loop_on));
 		 return (bool)-1 ;
 	 } // si4462 radio will operate on both rx/tx ends
-	 else if (USB_ANT_SW_VAL == udd_g_ctrlreq.req.wValue) {
-			if (main_loop_on) {
-				if (pio_get(PIOA, PIO_OUTPUT_1, PIO_PA24)) {
-   				pio_set(PIOA, PIO_PA23);
-					pio_clear(PIOA, PIO_PA24);
-				}
-				else {
-   				pio_clear(PIOA, PIO_PA23);
-					pio_set(PIOA, PIO_PA24);
-				}
-			}
-	 }
 #ifdef  RADIO_SI4463
 	 else if (RADIO_COMM_VAL == udd_g_ctrlreq.req.wValue) {
 		 // it should be safe to use wIndex alternatively instead pointer to interface index

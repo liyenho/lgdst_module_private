@@ -27,7 +27,7 @@
 	extern unsigned char gs_rdo_rpacket_ovflw;
 	extern volatile uint32_t wrptr_rdo_rpacket, rdptr_rdo_rpacket;
 	extern volatile unsigned char bMain_IT_Status, bMain_IT_Status_m; // as global ctrl radio intr flag...
-	extern volatile bool ctrl_tdma_enable ;
+	extern volatile bool ctrl_tdma_enable, vid_ant_switch;
 	 extern volatile capv_tune_t si4463_factory_tune;
 	  extern bool timedelta_reset_rx ;
 	  extern volatile bool ctrl_tdma_lock;
@@ -176,6 +176,12 @@ extern int hop_chn_sel(int offset) ;
 					  );
 				rxnorec_intv=0;  //reset rx no receive flag
 				/************************************************************/
+				/* FIX_ME ...
+		 				Hi Bill, can you please help to fill in this section when
+		 				Tx receive pseudo control command for antenna switch?
+		 				simply turn on the flag below, thank you very much
+						vid_ant_switch = true;
+				*/
 			}
 	  #ifdef  CONFIG_ON_FLASH
 			  if (!si4463_factory_tune.calib_req_h && !si4463_factory_tune.calib_gated &&

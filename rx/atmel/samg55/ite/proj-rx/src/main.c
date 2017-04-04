@@ -2019,6 +2019,13 @@ volatile bool main_vender_specific() {
 		 	udd_set_setup_payload( &main_loop_on, sizeof(main_loop_on));
 		 return (bool)-1 ;
 	 }
+	 else if (USB_ANT_SW_VAL == udd_g_ctrlreq.req.wValue) {
+		 /* FIX_ME ...
+		 	Hi Bill, can you please help to fill in this section with
+		 	pseudo control command sent to Tx for antenna switch?
+		 	thank you very much
+		 */
+	 }
 #ifdef  RADIO_SI4463
 	else if (RADIO_COMM_VAL == udd_g_ctrlreq.req.wValue) {
 		// it should be safe to use wIndex alternatively instead pointer to interface index
