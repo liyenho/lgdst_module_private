@@ -1392,6 +1392,11 @@ system_restart:  // system restart entry, liyenho
 	hop_state = IDLE;
   #endif
 #endif
+ #ifdef CONFIG_RF2072
+ //Force PA switch (PA23, PA24) Picks the inner rf port, can't afford to wait for host, in case it's not present
+   pio_set_output(PIOA, PIO_PA23, HIGH, DISABLE, ENABLE);
+	pio_set_output(PIOA, PIO_PA24, LOW, DISABLE, ENABLE);
+ #endif
 #ifndef MEDIA_ON_FLASH
  	while (!udi_cdc_data_running) ; // wait for cdc data intf ready, liyenho
 #endif
