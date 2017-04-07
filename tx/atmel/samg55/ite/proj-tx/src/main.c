@@ -1553,6 +1553,10 @@ bypass:
 #ifdef RADIO_SI4463
 	r4463_sts.tick_prev = tick_prev = *DWT_CYCCNT;
 #endif
+#ifdef TIME_ANT_SW
+  extern void configure_rtt(unsigned int clkcnt);
+	configure_rtt(0); // arm 2 sec isr toggle video ant
+#endif
 	// The main loop manages only the power mode
 	// because the USB management is done by interrupt
 	while (true) {
@@ -1561,6 +1565,9 @@ bypass:
 		upgrade_sys_fw(system_upgrade);
 		if (!stream_flag) goto _reg_acs; // stop TS stream if flag isn't true, liyenho
 		if (vid_ant_switch) {
+#ifdef TIME_ANT_SW
+			delay_ms(100);  // introduce extra delay so ensure to be noticeable on rx
+#endif
 			if (pio_get(PIOA, PIO_OUTPUT_1, PIO_PA24)) {
    			pio_set(PIOA, PIO_PA23);
 				pio_clear(PIOA, PIO_PA24);
@@ -1865,7 +1872,6 @@ tune_done:
 		if (!usb_read_buf(pusb))
 			goto _reg_acs ;
   #endif
-		while (usb_data_done) ; // usb pipe overflow, liyenho
   #if defined(TEST_USB) || defined(TEST_SPI)
 	 volatile uint8_t *pusb1;
 	   pusb1 = (1 & usbfrm) ?((uint8_t*)gs_uc_rbuffer)+I2SC_BUFFER_SIZE : gs_uc_rbuffer;
