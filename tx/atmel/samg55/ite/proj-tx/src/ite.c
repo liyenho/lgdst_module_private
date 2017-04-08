@@ -242,3 +242,60 @@ int start_video_subsystem()
 
 }
 
+#ifdef TIME_ANT_SW
+void configure_rtt(unsigned int clkcnt);
+extern volatile bool vid_ant_switch;
+/**********************************************************************************************************
+ * \brief Interrupt handler for the RTT.
+ *
+ */
+void RTT_Handler(void)
+{
+	// rtt clkcnt=16: period range =  d419 to 1d059 (452us - 1.4ms)
+	uint32_t ul_status;
+    /* Get RTT status */
+	ul_status = rtt_get_status(RTT);
+
+	/* Time has changed, refresh display */
+	if ((ul_status & RTT_SR_RTTINC) == RTT_SR_RTTINC) {
+		vid_ant_switch = true; // activate vid ant sw
+		return;
+	}//if ((ul_status & RTT_SR_RTTINC) == RTT_SR_RTTINC)
+	/* Alarm */
+	if ((ul_status & RTT_SR_ALMS) == RTT_SR_ALMS) {
+          //Error condition, should not happen
+		return;
+	}
+}
+/**********************************************************************************************************
+ * \brief RTT configuration function.
+ *
+ * Configure the RTT to generate a one second tick, which triggers the RTTINC
+ * interrupt.
+ */
+void configure_rtt(unsigned int clkcnt )
+{
+	//tick period = clkcnt*30.5us
+	//e.g.: 16 = 500us
+	uint32_t ul_previous_time;
+
+	/* Configure RTT for a 1 second tick interrupt */
+#if SAM4N || SAM4S || SAM4E || SAM4C || SAM4CP || SAM4CM || SAMV71 || SAMV70 || SAME70 || SAMS70
+	rtt_sel_source(RTT, false);
+#endif
+
+	rtt_init(RTT, clkcnt); // fired every sec (0 gives about 2 sec)
+
+	ul_previous_time = rtt_read_timer_value(RTT);
+	while (ul_previous_time == rtt_read_timer_value(RTT));
+
+	rtt_write_alarm_time(RTT, clkcnt ); // fired every sec (0 gives about 2sec)
+
+	/* Enable RTT interrupt */
+	NVIC_DisableIRQ(RTT_IRQn);
+	NVIC_ClearPendingIRQ(RTT_IRQn);
+	NVIC_SetPriority(RTT_IRQn, 0);  // RTT take highest priority as Siano spi/usb xfer handler
+	NVIC_EnableIRQ(RTT_IRQn);
+	rtt_enable_interrupt(RTT, RTT_MR_RTTINCIEN);
+}
+#endif

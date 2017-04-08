@@ -83,7 +83,7 @@ extern volatile bool udi_cdc_data_running; // from udi_cdc.c, liyenho
   volatile capv_tune_t si4463_factory_tune;
   volatile bool ctrl_tdma_lock = false;  //always, since RX is master
   //volatile bool ctrl_pkt_rd_available = false;
-	static int timedelta(bool reset, unsigned int bignum, unsigned int smallnum);
+	/*static*/ int timedelta(bool reset, unsigned int bignum, unsigned int smallnum);
 	static bool fhop_dir, timedelta_reset ; //to handle system restart
 	/*static*/ uint8_t hop_id[HOP_ID_LEN]; // 10 byte hop id from host
 	static int fhop_idx= 0, fhop_offset = HOP_2CH_ENABLE?WRAP_OFFSET(HOP_2CH_OFFSET0):0; //to produce frequency hopping sequence
@@ -2312,7 +2312,7 @@ void main_loop_restart() {
 	}
 }
 
-static int timedelta(bool reset, unsigned int bignum, unsigned int smallnum)
+/*static*/ int timedelta(bool reset, unsigned int bignum, unsigned int smallnum)
 { // what the hack on the old codes doing??? liyenho
 	static int64_t bprev, sprev;
 	int64_t bl, sl, delta;

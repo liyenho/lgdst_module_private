@@ -36,6 +36,7 @@
   #define HOST_BUFFER_SIZE							(256-1)
   #define USB_HOST_MSG_IDX						0x1	// data instead comm interface
   #define USB_HOST_MSG_LEN						sizeof(dev_access)
+#define TIME_ANT_SW		// enable latency measurement on video antenna switch
 #define RADIO_SPI_BR								1000000
 #define ASYMM_RATIO								/*1*/ 2
 #define TDMA_PERIOD    							/*3600000*/ /*3240000*/ 2880000 // see TX ctrl.h for details

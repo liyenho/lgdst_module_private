@@ -1565,10 +1565,13 @@ bypass:
 		upgrade_sys_fw(system_upgrade);
 		if (!stream_flag) goto _reg_acs; // stop TS stream if flag isn't true, liyenho
 		if (vid_ant_switch) {
+			bool state= pio_get(PIOA, PIO_OUTPUT_1, PIO_PA24);
 #ifdef TIME_ANT_SW
+			pio_clear(PIOA, PIO_PA23);
+			pio_clear(PIOA, PIO_PA24);
 			delay_ms(100);  // introduce extra delay so ensure to be noticeable on rx
 #endif
-			if (pio_get(PIOA, PIO_OUTPUT_1, PIO_PA24)) {
+			if (state) {
    			pio_set(PIOA, PIO_PA23);
 				pio_clear(PIOA, PIO_PA24);
 			}
