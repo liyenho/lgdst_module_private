@@ -294,7 +294,7 @@ void configure_rtt(unsigned int clkcnt )
 	/* Enable RTT interrupt */
 	NVIC_DisableIRQ(RTT_IRQn);
 	NVIC_ClearPendingIRQ(RTT_IRQn);
-	NVIC_SetPriority(RTT_IRQn, 0);  // RTT take highest priority as Siano spi/usb xfer handler
+	NVIC_SetPriority(RTT_IRQn, 7);  // RTT take lower priority than usb?
 	NVIC_EnableIRQ(RTT_IRQn);
 	rtt_enable_interrupt(RTT, RTT_MR_RTTINCIEN);
 }
