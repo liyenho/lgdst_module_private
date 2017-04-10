@@ -1269,7 +1269,10 @@ int main(void)
 	//control path related
 	U8 sndflag;
 	U8 radioini_failcnt=0;
-
+#ifdef TIME_ANT_SW
+	unsigned int tick_prev_antv, tick_curr_antv;
+	int tick_del_antv = 0;
+#endif
 #elif defined(FWM_DNLD_DBG)
 	volatile uint32_t ul_page_end, ul_page_addr=PAGE_ADDRESS ;
 #endif
@@ -1554,8 +1557,12 @@ bypass:
 	r4463_sts.tick_prev = tick_prev = *DWT_CYCCNT;
 #endif
 #ifdef TIME_ANT_SW
+ #if false  // beause of stupid usb hub in front of atmel, it never worked as rx does...
   extern void configure_rtt(unsigned int clkcnt);
-	configure_rtt(0); // arm 2 sec isr toggle video ant
+	configure_rtt(0/*16*/); // arm 2 sec isr toggle video ant
+ #else  // workaround the stupid usb hub
+ 	tick_prev_antv = *DWT_CYCCNT;
+ #endif
 #endif
 	// The main loop manages only the power mode
 	// because the USB management is done by interrupt
@@ -1564,6 +1571,19 @@ bypass:
 	if (system_upgrade)
 		upgrade_sys_fw(system_upgrade);
 		if (!stream_flag) goto _reg_acs; // stop TS stream if flag isn't true, liyenho
+#ifdef TIME_ANT_SW
+		else /*if (stream_flag)*/ {
+			tick_curr_antv = *DWT_CYCCNT;
+			tick_del_antv= timedelta(timedelta_reset,
+																	tick_curr_antv,
+																	tick_prev_antv);
+			// toggle every two sec...
+			if (2*120000000<tick_del_antv)	{
+				vid_ant_switch = true; // activate vid ant sw
+				tick_prev_antv = tick_curr_antv;
+			}
+		}
+#endif
 		if (vid_ant_switch) {
 			bool state= pio_get(PIOA, PIO_OUTPUT_1, PIO_PA24);
 #ifdef TIME_ANT_SW
