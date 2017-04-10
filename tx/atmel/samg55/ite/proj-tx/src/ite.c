@@ -244,7 +244,8 @@ int start_video_subsystem()
 
 #ifdef TIME_ANT_SW
 void configure_rtt(unsigned int clkcnt);
-extern volatile bool vid_ant_switch;
+extern volatile bool stream_flag,
+											vid_ant_switch;
 /**********************************************************************************************************
  * \brief Interrupt handler for the RTT.
  *
@@ -258,7 +259,8 @@ void RTT_Handler(void)
 
 	/* Time has changed, refresh display */
 	if ((ul_status & RTT_SR_RTTINC) == RTT_SR_RTTINC) {
-		vid_ant_switch = true; // activate vid ant sw
+		if (stream_flag)
+			vid_ant_switch = true; // activate vid ant sw
 		return;
 	}//if ((ul_status & RTT_SR_RTTINC) == RTT_SR_RTTINC)
 	/* Alarm */
