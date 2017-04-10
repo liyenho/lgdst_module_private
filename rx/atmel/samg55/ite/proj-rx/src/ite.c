@@ -121,7 +121,7 @@ void RTT_Handler(void)
 		if (last_done_spi) {
 			cur_time = *DWT_CYCCNT;
 			dur= timedelta(0, cur_time, last_done_spi);
-			if (90000000<dur) { // cpu clk @ 120 mhz assumed
+			if (9000000<dur) { // cpu clk @ 120 mhz assumed
 				// at least data feed starved for 75 msec
 				if (intv_stats_idx<sizeof(intv_stats)/sizeof(intv_stats[0])) {
 					intv_stats[intv_stats_idx] = dur;
