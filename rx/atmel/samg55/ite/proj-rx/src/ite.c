@@ -117,14 +117,14 @@ void RTT_Handler(void)
 	if(spi_pdcrxcnt_next ==0){ // spidma buffer ptr updata
 #if defined(TIME_ANT_SW) && !defined(DEBUG_VIDEOPIPE)
 		uint32_t cur_time;
-		int n, duration;
+		int n, dur;
 		if (last_done_spi) {
 			cur_time = *DWT_CYCCNT;
-			duration= timedelta(0, cur_time, last_done_spi);
-			if (9000000<duration) { // cpu clk @ 120 mhz assumed
+			dur= timedelta(0, cur_time, last_done_spi);
+			if (9000000<dur) { // cpu clk @ 120 mhz assumed
 				// at least data feed starved for 75 msec
 				if (intv_stats_idx<sizeof(intv_stats)/sizeof(intv_stats[0])) {
-					intv_stats[intv_stats_idx] = duration;
+					intv_stats[intv_stats_idx] = dur;
 				}
 				intv_stats_idx = intv_stats_idx+ 1;
 			}
