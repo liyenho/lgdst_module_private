@@ -1805,6 +1805,20 @@ tune_done:
 		#endif
 		}//if(si4463_radio_started)
 #endif //RX_SPI_CHAINING
+#ifdef TIME_ANT_SW
+	extern uint32_t startup_video_tm,
+										last_done_spi;
+	extern bool startup_meas;
+	int64_t hold_off_tm ;
+		if (startup_video_tm && last_done_spi<startup_video_tm) {
+			hold_off_tm = 0x100000000LL+(int64_t)last_done_spi;
+		} else
+		hold_off_tm = (int64_t)last_done_spi;
+		if (startup_video_tm &&
+			60000000LL/*30 sec*/<hold_off_tm-(int64_t)startup_video_tm) {
+			startup_meas = true;
+		}
+#endif
 _reg_acs:
   		if (usb_host_msg && !system_main_restart) {	// host ctrl/sts link with fpga/sms process, liyenho
 			usb_host_msg = false;
@@ -1904,7 +1918,6 @@ _reg_acs:
 								start_it913x_spi(false);
 							#endif
 							 #ifdef TIME_ANT_SW
-							 	extern uint32_t startup_video_tm;
 							 	startup_video_tm = *DWT_CYCCNT;
 							 #endif
 							#endif
