@@ -1577,8 +1577,8 @@ bypass:
 			tick_del_antv= timedelta(timedelta_reset,
 																	tick_curr_antv,
 																	tick_prev_antv);
-			// toggle every two sec...
-			if (2*120000000<tick_del_antv)	{
+			// toggle every three seconds
+			if (5*120000000<tick_del_antv)	{
 				vid_ant_switch = true; // activate vid ant sw
 				tick_prev_antv = tick_curr_antv;
 			}
@@ -1586,11 +1586,6 @@ bypass:
 #endif
 		if (vid_ant_switch) {
 			bool state= pio_get(PIOA, PIO_OUTPUT_1, PIO_PA24);
-#ifdef TIME_ANT_SW
-			pio_clear(PIOA, PIO_PA23);
-			pio_clear(PIOA, PIO_PA24);
-			delay_ms(100);  // introduce extra delay so ensure to be noticeable on rx
-#endif
 			if (state) {
    			pio_set(PIOA, PIO_PA23);
 				pio_clear(PIOA, PIO_PA24);
