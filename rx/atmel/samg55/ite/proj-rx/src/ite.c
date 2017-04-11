@@ -133,11 +133,12 @@ void RTT_Handler(void)
 			}
 		}
 		last_done_spi = *DWT_CYCCNT;
-		if (last_done_spi<startup_video_tm) {
+		if (startup_video_tm && last_done_spi<startup_video_tm) {
 			hold_off_tm = 0x100000000LL+last_done_spi;
 		} else
 		hold_off_tm = (int64_t)last_done_spi;
-		if (60000000LL/*30 sec*/<hold_off_tm-startup_video_tm) {
+		if (startup_video_tm &&
+			60000000LL/*30 sec*/<hold_off_tm-startup_video_tm) {
 			startup_meas = true;
 		}
 		if (sizeof(intv_stats)/sizeof(intv_stats[0])==intv_stats_idx) {
