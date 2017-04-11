@@ -1903,6 +1903,10 @@ _reg_acs:
 								// pull over to here instead init inside main loop to get rid of time constraint, liyenho
 								start_it913x_spi(false);
 							#endif
+							 #ifdef TIME_ANT_SW
+							 	extern int64_t startup_video_tm;
+							 	startup_video_tm = (int64_t)*DWT_CYCCNT;
+							 #endif
 							#endif
 							break;
 				default: /* host msg in error */

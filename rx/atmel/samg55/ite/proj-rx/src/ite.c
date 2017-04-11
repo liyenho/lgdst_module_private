@@ -20,8 +20,10 @@
  static volatile uint32_t last_done_spi= 0,
  													intv_stats_idx= 0;
  													intv_stats[100];
-  volatile int32_t intv_min= 120000000,
-  									 intv_max= -1;
+  volatile int32_t intv_max= -1,
+  									intv_min= 120000000;
+  	int64_t startup_video_tm = 0LL; // to measure hold off time
+  	static bool startup_meas =false;
 #endif
 
 #if defined(SMS_DVBT2_DOWNLOAD) || defined(RECV_IT913X)
@@ -116,13 +118,14 @@ void RTT_Handler(void)
 	spi_pdcrxcnt_next = pdc_read_rx_next_counter(g_p_spim_pdc[1]);
 	if(spi_pdcrxcnt_next ==0){ // spidma buffer ptr updata
 #if defined(TIME_ANT_SW) && !defined(DEBUG_VIDEOPIPE)
+		int64_t hold_off_tm ;
 		uint32_t cur_time;
 		int n, dur;
-		if (last_done_spi) {
+		if (startup_meas/*hold off not measure immediately*/) {
 			cur_time = *DWT_CYCCNT;
 			dur= timedelta(0, cur_time, last_done_spi);
-			if (9000000<dur) { // cpu clk @ 120 mhz assumed
-				// at least data feed starved for 75 msec
+			if (1200000<dur && 19200000>dur) { // cpu clk @ 120 mhz assumed
+				// max possible latency due to ant sw to be 150 msec assumed
 				if (intv_stats_idx<sizeof(intv_stats)/sizeof(intv_stats[0])) {
 					intv_stats[intv_stats_idx] = dur;
 				}
@@ -130,6 +133,13 @@ void RTT_Handler(void)
 			}
 		}
 		last_done_spi = *DWT_CYCCNT;
+		if (last_done_spi<startup_video_tm) {
+			hold_off_tm = 0x100000000LL+last_done_spi;
+		} else
+		hold_off_tm = (int64_t)last_done_spi;
+		if (60000000LL/*30 sec*/<hold_off_tm-startup_video_tm) {
+			startup_meas = true;
+		}
 		if (sizeof(intv_stats)/sizeof(intv_stats[0])==intv_stats_idx) {
 			// once stats buffer is filled, we may stop measurement run
 			for (n=0; n<intv_stats_idx; n++) {
@@ -138,6 +148,7 @@ void RTT_Handler(void)
 				if (intv_stats[n] < intv_min)
 					intv_min = intv_stats[n];
 			}
+			n = -1; // place brkpt here...
 		}
 #endif
 		uint8_t spibuff_wrptr_filled0 = spibuff_wrptr_filled; // to keep old cnt after inc, liyenho
