@@ -1904,8 +1904,8 @@ _reg_acs:
 								start_it913x_spi(false);
 							#endif
 							 #ifdef TIME_ANT_SW
-							 	extern int64_t startup_video_tm;
-							 	startup_video_tm = (int64_t)*DWT_CYCCNT;
+							 	extern uint32_t startup_video_tm;
+							 	startup_video_tm = *DWT_CYCCNT;
 							 #endif
 							#endif
 							break;

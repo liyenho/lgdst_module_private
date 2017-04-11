@@ -22,7 +22,7 @@
  													intv_stats[100];
   volatile int32_t intv_max= -1,
   									intv_min= 120000000;
-  	int64_t startup_video_tm = 0LL; // to measure hold off time
+  	uint32_t startup_video_tm = 0L; // to measure hold off time
   	static bool startup_meas =false;
 #endif
 
@@ -134,11 +134,11 @@ void RTT_Handler(void)
 		}
 		last_done_spi = *DWT_CYCCNT;
 		if (startup_video_tm && last_done_spi<startup_video_tm) {
-			hold_off_tm = 0x100000000LL+last_done_spi;
+			hold_off_tm = 0x100000000LL+(int64_t)last_done_spi;
 		} else
 		hold_off_tm = (int64_t)last_done_spi;
 		if (startup_video_tm &&
-			60000000LL/*30 sec*/<hold_off_tm-startup_video_tm) {
+			60000000LL/*30 sec*/<hold_off_tm-(int64_t)startup_video_tm) {
 			startup_meas = true;
 		}
 		if (sizeof(intv_stats)/sizeof(intv_stats[0])==intv_stats_idx) {
