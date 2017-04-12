@@ -1577,7 +1577,7 @@ bypass:
 			tick_del_antv= timedelta(timedelta_reset,
 																	tick_curr_antv,
 																	tick_prev_antv);
-			// toggle every three seconds
+			// toggle every five seconds
 			if (5*120000000<tick_del_antv)	{
 				vid_ant_switch = true; // activate vid ant sw
 				tick_prev_antv = tick_curr_antv;
@@ -1585,6 +1585,9 @@ bypass:
 		}
 #endif
 		if (vid_ant_switch) {
+			// switch between two antenna only takes 0.96 usec,
+			// but end result is amazingly profound, it always 
+			// corrupts video on the other end, sooner or later 
 			bool state= pio_get(PIOA, PIO_OUTPUT_1, PIO_PA24);
 			if (state) {
    			pio_set(PIOA, PIO_PA23);
