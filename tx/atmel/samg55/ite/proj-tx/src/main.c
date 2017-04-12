@@ -490,21 +490,6 @@ static inline bool usb_read_buf(void *pb)
 		pb += b;
 		size -= b;
 		read += b;
-		if (vid_ant_switch && 188*2/*gapped two packet time shall be sufficient*/<read) {
-			// switch between two antenna only takes 0.96 usec,
-			// but end result is amazingly profound, it always
-			// corrupts video on the other end, sooner or later
-			bool state= pio_get(PIOA, PIO_OUTPUT_1, PIO_PA24);
-			if (state) {
-   			pio_set(PIOA, PIO_PA23);
-				pio_clear(PIOA, PIO_PA24);
-			}
-			else {
-   			pio_clear(PIOA, PIO_PA23);
-				pio_set(PIOA, PIO_PA24);
-			}
-			vid_ant_switch = false;
-	 }
 	} while (I2SC_BUFFER_SIZE != read && !system_main_restart);
 	return true;
 }
@@ -1272,6 +1257,17 @@ int main(void)
 										*pusb=gs_uc_tbuffer;
 #endif
 	uint32_t tdel, tcurr, n, i;
+	uint32_t startup_video_tm,
+						last_done_spi;
+	int32_t /*tm_const_spi1 = //time spent per TS block goes thru spi xfer
+							120*1000000*(int64_t)I2SC_BUFFER_SIZE*8/(int64_t)gs_ul_spi_clock[1],*/
+					tm_const_tsb =  //time spent per TS block goes thru video pipe @ 3.3/*4.0*/ mb/s
+							120*1000000*(int64_t)I2SC_BUFFER_SIZE*8/(int64_t)(3.3/*4*/*1000000);
+  	bool vid_ant_switch1 = false;
+#ifdef TIME_ANT_SW
+	unsigned int tick_prev_antv, tick_curr_antv;
+	int tick_del_antv = 0;
+#endif
 #if defined(MEDIA_ON_FLASH) || defined(CONFIG_ON_FLASH) || defined(FWM_DNLD_DBG)
 	uint32_t page_addr_bypass = IFLASH_ADDR + IFLASH_SIZE -  // to store flash media download flag, liyenho
 												(NUM_OF_FPGA_REGS+ NUM_OF_ATMEL_REGS) -4/*sizeof(int)*/-1 ;
@@ -1284,10 +1280,6 @@ int main(void)
 	//control path related
 	U8 sndflag;
 	U8 radioini_failcnt=0;
-#ifdef TIME_ANT_SW
-	unsigned int tick_prev_antv, tick_curr_antv;
-	int tick_del_antv = 0;
-#endif
 #elif defined(FWM_DNLD_DBG)
 	volatile uint32_t ul_page_end, ul_page_addr=PAGE_ADDRESS ;
 #endif
@@ -1592,8 +1584,8 @@ bypass:
 			tick_del_antv= timedelta(timedelta_reset,
 																	tick_curr_antv,
 																	tick_prev_antv);
-			// toggle every five seconds
-			if (5*120000000<tick_del_antv)	{
+			// toggle every three seconds
+			if (3*120000000<tick_del_antv)	{
 				vid_ant_switch = true; // activate vid ant sw
 				tick_prev_antv = tick_curr_antv;
 			}
@@ -1893,12 +1885,47 @@ tune_done:
 		if (!usb_read_buf(pusb))
 			goto _reg_acs ;
   #endif
+	 if (vid_ant_switch1) {
+		 int delta;
+		 last_done_spi = *DWT_CYCCNT;
+		 delta=timedelta(timedelta_reset,
+		 									last_done_spi,
+		 									startup_video_tm);
+		 while (tm_const_tsb>delta) {
+		 	/*wait until it is sure a block of TS has been delivered thru air*/
+		 	delay_ms(1);
+		 	last_done_spi = *DWT_CYCCNT;
+		 	delta=timedelta(timedelta_reset,
+		 									last_done_spi,
+		 									startup_video_tm);
+	 	 }
+		// switch between two antenna only takes 0.96 usec,
+		// but end result is amazingly profound, it always
+		// corrupts video on the other end, sooner or later
+		 {
+			bool state= pio_get(PIOA, PIO_OUTPUT_1, PIO_PA24);
+			if (state) {
+   			pio_set(PIOA, PIO_PA23);
+				pio_clear(PIOA, PIO_PA24);
+			}
+			else {
+   			pio_clear(PIOA, PIO_PA23);
+				pio_set(PIOA, PIO_PA24);
+			}
+			vid_ant_switch = false;
+		}
+		vid_ant_switch1 = false;
+	 }
   #if defined(TEST_USB) || defined(TEST_SPI)
 	 volatile uint8_t *pusb1;
 	   pusb1 = (1 & usbfrm) ?((uint8_t*)gs_uc_rbuffer)+I2SC_BUFFER_SIZE : gs_uc_rbuffer;
   #endif
   #ifndef TEST_USB
   	#ifndef TEST_SPI
+		 if (vid_ant_switch) {
+			startup_video_tm = *DWT_CYCCNT;
+			vid_ant_switch1 = true;
+		}
   		usb_data_done = true;
   		for (n=0; n<I2SC_BUFFER_SIZE/188; n++) {
 			spi_tx_transfer(pusb, 188,
