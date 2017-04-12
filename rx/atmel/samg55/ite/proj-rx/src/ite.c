@@ -181,13 +181,9 @@ void RTT_Handler(void)
 															  {
 																cc_next = cc_prev+0x00010000;
 																if((cc_curr&0x000f0000) != (cc_next&0x000f0000)){
-															#ifdef DEBUG_VIDEOPIPE
 															      dbg_ccerr++;
 																  if(dbg_spidmacnt < 100)
 																    dbg_ccerr=0;
-															#elif defined(TIME_ANT_SW)
-																	; // not implemented yet, liyenhos
-															#endif
 																}
 															    cc_prev = cc_curr;
 															  }
