@@ -490,7 +490,7 @@ static inline bool usb_read_buf(void *pb)
 		pb += b;
 		size -= b;
 		read += b;
-		if (vid_ant_switch && 188/*gapped one packet time shall be sufficient*/<read) {
+		if (vid_ant_switch && 188*2/*gapped two packet time shall be sufficient*/<read) {
 			// switch between two antenna only takes 0.96 usec,
 			// but end result is amazingly profound, it always
 			// corrupts video on the other end, sooner or later
