@@ -490,6 +490,21 @@ static inline bool usb_read_buf(void *pb)
 		pb += b;
 		size -= b;
 		read += b;
+		if (vid_ant_switch && 188/*gapped one packet time shall be sufficient*/<read) {
+			// switch between two antenna only takes 0.96 usec,
+			// but end result is amazingly profound, it always
+			// corrupts video on the other end, sooner or later
+			bool state= pio_get(PIOA, PIO_OUTPUT_1, PIO_PA24);
+			if (state) {
+   			pio_set(PIOA, PIO_PA23);
+				pio_clear(PIOA, PIO_PA24);
+			}
+			else {
+   			pio_clear(PIOA, PIO_PA23);
+				pio_set(PIOA, PIO_PA24);
+			}
+			vid_ant_switch = false;
+	 }
 	} while (I2SC_BUFFER_SIZE != read && !system_main_restart);
 	return true;
 }
@@ -1892,21 +1907,6 @@ tune_done:
 			usb_data_done = true;
 			pusb += 188;  // accommodate cpld to generate ts_syn/ts_valid, liyenho
 		}
-		if (vid_ant_switch) {
-			// switch between two antenna only takes 0.96 usec,
-			// but end result is amazingly profound, it always
-			// corrupts video on the other end, sooner or later
-			bool state= pio_get(PIOA, PIO_OUTPUT_1, PIO_PA24);
-			if (state) {
-   			pio_set(PIOA, PIO_PA23);
-				pio_clear(PIOA, PIO_PA24);
-			}
-			else {
-   			pio_clear(PIOA, PIO_PA23);
-				pio_set(PIOA, PIO_PA24);
-			}
-			vid_ant_switch = false;
-	 }
    #else
 		spi_tx_transfer(pusb, I2SC_BUFFER_SIZE,
 			pusb1, I2SC_BUFFER_SIZE, 1/*video*/);
