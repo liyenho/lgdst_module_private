@@ -1972,7 +1972,8 @@ system_restart:  // system restart entry, liyenho
 		mon_spidmachainfail_cnt  = 0;
 		mon_ts47bad_cnt = 0;
 	// from spi enabled to start dma can't be longer than 488 us, bad design, liyenho
-		configure_rtt(16); // arm 500us isr for SPI/USB data pipe processing
+//		configure_rtt(16); // arm 500us isr for SPI/USB data pipe processing
+		configure_rtt(32); // try out 1 msec though, it works perfectly...
   #else //!defined(RX_SPI_CHAINING)
 		sms4470_usb_ctx.usb_failcnt = 0;
 		sms4470_usb_ctx.skip_rd = false;
