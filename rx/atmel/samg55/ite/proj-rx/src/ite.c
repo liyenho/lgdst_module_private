@@ -76,7 +76,10 @@ void RTT_Handler(void)
 	unsigned int udi_cdc_lvl;
 	unsigned int cc_curr;
 	static unsigned char ts47badcnt_pre=0;
-
+#if defined(DEBUG_VIDEOPIPE) || defined(TIME_ANT_SW)
+	static unsigned int cc_prev=0;
+	unsigned int cc_next;
+#endif
 	                                                            #ifdef DEBUG_VIDEOPIPE
 																					//monitoring/debugging variables
 																					unsigned int cpucyclecntlocal;
@@ -85,9 +88,7 @@ void RTT_Handler(void)
 																					static unsigned int dbg_spidmaov=0;
 																					static unsigned int dbg_spidmacnt=0;
 																					unsigned char dbg_spififo_lvl,spibuff_rdptr_l;
-																					static unsigned int cc_prev=0;
 																					static unsigned int dbg_ccerr=0;
-																					unsigned int cc_next;
 																					int i;
 																					#endif
     /* Get RTT status */
@@ -140,7 +141,7 @@ void RTT_Handler(void)
 				if (intv_stats[n] < intv_min)
 					intv_min = intv_stats[n];
 			}
-			n = -1; // place brkpt here...
+			n = -1; // place brkpt here to watch intv stats, liyenho
 		}
 #endif
 		uint8_t spibuff_wrptr_filled0 = spibuff_wrptr_filled; // to keep old cnt after inc, liyenho
@@ -168,7 +169,7 @@ void RTT_Handler(void)
 		ts47badcnt_pre = 0;
 		mon_ts47bad_cnt++;
 	  }
-															  #ifdef DEBUG_VIDEOPIPE
+															  #if defined(DEBUG_VIDEOPIPE)
 															  //cc error checking
 															  for(i=0;i<10;i++)
 															  {
@@ -176,13 +177,17 @@ void RTT_Handler(void)
 															  	           + (spibuff_wrptr_filled0*(I2SC_BUFFER_SIZE/sizeof(int)) )
 															  			   + (i*188/4)
 															  		  );
-															  if((cc_curr & 0xff000000) == 0x40000000) //video pid
+															  if((cc_curr & 0xff0000ff) == 0x00000001) //video pid (0x100)
 															  {
 																cc_next = cc_prev+0x00010000;
 																if((cc_curr&0x000f0000) != (cc_next&0x000f0000)){
+															#ifdef DEBUG_VIDEOPIPE
 															      dbg_ccerr++;
 																  if(dbg_spidmacnt < 100)
 																    dbg_ccerr=0;
+															#elif defined(TIME_ANT_SW)
+																	; // not implemented yet, liyenhos
+															#endif
 																}
 															    cc_prev = cc_curr;
 															  }
