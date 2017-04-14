@@ -1907,15 +1907,64 @@ tune_done:
 		if (!usb_read_buf(pusb))
 			goto _reg_acs ;
   #endif
+#ifndef  VIDEO_DUAL_BUFFER
 		while (usb_data_done) ; // usb pipe overflow, liyenho
+#endif
   #if defined(TEST_USB) || defined(TEST_SPI)
 	 volatile uint8_t *pusb1;
 	   pusb1 = (1 & usbfrm) ?((uint8_t*)gs_uc_rbuffer)+I2SC_BUFFER_SIZE : gs_uc_rbuffer;
   #endif
   #ifndef TEST_USB
   	#ifndef TEST_SPI
+#ifndef  VIDEO_DUAL_BUFFER
 		spi_tx_transfer(pusb, I2SC_BUFFER_SIZE/2,
 			gs_uc_rbuffer/*don't care*/, I2SC_BUFFER_SIZE/2, 1/*video*/);
+#else // dual ts stream test
+		static uint32_t pre_tbuffer[I2SC_BUFFER_SIZE/4];
+		const uint32_t *pte =pre_tbuffer+sizeof(pre_tbuffer)/4;
+		static uint32_t *ptw=pre_tbuffer,
+										*ptr = pre_tbuffer;
+		static bool first_blk_vid = true;
+		if (first_blk_vid) {
+			uint32_t *ptb = pre_tbuffer ;
+	  		usb_data_done = true;
+	  		for (n=0; n<I2SC_BUFFER_SIZE/188; n++) {
+				spi_tx_transfer(pusb, 188/2,
+					gs_uc_rbuffer/*don't care*/, 188/2, 1/*video*/);
+				memcpy(ptb, pusb, 188);
+				ptb += 188/4;
+				while (usb_data_done) ; // usb pipe overflow, liyenho
+				usb_data_done = true;
+				pusb += 188;  // accommodate cpld to generate ts_syn/ts_valid, liyenho
+			}
+			//ptw = pre_tbuffer;  // wrap write ptr at end, it has been done...
+			first_blk_vid = false;
+			goto next;
+		}
+  		usb_data_done = true;
+  		for (n=0; n<I2SC_BUFFER_SIZE/188; n++) {
+			spi_tx_transfer(pusb, 188/2,
+				gs_uc_rbuffer/*don't care*/, 188/2, 1/*video*/);
+			while (usb_data_done) ; // usb pipe overflow, liyenho
+			usb_data_done = true;
+#ifdef VIDEO_DUAL_BUFFER
+	/*apply write/read pointer update scheme in case we later use different size of TS pre-buffer other than 10*188*/
+  #define _PTR_UPD_(p,i,e,b) \
+  						p += i; \
+  						if (e<=p) \
+  							p = b;
+			spi_tx_transfer(ptr, 188/2,
+				gs_uc_rbuffer/*don't care*/, 188/2, 1/*video*/);
+			_PTR_UPD_(ptr, 188/4, pte, pre_tbuffer);
+			while (usb_data_done) ; // usb pipe overflow, liyenho
+			memcpy(ptw, pusb, 188);
+			_PTR_UPD_(ptw, 188/4, pte, pre_tbuffer);
+	#undef _PTR_UPD_
+			usb_data_done = true;
+#endif
+			pusb += 188;  // accommodate cpld to generate ts_syn/ts_valid, liyenho
+		}
+#endif
    #else
 		spi_tx_transfer(pusb, I2SC_BUFFER_SIZE/2,
 			pusb1, I2SC_BUFFER_SIZE/2, 1/*video*/);
@@ -1934,6 +1983,9 @@ tune_done:
   		usb_write_buf(pusb1);
    #endif
   #endif
+#ifdef VIDEO_DUAL_BUFFER
+next:
+#endif
 		usbfrm = usbfrm + 1;
 _reg_acs:
   		if (usb_host_msg && !system_main_restart) {	// host ctrl/sts link with fpga/sms process, liyenho
