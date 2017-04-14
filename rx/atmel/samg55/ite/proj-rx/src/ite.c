@@ -177,7 +177,7 @@ void RTT_Handler(void)
 															  	           + (spibuff_wrptr_filled0*(I2SC_BUFFER_SIZE/sizeof(int)) )
 															  			   + (i*188/4)
 															  		  );
-															  if((cc_curr & 0xff0000ff) == 0x00000001) //video pid (0x100)
+															  if((cc_curr & 0xff00001f) == 0x00000001) //video pid (0x100)
 															  {
 																cc_next = cc_prev+0x00010000;
 																if((cc_curr&0x000f0000) != (cc_next&0x000f0000)){
