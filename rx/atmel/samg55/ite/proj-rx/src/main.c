@@ -93,6 +93,9 @@ extern volatile bool udi_cdc_data_running; // from udi_cdc.c, liyenho
 #endif
 
 volatile bool stream_flag = true; // default to TS stream automatic on
+#ifdef VIDEO_DUAL_BUFFER
+	extern volatile int32_t stream;
+#endif
 #ifdef CONFIG_ON_FLASH
 	uint32_t ul_page_addr_ctune =IFLASH_ADDR + IFLASH_SIZE - NUM_OF_ATMEL_REGS, // 1st atmel reg on flash
 						// temperature @ current tuning @ 2nd atmel reg on flash
@@ -1458,8 +1461,9 @@ system_restart:  // system restart entry, liyenho
 #ifdef RECV_IT913X
 	pio_set_output(PIOA, PIO_PA20, LOW, DISABLE, ENABLE); // 12 mhz crystal
 	pio_set_output(PIOA, PIO_PA2, LOW, DISABLE, ENABLE);
-	delay_ms(100);  // reset IT931x
+	delay_ms(/*100*/200);  // reset IT931x
 	pio_set(PIOA, PIO_PA2);
+	delay_ms(/*100*/300);  // pull IT913x out of reset
  	pio_set_output(PIOB, PIO_PB9, LOW, DISABLE, ENABLE); //stop TS gate
  	delay_ms(10); // flush all data from Pipe
  #ifndef RX_SPI_CHAINING
@@ -1531,7 +1535,7 @@ system_restart:  // system restart entry, liyenho
 		mon_ts47bad_cnt = 0;
 	// from spi enabled to start dma can't be longer than 488 us, bad design, liyenho
 //		configure_rtt(16); // arm 500us isr for SPI/USB data pipe processing
-		configure_rtt(32); // try out 1 ms though, it works perfectly...
+		configure_rtt(32); // try out 1 mc though?
   #else //!defined(RX_SPI_CHAINING)
 		sms4470_usb_ctx.usb_failcnt = 0;
 		sms4470_usb_ctx.skip_rd = false;
@@ -1553,9 +1557,12 @@ system_restart:  // system restart entry, liyenho
 		if (!stream_flag) goto _reg_acs; // stop TS stream if flag isn't true, liyenho
 
 #ifdef RX_SPI_CHAINING
-	if(spidma_active != TRUE)
+	if(spidma_active != TRUE) {
+#ifdef VIDEO_DUAL_BUFFER
+		stream = -1;  // invalidated
+#endif
 		start_it913x_spi(true);
-
+	}
 	  //Ctrl led control -------------------------------------------------
 	  if(ctrl_sndflag >0 )
 	    ctrl_sndflag--;
@@ -1910,6 +1917,9 @@ _reg_acs:
 							break;
 				case TS_VID_ACTIVE:
 							#if defined(RECV_IT913X)
+#ifdef VIDEO_DUAL_BUFFER
+								stream = -1;  // invalidated
+#endif
 								// now allow video spi to be active, liyenho
 								spi_enable(SPI_SLAVE_BASE);
 							#ifndef RX_SPI_CHAINING

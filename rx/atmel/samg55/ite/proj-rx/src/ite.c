@@ -23,6 +23,14 @@
   									intv_min= 120000000;
   volatile bool startup_meas =false;
 #endif
+#ifdef VIDEO_DUAL_BUFFER
+	volatile int32_t stream = -1; // invalidated
+	volatile static uint8_t lkup_video_buffer[I2SC_BUFFER_SIZE],
+													new_video_buffer[I2SC_BUFFER_SIZE],
+													*pbl = lkup_video_buffer,
+													*pbn = new_video_buffer,
+													st_pos= 0; // 0,1,0,1,...
+#endif
 
 #if defined(SMS_DVBT2_DOWNLOAD) || defined(RECV_IT913X)
  extern uint32_t g_ul_wait_10ms;
@@ -80,6 +88,7 @@ void RTT_Handler(void)
 	static unsigned int cc_prev=0;
 	unsigned int cc_next;
 #endif
+	int i;
 	                                                            #ifdef DEBUG_VIDEOPIPE
 																					//monitoring/debugging variables
 																					unsigned int cpucyclecntlocal;
@@ -89,7 +98,6 @@ void RTT_Handler(void)
 																					static unsigned int dbg_spidmacnt=0;
 																					unsigned char dbg_spififo_lvl,spibuff_rdptr_l;
 																					static unsigned int dbg_ccerr=0;
-																					int i;
 																					#endif
     /* Get RTT status */
 	ul_status = rtt_get_status(RTT);
@@ -169,7 +177,7 @@ void RTT_Handler(void)
 		ts47badcnt_pre = 0;
 		mon_ts47bad_cnt++;
 	  }
-															  #if defined(DEBUG_VIDEOPIPE)
+															  #ifdef DEBUG_VIDEOPIPE
 															  //cc error checking
 															  for(i=0;i<10;i++)
 															  {
@@ -200,7 +208,56 @@ void RTT_Handler(void)
 		udi_cdc_lvl = udi_cdc_multi_get_free_tx_buffer(0);
 		if(udi_cdc_lvl > I2SC_BUFFER_SIZE)
 		{
+#ifdef VIDEO_DUAL_BUFFER
+			uint32_t *pb, *pb0, cc, cc1, cc2;
+			pb=gs_uc_rbuffer+((unsigned int)spibuff_rdptr*(I2SC_BUFFER_SIZE/4));
+			if (-1 == stream) {
+				cc = *(pb+0/4) & 0xff00001f ;
+				cc1 = *(pb+188/4) & 0xff00001f ;
+				cc2 = *(pb+376/4) & 0xff00001f ;
+				// only process packets on video pid...
+				if (PID_VID ==cc && PID_VID ==cc1 && PID_VID ==cc2) {
+					cc = *(pb+0/4) & 0x000f0000 ;
+					cc1 = *(pb+188/4) & 0x000f0000 ;
+					cc2 = *(pb+376/4) & 0x000f0000 ;
+					uint32_t tmp2, tmp1, tmp = 0x000f0000&(cc+0x00010000);
+					if (tmp == cc2) {
+						tmp1 = 0x000f0000&(cc-0x000a0000);
+						tmp2 = 0x000f0000&(cc+0x000b0000);
+						if (tmp1 == cc1)
+							stream = 0; // next stream is to output
+						else if (tmp2 == cc1)
+							stream = 1; // this stream is to output
+						else ; // still invalid
+					}
+				}
+			}
+			switch (stream) {
+				case 0: pb0 = pb;
+							pb = pb + 188/4;
+							break;
+				case 1: pb0 = pb + 188/4;
+							//pb = pb + 0/4;
+							break;
+				default: goto next;
+			}
+			for (i=0; i<I2SC_BUFFER_SIZE/(188*2); i++) {
+				memcpy(pbl, pb0, 188);
+				pb0 += 188*2/4;
+				pbl += 188;
+				memcpy(pbn, pb, 188);
+				pb += 188*2/4;
+				pbn += 188;
+			}
+			pbl = lkup_video_buffer;
+			pbn = new_video_buffer;
+			if (st_pos)
+				usb_write_buf(new_video_buffer );  //burst out a usb transfer
+			st_pos ^= 1;
+#else
 		  usb_write_buf(gs_uc_rbuffer+((unsigned int)spibuff_rdptr*(I2SC_BUFFER_SIZE/4)) );  //burst out a usb transfer
+#endif
+next:
 		spibuff_rdptr++;
 		if(spibuff_rdptr>= GRAND_BUFFER_BLKS)
 			spibuff_rdptr = 0;

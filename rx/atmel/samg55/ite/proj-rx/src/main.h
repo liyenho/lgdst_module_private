@@ -38,6 +38,7 @@
   #define USB_HOST_MSG_LEN						sizeof(dev_access)
 /* not useful at all, latency is not the point but end result does, it corrupts video no matter how short it is */
 //#define TIME_ANT_SW		// enable latency measurement on video antenna switch
+//#define VIDEO_DUAL_BUFFER	// enable video TS stream ruplication
 #define RADIO_SPI_BR								1000000
 #define ASYMM_RATIO								/*1*/ 2
 #define TDMA_PERIOD    							/*3600000*/ /*3240000*/ 2880000 // see TX ctrl.h for details
@@ -49,7 +50,7 @@
 #define RDO_TPACKET_FIFO_SIZE               8
 #define RDO_RPACKET_FIFO_SIZE               8
 #define RADIO_SI4463
-#define RADIO_CTRL_AUTO 			// downlaod si4463 w/o host config ctrl xfer, liyenho
+#define RADIO_CTRL_AUTO 			// download si4463 w/o host config ctrl xfer, liyenho
 #ifdef  RADIO_SI4463
  #undef RADIO_SPI_BR
  #define RADIO_SPI_BR											1000000
