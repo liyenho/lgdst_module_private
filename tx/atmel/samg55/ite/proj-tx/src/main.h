@@ -34,6 +34,7 @@
   #define USB_HOST_MSG_LEN						sizeof(dev_access)
   #define RADIO_SPI_BR											1000000
 //#define TIME_ANT_SW		// enable latency measurement on video antenna switch
+//#define VIDEO_DUAL_BUFFER	// enable video TS stream ruplication
 #define RADIO_SI4463
 #define RADIO_CTRL_AUTO   //be sure to include #define MEDIA_ON_FLASH
                             //on usb_tx: must enable MEDIA_ON_FLASH and disable SRC_FRM_ENET

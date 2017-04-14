@@ -1262,7 +1262,11 @@ int main(void)
 	int32_t /*tm_const_spi1 = //time spent per TS block goes thru spi xfer
 							120*1000000*(int64_t)I2SC_BUFFER_SIZE*8/(int64_t)gs_ul_spi_clock[1],*/
 					tm_const_tsb =  //time spent per TS block goes thru video pipe @ 3.3/*4.0*/ mb/s
+#ifndef VIDEO_DUAL_BUFFER
 							120*1000000*(int64_t)I2SC_BUFFER_SIZE*8/(int64_t)(3.3/*4*/*1000000);
+#else  // have to measure the actual bit rate once ts stream is ruplicated
+							0 /*TBD*/;
+#endif
   	bool vid_ant_switch1 = false;
 #ifdef TIME_ANT_SW
 	unsigned int tick_prev_antv, tick_curr_antv;
@@ -1926,12 +1930,50 @@ tune_done:
 			startup_video_tm = *DWT_CYCCNT;
 			vid_ant_switch1 = true;
 		}
+#ifdef VIDEO_DUAL_BUFFER
+		static uint32_t pre_tbuffer[I2SC_BUFFER_SIZE/4];
+		const uint32_t *pte =pre_tbuffer+sizeof(pre_tbuffer)/4;
+		static uint32_t *ptw=pre_tbuffer,
+										*ptr = pre_tbuffer;
+		static bool first_blk_vid = true;
+		if (first_blk_vid) {
+			uint32_t *ptb = pre_tbuffer ;
+	  		usb_data_done = true;
+	  		for (n=0; n<I2SC_BUFFER_SIZE/188; n++) {
+				spi_tx_transfer(pusb, 188,
+					gs_uc_rbuffer/*don't care*/, 188, 1/*video*/);
+				memcpy(ptb, pusb, 188);
+				ptb += 188/4;
+				while (usb_data_done) ; // usb pipe overflow, liyenho
+				usb_data_done = true;
+				pusb += 188;  // accommodate cpld to generate ts_syn/ts_valid, liyenho
+			}
+			//ptw = pre_tbuffer;  // wrap write ptr at end, it has been done...
+			first_blk_vid = false;
+			goto next;
+		}
+#endif
   		usb_data_done = true;
   		for (n=0; n<I2SC_BUFFER_SIZE/188; n++) {
 			spi_tx_transfer(pusb, 188,
 				gs_uc_rbuffer/*don't care*/, 188, 1/*video*/);
 			while (usb_data_done) ; // usb pipe overflow, liyenho
 			usb_data_done = true;
+#ifdef VIDEO_DUAL_BUFFER
+	/*apply write/read pointer update scheme in case we later use different size of TS pre-buffer other than 10*188*/
+  #define _PTR_UPD_(p,i,e,b) \
+  						p += i; \
+  						if (e<=p) \
+  							p = b;
+			spi_tx_transfer(ptr, 188,
+				gs_uc_rbuffer/*don't care*/, 188, 1/*video*/);
+			_PTR_UPD_(ptr, 188/4, pte, pre_tbuffer);
+			while (usb_data_done) ; // usb pipe overflow, liyenho
+			memcpy(ptw, pusb, 188);
+			_PTR_UPD_(ptw, 188/4, pte, pre_tbuffer);
+	#undef _PTR_UPD_
+			usb_data_done = true;
+#endif
 			pusb += 188;  // accommodate cpld to generate ts_syn/ts_valid, liyenho
 		}
    #else
@@ -1953,6 +1995,7 @@ tune_done:
   		usb_write_buf(pusb1);
    #endif
   #endif
+next:
 		usbfrm = usbfrm + 1;
 _reg_acs:
   		if (usb_host_msg && !system_main_restart) {	// host ctrl/sts link with fpga/sms process, liyenho
@@ -2132,7 +2175,7 @@ bool main_usb_load_media() {
  	return true;
 }
  #endif
-// to enable embedded ITE asic  video subsystem ********************
+// to enable embedded ITE asic  video subsystem ***********
 extern int init_video_subsystem();
 extern int start_video_subsystem();
 /**********************************************************/
@@ -2378,17 +2421,17 @@ volatile bool main_vender_specific() {
 	else if (USB_ATMEL_VER_VAL == udd_g_ctrlreq.req.wValue) {
 		char month[3+1], day[2+1], year[4+1];
 		{
-			month[0] = __DATE__[0];
-			 month[1] = __DATE__[1];
-			  month[2] = __DATE__[2];
+			month[0] = __REL_DATE__[0];
+			 month[1] = __REL_DATE__[1];
+			  month[2] = __REL_DATE__[2];
 			   month[3] = 0x0;
-			day[0] = __DATE__[4];
-			 day[1] = __DATE__[5];
+			day[0] = __REL_DATE__[4];
+			 day[1] = __REL_DATE__[5];
 			  day[2] = 0x0;
-			year[0] = __DATE__[7];
-			 year[1] = __DATE__[8];
-			  year[2] = __DATE__[9];
-			   year[3] = __DATE__[10];
+			year[0] = __REL_DATE__[7];
+			 year[1] = __REL_DATE__[8];
+			  year[2] = __REL_DATE__[9];
+			   year[3] = __REL_DATE__[10];
 			    year[4] = 0x0;
 		}
 		udd_set_setup_payload( __version_atmel__, sizeof(__version_atmel__));
