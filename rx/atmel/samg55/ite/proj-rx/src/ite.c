@@ -24,12 +24,12 @@
   volatile bool startup_meas =false;
 #endif
 #ifdef VIDEO_DUAL_BUFFER
-	volatile int32_t cc, st_pos=0, stream = -1; // invalidated
+	volatile int32_t cc, st_pos, stream = -1; // invalidated
 	volatile static uint8_t lkup_video_buffer[TSLUT_BUFFER_SIZE+I2SC_BUFFER_SIZE],
 													new_video_buffer[I2SC_BUFFER_SIZE],
 													*pbn /*new ts buf ptr*/;
-	const uint8_t *pblw = lkup_video_buffer+TSLUT_BUFFER_SIZE,
-								 *pblr = lkup_video_buffer;
+	const uint32_t *pblw = (uint32_t*)(lkup_video_buffer+TSLUT_BUFFER_SIZE),
+								 	*pblr = (uint32_t*)lkup_video_buffer;
 #endif
 
 #if defined(SMS_DVBT2_DOWNLOAD) || defined(RECV_IT913X)
@@ -225,12 +225,13 @@ void RTT_Handler(void)
 						tmp1 = 0x000f0000&(cc-0x000a0000);
 						tmp2 = 0x000f0000&(cc+0x000b0000);
 						if (tmp1 == cc1 || tmp2 == cc1) {
-							memcpy(new_video_buffer, pb, 188);
-							pbn = new_video_buffer+188;
 							// tmp1 == cc1, next stream is to output
 							// tmp2 == cc1, this stream is to output
 							stream = (tmp1 == cc1)? 188 : 0;
-							cc = *(pb+(stream>>2)) & 0x000f0000 ;
+							uint32_t *pb1 = pb+(stream>>2);
+							memcpy(new_video_buffer, pb1, 188);
+							cc = *(pb1) & 0x000f0000 ;
+							pbn = new_video_buffer+188;
 							ofst = 188*2;
 							st_pos = 1;
 							goto found;
@@ -240,8 +241,8 @@ void RTT_Handler(void)
 				goto next;
 			}
 found: {
-  			uint8_t *pbl1=pblr+stream, // pointer to ts lookup section
-  								*pbl0=pblw+stream+ofst ;
+  			uint32_t *pbl1=pblr+(stream>>2), // ptr to ts lookup section
+  								*pbl0=pblw+((stream+ofst)>>2) ;
 			bool taken = false;
 			memcpy(pblw, pb, I2SC_BUFFER_SIZE);
 			// fill up new_video_buffer & process thru
@@ -263,7 +264,7 @@ found: {
 							taken = true;
 							break;
 						}
-						pbl1 += 188*2;
+						pbl1 += 188*2/4;
 					}
 				}
 				if (!taken) {
@@ -274,10 +275,10 @@ found: {
 						pbn = new_video_buffer;
 						st_pos = 0;
 					}
-					pbl0 += 188*2;
+					pbl0 += 188*2/4;
 					tcnt = tcnt-188*2;
 				}
-				pbl1=pblr+stream ;  // reset lkup ptr
+				pbl1=pblr+(stream>>2) ;  // reset lkup ptr
 				cc = cc2;
 			} while (0 != tcnt);
 		}
