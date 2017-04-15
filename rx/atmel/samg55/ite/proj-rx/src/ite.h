@@ -4,6 +4,7 @@
 #include "main.h"
 #define LO_Frequency 							1583000
 #define PID_VID 										0x00000001	/*0x100*/
+#define TSLUT_BUFFER_SIZE		(188*10)
 //#define MEASURE_TIMING // NEVER enable this option, it can't work!!! liyenho
 #ifdef MEASURE_TIMING
 	extern volatile uint32_t tick_30us ;

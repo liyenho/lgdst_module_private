@@ -24,12 +24,12 @@
   volatile bool startup_meas =false;
 #endif
 #ifdef VIDEO_DUAL_BUFFER
-	volatile int32_t stream = -1; // invalidated
-	volatile static uint8_t lkup_video_buffer[I2SC_BUFFER_SIZE],
+	volatile int32_t cc, st_pos=0, stream = -1; // invalidated
+	volatile static uint8_t lkup_video_buffer[TSLUT_BUFFER_SIZE+I2SC_BUFFER_SIZE],
 													new_video_buffer[I2SC_BUFFER_SIZE],
-													*pbl = lkup_video_buffer,
-													*pbn = new_video_buffer,
-													st_pos= 0; // 0,1,0,1,...
+													*pbn /*new ts buf ptr*/;
+	const uint8_t *pblw = lkup_video_buffer+TSLUT_BUFFER_SIZE,
+								 *pblr = lkup_video_buffer;
 #endif
 
 #if defined(SMS_DVBT2_DOWNLOAD) || defined(RECV_IT913X)
@@ -209,7 +209,7 @@ void RTT_Handler(void)
 		if(udi_cdc_lvl > I2SC_BUFFER_SIZE)
 		{
 #ifdef VIDEO_DUAL_BUFFER
-			uint32_t *pb, *pb0, cc, cc1, cc2;
+			uint32_t *pb, ofst=0, tcnt, cc1, cc2;
 			pb=gs_uc_rbuffer+((unsigned int)spibuff_rdptr*(I2SC_BUFFER_SIZE/4));
 			if (-1 == stream) {
 				cc = *(pb+0/4) & 0xff00001f ;
@@ -224,41 +224,71 @@ void RTT_Handler(void)
 					if (tmp == cc2) {
 						tmp1 = 0x000f0000&(cc-0x000a0000);
 						tmp2 = 0x000f0000&(cc+0x000b0000);
-						if (tmp1 == cc1)
-							stream = 0; // next stream is to output
-						else if (tmp2 == cc1)
-							stream = 1; // this stream is to output
-						else ; // still invalid
+						if (tmp1 == cc1 || tmp2 == cc1) {
+							memcpy(new_video_buffer, pb, 188);
+							pbn = new_video_buffer+188;
+							// tmp1 == cc1, next stream is to output
+							// tmp2 == cc1, this stream is to output
+							stream = (tmp1 == cc1)? 188 : 0;
+							cc = *(pb+(stream>>2)) & 0x000f0000 ;
+							ofst = 188*2;
+							st_pos = 1;
+							goto found;
+						}
 					}
 				}
-				st_pos = 0; // always reset stream pos once rec gets restarted
+				goto next;
 			}
-			switch (stream) {
-				case 0: pb0 = pb;
-							pb = pb + 188/4;
+found: {
+  			uint8_t *pbl1=pblr+stream, // pointer to ts lookup section
+  								*pbl0=pblw+stream+ofst ;
+			bool taken = false;
+			memcpy(pblw, pb, I2SC_BUFFER_SIZE);
+			// fill up new_video_buffer & process thru
+			tcnt = I2SC_BUFFER_SIZE-ofst;
+			do {
+				cc1 = *(pbl0) & 0x000f0000 ;
+				cc2 = 0x000f0000&(cc+0x00010000);
+				if (cc1 != cc2) {
+					for (i=0; i<TSLUT_BUFFER_SIZE/(188*2); i++) {
+						cc1 = *(pbl1) & 0x000f0000;
+						if (cc1 == cc2) {
+							memcpy(pbn, pbl1, 188);
+							pbn += 188;
+							if (I2SC_BUFFER_SIZE/188 == ++st_pos) {
+								usb_write_buf(new_video_buffer );  //burst out a usb transfer
+								pbn = new_video_buffer;
+								st_pos = 0;
+							}
+							taken = true;
 							break;
-				case 1: pb0 = pb + 188/4;
-							//pb = pb + 0/4;
-							break;
-				default: goto next;
-			}
-			for (i=0; i<I2SC_BUFFER_SIZE/(188*2); i++) {
-				memcpy(pbl, pb0, 188);
-				pb0 += 188*2/4;
-				pbl += 188;
-				memcpy(pbn, pb, 188);
-				pb += 188*2/4;
-				pbn += 188;
-			}
-			pbl = lkup_video_buffer;
-			pbn = new_video_buffer;
-			if (st_pos)
-				usb_write_buf(new_video_buffer );  //burst out a usb transfer
-			st_pos ^= 1;
+						}
+						pbl1 += 188*2;
+					}
+				}
+				if (!taken) {
+					memcpy(pbn, pbl0, 188);
+					pbn += 188;
+					if (I2SC_BUFFER_SIZE/188 == ++st_pos) {
+						usb_write_buf(new_video_buffer );  //burst out a usb transfer
+						pbn = new_video_buffer;
+						st_pos = 0;
+					}
+					pbl0 += 188*2;
+					tcnt = tcnt-188*2;
+				}
+				pbl1=pblr+stream ;  // reset lkup ptr
+				cc = cc2;
+			} while (0 != tcnt);
+		}
+			// update lookup buffer
+  			memmove(lkup_video_buffer,
+  									lkup_video_buffer+I2SC_BUFFER_SIZE,
+  									TSLUT_BUFFER_SIZE);
+next:
 #else
 		  usb_write_buf(gs_uc_rbuffer+((unsigned int)spibuff_rdptr*(I2SC_BUFFER_SIZE/4)) );  //burst out a usb transfer
 #endif
-next:
 		spibuff_rdptr++;
 		if(spibuff_rdptr>= GRAND_BUFFER_BLKS)
 			spibuff_rdptr = 0;
