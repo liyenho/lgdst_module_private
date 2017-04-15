@@ -231,6 +231,7 @@ void RTT_Handler(void)
 						else ; // still invalid
 					}
 				}
+				st_pos = 0; // always reset stream pos once rec gets restarted
 			}
 			switch (stream) {
 				case 0: pb0 = pb;
