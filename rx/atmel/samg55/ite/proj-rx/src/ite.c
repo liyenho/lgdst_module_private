@@ -227,12 +227,12 @@ void RTT_Handler(void)
 						if (tmp1 == cc1 || tmp2 == cc1) {
 							// tmp1 == cc1, next stream is to output
 							// tmp2 == cc1, this stream is to output
-							stream = (tmp1 == cc1)? 188 : 0;
-							uint32_t *pb1 = pb+(stream>>2);
+							stream = (tmp1 == cc1)? 188/4 : 0/4;
+							uint32_t *pb1 = pb+stream;
 							memcpy(new_video_buffer, pb1, 188);
 							cc = *(pb1) & 0x000f0000 ;
 							pbn = new_video_buffer+188;
-							ofst = 188*2;
+							ofst = 188*2/4;
 							st_pos = 1;
 							goto found;
 						}
@@ -241,45 +241,47 @@ void RTT_Handler(void)
 				goto next;
 			}
 found: {
-  			uint32_t *pbl1=pblr+(stream>>2), // ptr to ts lookup section
-  								*pbl0=pblw+((stream+ofst)>>2) ;
+  			uint32_t *pbl1=pblr+stream, // ptr to ts lookup section
+  								*pbl0=pblw+(stream+ofst) ;
 			bool taken = false;
 			memcpy(pblw, pb, I2SC_BUFFER_SIZE);
 			// fill up new_video_buffer & process thru
-			tcnt = I2SC_BUFFER_SIZE-ofst;
+			tcnt = I2SC_BUFFER_SIZE-(ofst<<2);
 			do {
 				cc1 = *(pbl0) & 0x000f0000 ;
 				cc2 = 0x000f0000&(cc+0x00010000);
 				if (cc1 != cc2) {
 					for (i=0; i<TSLUT_BUFFER_SIZE/(188*2); i++) {
-						cc1 = *(pbl1) & 0x000f0000;
-						if (cc1 == cc2) {
+						uint32_t cc11 = *(pbl1) & 0x000f0000;
+						if (cc11 == cc2) {
 							memcpy(pbn, pbl1, 188);
 							pbn += 188;
 							if (I2SC_BUFFER_SIZE/188 == ++st_pos) {
-								usb_write_buf(new_video_buffer );  //burst out a usb transfer
+								usb_write_buf(new_video_buffer);
 								pbn = new_video_buffer;
 								st_pos = 0;
 							}
+							cc = cc2; // update for next
 							taken = true;
 							break;
 						}
 						pbl1 += 188*2/4;
 					}
 				}
-				if (!taken) {
+				if (!taken || TSLUT_BUFFER_SIZE/(188*2) == i) {
 					memcpy(pbn, pbl0, 188);
 					pbn += 188;
 					if (I2SC_BUFFER_SIZE/188 == ++st_pos) {
-						usb_write_buf(new_video_buffer );  //burst out a usb transfer
+						usb_write_buf(new_video_buffer);
 						pbn = new_video_buffer;
 						st_pos = 0;
 					}
+					cc = cc1; // update for next
 					pbl0 += 188*2/4;
 					tcnt = tcnt-188*2;
 				}
-				pbl1=pblr+(stream>>2) ;  // reset lkup ptr
-				cc = cc2;
+				pbl1=pblr+stream ;  // reset lkup ptr
+				taken = false;
 			} while (0 != tcnt);
 		}
 			// update lookup buffer
