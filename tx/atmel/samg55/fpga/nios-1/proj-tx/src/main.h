@@ -31,7 +31,7 @@
   #define USB_HOST_MSG_IDX						0x1	// data instead comm interface
   #define USB_HOST_MSG_LEN						sizeof(dev_access)
   #define RADIO_SPI_BR											1000000
-// #define VIDEO_DUAL_BUFFER	// enable video TS stream ruplication
+ //#define VIDEO_DUAL_BUFFER	// enable video TS stream ruplication
 #define RADIO_SI4463
 #define RADIO_CTRL_AUTO   //be sure to include #define MEDIA_ON_FLASH
                             //on usb_tx: must enable MEDIA_ON_FLASH and disable SRC_FRM_ENET
