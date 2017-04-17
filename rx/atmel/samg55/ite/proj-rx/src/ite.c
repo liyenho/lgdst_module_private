@@ -250,7 +250,7 @@ found: {
 			do {
 				cc1 = *(pbl0) & 0x000f0000 ;
 				cc2 = 0x000f0000&(cc+0x00010000);
-				if (cc1 != cc2) {
+				if (cc1 != cc2) { // perhaps can try xxx/(188), to seek thru each packet
 					for (i=0; i<TSLUT_BUFFER_SIZE/(188*2); i++) {
 						uint32_t cc11 = *(pbl1) & 0x000f0000;
 						if (cc11 == cc2) {
