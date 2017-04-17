@@ -251,7 +251,7 @@ found: {
 				cc1 = *(pbl0) & 0x000f0000 ;
 				cc2 = 0x000f0000&(cc+0x00010000);
 				if (cc1 != cc2) { // perhaps can try xxx/(188), to seek thru each packet
-					for (i=0; i<TSLUT_BUFFER_SIZE/(188*2); i++) {
+					for (i=0; i<TSLUT_BUFFER_SIZE/ /*(188*2)*/188; i++) {
 						uint32_t cc11 = *(pbl1) & 0x000f0000;
 						if (cc11 == cc2) {
 							memcpy(pbn, pbl1, 188);
@@ -268,7 +268,7 @@ found: {
 						pbl1 += 188*2/4;
 					}
 				}
-				if (!taken || TSLUT_BUFFER_SIZE/(188*2) == i) {
+				if (!taken || TSLUT_BUFFER_SIZE/ /*(188*2)*/188 == i) {
 					memcpy(pbn, pbl0, 188);
 					pbn += 188;
 					if (I2SC_BUFFER_SIZE/188 == ++st_pos) {
