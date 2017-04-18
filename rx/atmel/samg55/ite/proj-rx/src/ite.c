@@ -242,18 +242,21 @@ void RTT_Handler(void)
 			}
 found: {
   			uint32_t *pbl1=pblr+stream, // ptr to ts lookup section
-  								*pbl0=pblw+(stream+ofst) ;
+  								*pbl0=pblw+(stream+ofst),
+  								pid ;
 			bool taken = false;
 			memcpy(pblw, pb, I2SC_BUFFER_SIZE);
 			// fill up new_video_buffer & process thru
 			tcnt = I2SC_BUFFER_SIZE-(ofst<<2);
 			do {
 				cc1 = *(pbl0) & 0x000f0000 ;
+				pid = *(pbl0) & 0xff00001f;
 				cc2 = 0x000f0000&(cc+0x00010000);
-				if (cc1 != cc2) { // perhaps can try xxx/(188), to seek thru each packet
+				if ((PID_VID ==pid) && (cc1 != cc2)) { // perhaps can try xxx/(188), to seek thru each packet
 					for (i=0; i<TSLUT_BUFFER_SIZE/ /*(188*2)*/188; i++) {
-						uint32_t cc11 = *(pbl1) & 0x000f0000;
-						if (cc11 == cc2) {
+						uint32_t cc11 = *(pbl1) & 0x000f0000,
+											pid1 = *(pbl1) & 0xff00001f;
+						if ((PID_VID ==pid1) && (cc11 == cc2)) {
 							memcpy(pbn, pbl1, 188);
 							pbn += 188;
 							if (I2SC_BUFFER_SIZE/188 == ++st_pos) {
@@ -265,7 +268,7 @@ found: {
 							taken = true;
 							break;
 						}
-						pbl1 += 188*2/4;
+						pbl1 += 188/**2*/ /4;
 					}
 				}
 				if (!taken || TSLUT_BUFFER_SIZE/ /*(188*2)*/188 == i) {
