@@ -33,6 +33,7 @@
   #define USB_HOST_MSG_IDX						0x1	// data instead comm interface
   #define USB_HOST_MSG_LEN						sizeof(dev_access)
   #define RADIO_SPI_BR											1000000
+#define PID_VID 											0x00000147	/*0x100*/
 //#define TIME_ANT_SW		// enable latency measurement on video antenna switch
 //#define VIDEO_DUAL_BUFFER	// enable video TS stream ruplication
 #define RADIO_SI4463
