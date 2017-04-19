@@ -512,8 +512,6 @@ static inline bool usb_read_buf(void *pb)
 							&& 0 <= size
 							&& !system_main_restart);
 		left = size+1;
-if (I2SC_BUFFER_SIZE != left)
-   once = 0;
 		once = 0;
 	}
 	else if (I2SC_BUFFER_SIZE>left) {
@@ -1293,8 +1291,8 @@ int main(void)
 	int32_t /*tm_const_spi1 = //time spent per TS block goes thru spi xfer
 							120*1000000*(int64_t)I2SC_BUFFER_SIZE*8/(int64_t)gs_ul_spi_clock[1],*/
 					// due to largest interleaver inside DVB-T taking 11 packets latency
-					tm_const_tsb =  //time spent per (11.5) TS packet goes thru video pipe @ 4.524 mb/s
-							120*1000000*(int64_t)188*(11.5)*8/(int64_t)(4.524*1000000);
+					tm_const_tsb =  //time spent per (12.5>11) TS packet goes thru video pipe @ (4<4.524) mb/s
+							120*1000000*(int64_t)188*(12.5)*8/(int64_t)(4*1000000);
   	bool vid_ant_switch1 = false;
 #ifdef TIME_ANT_SW
 	unsigned int tick_prev_antv, tick_curr_antv;
@@ -1312,6 +1310,7 @@ int main(void)
 	//control path related
 	U8 sndflag;
 	U8 radioini_failcnt=0;
+
 #elif defined(FWM_DNLD_DBG)
 	volatile uint32_t ul_page_end, ul_page_addr=PAGE_ADDRESS ;
 #endif
@@ -1924,6 +1923,39 @@ tune_done:
   #endif
   #ifndef TEST_USB
   	#ifndef TEST_SPI
+		 if (vid_ant_switch1) {
+			 int delta;
+				bool state= pio_get(PIOA, PIO_OUTPUT_1, PIO_PA24);
+			 /*do not disrupt the service by connecting both antenna*/
+			 pio_set(PIOA, PIO_PA23);
+			 pio_set(PIOA, PIO_PA24);
+			 // survey time interval for requested period of time
+			 last_done_spi = *DWT_CYCCNT;
+			 delta=timedelta(timedelta_reset,
+			 									last_done_spi,
+			 									startup_video_tm);
+			 while (tm_const_tsb>delta) {
+			 	/*wait until it is sure a block of TS has been delivered thru air*/
+			 	delay_ms(1);
+			 	last_done_spi = *DWT_CYCCNT;
+			 	delta=timedelta(timedelta_reset,
+			 									last_done_spi,
+			 									startup_video_tm);
+		 	 }
+			// switch between two antenna only takes 0.96 usec,
+			// but end result is amazingly profound, it always
+			// corrupts video on the other end, sooner or later
+			 {
+				if (state) {
+					pio_clear(PIOA, PIO_PA24);
+				}
+				else {
+	   			pio_clear(PIOA, PIO_PA23);
+				}
+				vid_ant_switch = false;
+			}
+			vid_ant_switch1 = false;
+		 }
 #ifdef VIDEO_DUAL_BUFFER
 		static uint32_t pre_tbuffer[I2SC_BUFFER_SIZE/4];
 		const uint32_t *pte =pre_tbuffer+sizeof(pre_tbuffer)/4;
@@ -1948,48 +1980,9 @@ tune_done:
 		}
 #endif
   		usb_data_done = true;
-  		uint32_t tmp_cpu_tm;
   		for (n=0; n<I2SC_BUFFER_SIZE/188; n++) {
-		 if (vid_ant_switch1 && 0==--ts_pkt_cnt) {
-			 int delta;
-			 last_done_spi = *DWT_CYCCNT;
-			 delta=timedelta(timedelta_reset,
-			 									last_done_spi,
-			 									startup_video_tm);
-			 while (tm_const_tsb>delta) {
-			 	/*wait until it is sure a block of TS has been delivered thru air*/
-			 	delay_us(10);
-			 	last_done_spi = *DWT_CYCCNT;
-			 	delta=timedelta(timedelta_reset,
-			 									last_done_spi,
-			 									startup_video_tm);
-		 	 }
-			// switch between two antenna only takes 0.96 usec,
-			// but end result is amazingly profound, it always
-			// corrupts video on the other end, sooner or later
-			 {
-				bool state= pio_get(PIOA, PIO_OUTPUT_1, PIO_PA24);
-				if (state) {
-	   			pio_set(PIOA, PIO_PA23);
-					pio_clear(PIOA, PIO_PA24);
-				}
-				else {
-	   			pio_clear(PIOA, PIO_PA23);
-					pio_set(PIOA, PIO_PA24);
-				}
-				vid_ant_switch = false;
-			}
-			vid_ant_switch1 = false;
-		 }
-			tmp_cpu_tm = *DWT_CYCCNT;
 			spi_tx_transfer(pusb, 188,
 				gs_uc_rbuffer/*don't care*/, 188, 1/*video*/);
-				if (vid_ant_switch && !vid_ant_switch1 &&
-					(0x00ff1f47 == (0x00ffffff&(*(uint32_t*)pusb)))) {
-						startup_video_tm = tmp_cpu_tm;
-						ts_pkt_cnt = 11;  // latency introduced by largest interleaver inside DVB-T
-						vid_ant_switch1 = true;
-					}
 			while (usb_data_done) ; // usb pipe overflow, liyenho
 			usb_data_done = true;
 #ifdef VIDEO_DUAL_BUFFER
@@ -2009,6 +2002,9 @@ tune_done:
 #endif
 			pusb += 188;  // accommodate cpld to generate ts_syn/ts_valid, liyenho
 		}
+		startup_video_tm = *DWT_CYCCNT;
+		if (vid_ant_switch)
+			vid_ant_switch1 = true;
    #else
 		spi_tx_transfer(pusb, I2SC_BUFFER_SIZE,
 			pusb1, I2SC_BUFFER_SIZE, 1/*video*/);
@@ -2237,10 +2233,10 @@ volatile bool main_vender_specific() {
 		|| USB_ITE_FW_VAL == udd_g_ctrlreq.req.wValue
 		)
 		return main_usb_host_msg();
- #if defined(MEDIA_ON_FLASH) && !defined(NO_USB)
+#if defined(MEDIA_ON_FLASH) && !defined(NO_USB)
 	if (USB_LOAD_MEDIA == udd_g_ctrlreq.req.wValue)
 		return main_usb_load_media();
- #endif
+#endif
 	else if (USB_HOST_MSG_RX_VAL == udd_g_ctrlreq.req.wValue)
 		return main_usb_host_reply();
 	 else if (USB_STREAM_OFF_VAL == udd_g_ctrlreq.req.wValue) {
@@ -2388,11 +2384,11 @@ volatile bool main_vender_specific() {
 		else if (RADIO_CHSEL_IDX == udd_g_ctrlreq.req.wIndex) {
 			if (RADIO_CHSEL_LEN0 != udd_g_ctrlreq.req.wLength &&
 				RADIO_CHSEL_LEN1 != udd_g_ctrlreq.req.wLength
-#if false // channel filter coefficients were removed, see radio.c for details
+			#if false // channel filter coefficients were removed, see radio.c for details
 				&& RADIO_CHSEL_LEN2 != udd_g_ctrlreq.req.wLength
 				&& RADIO_CHSEL_LEN3 != udd_g_ctrlreq.req.wLength
 				&& RADIO_CHSEL_LEN4 != udd_g_ctrlreq.req.wLength
-#endif
+			#endif
 			)
 				return (bool) -1; // error in msg len
 			udd_set_setup_payload( (uint8_t *)gs_uc_hrbuffer, udd_g_ctrlreq.req.wLength);
@@ -2495,7 +2491,7 @@ volatile bool main_vender_specific() {
 		__version_atmel__[1] = (uint8_t)atoi(day);
 		__version_atmel__[2] = (uint8_t)(atoi(year)-2000);
 	}
-#ifdef FWM_DNLD_DBG
+	#ifdef FWM_DNLD_DBG
 	else if (0xd7 == udd_g_ctrlreq.req.wValue) {
 		usb_host_active = true;
 		usb_tgt_active = false;
@@ -2503,7 +2499,7 @@ volatile bool main_vender_specific() {
 	else if (0x7d == udd_g_ctrlreq.req.wValue) {
 		udd_set_setup_payload( &usb_tgt_active, sizeof(usb_tgt_active));
 	}
-#endif
+	#endif
  	return (bool) -1; /* error in msg */
 }
 
