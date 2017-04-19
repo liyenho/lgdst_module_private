@@ -234,8 +234,6 @@ typedef struct {
 
 /** ite 913x to host irq assignment */
 #define ITE_HOST_INT			PIO_PA26 // not used at all...
-  /** The address for TWI IT913X */
-  #define IT913X_ADDRESS        0x3A
 #define _TWI_READ_(adr,buf,len) \
 	packet_rx.chip = adr; \
 	packet_rx.buffer = (uint8_t *)buf; \
@@ -337,8 +335,8 @@ void main_sof_action(void);
 extern uint32_t gs_uc_hrbuffer[(USB_HOST_MSG_LEN+HOST_BUFFER_SIZE+3)/sizeof(int)];
 
 //bool main_start_usb_write(); // added by liyenho for sync up host rx
-bool main_vender_specific();
-void main_loop_restart() ; // restart main system process...
+bool main_vender_specific(void);
+void main_loop_restart(void) ; // restart main system process...
 
 /*! \brief Enters the application in low power mode
  * Callback called when USB host sets USB line in suspend state

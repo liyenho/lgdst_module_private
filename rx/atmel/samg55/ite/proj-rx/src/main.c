@@ -55,6 +55,8 @@ static volatile bool main_b_cdc_enable = false;
   /** TWI Bus Clock 400kHz */
   // slow down to see if it improve data integrity, it does, liyenho
   #define TWI_CLK     /*200000*/ 100000
+  /** The address for TWI IT913X */
+  #define IT913X_ADDRESS        0x3A
   /* still need to confirm on these..., done */
   #define ITE_REG_ADDR         0
   #define ITE_REG_ADDR_LENGTH  /*2*/ 0
