@@ -202,9 +202,10 @@ int init_video_subsystem()
 	error= it9517_control_pidfilter(0,0);
 	if(error)goto exit;
 //	puts ("video subsystem initialized...");
+	return 0;
  exit:
-	if (error)  ;//printf("error=%x,%d\n",error,__LINE__);
-	return error;
+	//printf("error=%x,%d\n",error,__LINE__);
+	while (1) {;} // sticky error exception
 }
 
 int start_video_subsystem()
@@ -225,8 +226,8 @@ int start_video_subsystem()
 	//if(error)goto exit;
 	//error=it9517_get_output_gain_range(809000,6000);
 	//if(error)goto exit;
-	//error=it9517_adjust_output_gain(0);
-	//if(error)goto exit;
+	error=it9517_adjust_output_gain(0);
+	if(error)goto exit;
 	//	error = it9517_reset_pidfilter();
 	//	if(error)goto exit;
 	//	error= it9517_control_pidfilter(0,1);
@@ -235,11 +236,12 @@ int start_video_subsystem()
 	//if(error)goto exit;
 	//	error=it9517_pcr_restamp(PcrModeDisable,1);
 	//	if(error)goto exit;
-
+	error=it9517_enable_transmission_mode(1);
+	if(error)goto exit;
+	return 0;
  exit:
-	if (error)  ;//printf("error=%x,%d\n",error,__LINE__);
-	return error;
-
+	//printf("error=%x,%d\n",error,__LINE__);
+	while (1) {;} // sticky error exception
 }
 
 #ifdef TIME_ANT_SW
