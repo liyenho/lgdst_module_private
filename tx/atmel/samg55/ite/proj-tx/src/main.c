@@ -1331,7 +1331,7 @@ int main(void)
 	ui_init();
 	delay_ms(10); //atmelStudio fail debug breakpoint
 	ui_powerdown();
-#if 0 /*defined(RADIO_SI4463)*/
+#if 1 /*defined(RADIO_SI4463)*/
 	/* Initialize the console UART. */
 	configure_console(); // used for si446x radio dev, liyenho
 #endif

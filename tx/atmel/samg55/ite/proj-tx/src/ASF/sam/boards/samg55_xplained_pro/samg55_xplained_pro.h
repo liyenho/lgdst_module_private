@@ -189,8 +189,8 @@ void system_board_init(void);
 /** Number of on-board buttons */
 #define BUTTON_COUNT 1
 #ifdef CONF_BOARD_USB_RX
-  #define CONSOLE_UART               /*USART7*/ USART6
-  #define CONSOLE_UART_ID            /*ID_FLEXCOM7*/ ID_FLEXCOM6
+  #define CONSOLE_UART               /*USART7*/ USART3
+  #define CONSOLE_UART_ID            /*ID_FLEXCOM7*/ ID_FLEXCOM3
 #elif defined(CONF_BOARD_USB_TX)
   #define CONSOLE_UART               /*USART7*/ USART2
   #define CONSOLE_UART_ID            /*ID_FLEXCOM7*/ ID_FLEXCOM2
