@@ -14,7 +14,12 @@
 //#include "si4463/lgdst_4463_spi.h"
 
 //#define DEBUG_VIDEOPIPE
-
+#ifdef _TST_RDO_CTL_ENCAP_
+	uint8_t pb_rdo_ctrl[I2SC_BUFFER_SIZE],
+					*pb_rdo_ctrl_e= pb_rdo_ctrl+sizeof(pb_rdo_ctrl);
+	static uint8_t *pbr= pb_rdo_ctrl;
+	extern void radio_pkt_filled(int bsz);
+#endif
 #if defined(SMS_DVBT2_DOWNLOAD) || defined(RECV_SMS4470)
  extern uint32_t gs_sms_tbuffer[(USB_SMS_MSG_LEN+SMS_BUFFER_SIZE+3)/sizeof(int)];
  extern uint32_t fw_sms_tbuffer[FW_DNLD_SIZE/sizeof(int)], fw_sms_rbuffer[FW_DNLD_SIZE/sizeof(int)];
@@ -77,7 +82,7 @@ void RTT_Handler(void)
 	unsigned int udi_cdc_lvl;
 	unsigned int cc_curr;
 	static unsigned char ts47badcnt_pre=0;
-
+	int i, ii;
 	                                                            #ifdef DEBUG_VIDEOPIPE
 																					//monitoring/debugging variables
 																					unsigned int cpucyclecntlocal;
@@ -89,7 +94,6 @@ void RTT_Handler(void)
 																					static unsigned int cc_prev=0;
 																					static unsigned int dbg_ccerr=0;
 																					unsigned int cc_next;
-																					int i;
 																					#endif
     /* Get RTT status */
 	ul_status = rtt_get_status(RTT);
@@ -173,6 +177,34 @@ void RTT_Handler(void)
 		if(udi_cdc_lvl > I2SC_BUFFER_SIZE)
 		{
 		  usb_write_buf(gs_uc_rbuffer+((unsigned int)spibuff_rdptr*(I2SC_BUFFER_SIZE/4)) );  //burst out a usb transfer
+#ifdef _TST_RDO_CTL_ENCAP_
+		uint32_t *pbt, pid, mde, usr, bsz;
+		  pbt=gs_uc_rbuffer+((unsigned int)spibuff_rdptr*(I2SC_BUFFER_SIZE/4));
+		uint8_t *pbi= ((uint8_t*)pbt)+/*sizeof(ts_rdo_hdr)*/7;
+		for (i=0; i<I2SC_BUFFER_SIZE/188; i++) {
+			pid = *(pbt+0) & 0xff00001f;
+			mde = *(pbt+0) & 0x00ff0000;
+			usr = *(pbt+1) & 0x000000ff;
+			if (PID_CTL ==pid && MDE_CTL ==mde && USR_CTL ==usr) {
+				// radio control packet found
+				bsz = (*(pbt+1) & 0xff000000)>>24;
+				uint16_t word, *pw= (uint16_t*)(pbi+1);
+				*pbr++ = *(pbi-1); // odd position
+				for (ii=0; ii<(bsz-1)/2; ii++) {
+					word = *pw++;
+					*pbr++ = 0xff & (word>>8);
+					*pbr++ = 0xff & word;
+				}
+				if (!(1&bsz))
+					*pbr++ = 0xff & (*pw>>8);
+				radio_pkt_filled(bsz);
+				if ((pb_rdo_ctrl_e-188)<pbr)
+					pbr =pb_rdo_ctrl ;
+			}
+			pbt += 188/4;
+			pbi += 188;
+		}
+#endif
 		spibuff_rdptr++;
 		if(spibuff_rdptr>= GRAND_BUFFER_BLKS)
 			spibuff_rdptr = 0;

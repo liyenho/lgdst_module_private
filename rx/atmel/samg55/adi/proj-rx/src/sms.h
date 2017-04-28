@@ -3,6 +3,12 @@
 #ifdef CONF_BOARD_USB_TX
 #include "main.h"
 #include "DigiBestFrontend.h"
+
+#ifdef _TST_RDO_CTL_ENCAP_
+  #define PID_CTL										0x00000010	/*0x1000*/
+  #define MDE_CTL									0x00300000 // adaptation field w payload, cc=0
+  #define USR_CTL									0x00000082 // user private mode, no track of cc
+#endif
 /*
 typedef enum
 {

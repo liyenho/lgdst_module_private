@@ -14,6 +14,8 @@
 #include <compiler.h>  // for U8/16/32 definition, liyenho
 #include "usb_protocol_cdc.h"
 
+//#define _TST_RDO_CTL_ENCAP_  // served as testbed of ctrl radio pkt encap for asic proj
+
 #define GRAND_BUFFER_BLKS    8
 #define I2SC_BUFFER_SIZE		10*188
 #define GRAND_BUFFER_SIZE	GRAND_BUFFER_BLKS*I2SC_BUFFER_SIZE
