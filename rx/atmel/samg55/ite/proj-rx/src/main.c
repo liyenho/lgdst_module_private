@@ -133,6 +133,10 @@ volatile bool usb_write_start = false ; // called back from udc.c, liyenho
 	uint32_t gs_uc_rbuffer[2*I2SC_BUFFER_SIZE/sizeof(int)];
 #endif
 static uint32_t gs_uc_tbuffer[2*I2SC_BUFFER_SIZE/sizeof(int)];
+#ifdef CTRL_RADIO_ENCAP
+extern uint8_t  pb_rdo_ctrl[] ,
+								*pb_rdo_ctrl_e;
+#endif
 volatile static uint32_t usbfrm = 0, prev_usbfrm= 0;
 volatile uint32_t upgrade_fw_hdr[FW_UPGRADE_HDR_LEN/sizeof(int)]={-1} ;
 #if defined(FWM_DNLD_DBG)
@@ -1292,6 +1296,28 @@ static void init_4463()
 	radio_mon_rxcnt = 0;
 	delay_ms(50); // Extra waiting for SPI7 Master Ready
 }
+#ifdef CTRL_RADIO_ENCAP
+void radio_pkt_filled(int bsz) {
+	// To be filled in by Bill
+	static uint8_t *pbr1= pb_rdo_ctrl;
+	// test code by liyenho
+	 static int cr0 =-1,
+	 					 err_cnt=0;
+	 uint8_t cr ;
+	  for (int n=0; n<bsz; pbr1++,n++) {
+		  cr = *pbr1 ;
+		  if (-1 == cr0)
+		  	 cr0 = (int)*pbr1;
+		  else {
+			  if ((0xff&(cr0+1)) != cr)
+			  	  err_cnt += 1;
+			  cr0 =(int)cr ;
+		  }
+	  }
+	  if ((pb_rdo_ctrl_e-188)<pbr1)
+	  	 pbr1 = pb_rdo_ctrl;
+}
+#endif
 #ifdef RX_SPI_CHAINING
   static void start_it913x_spi(bool restart)
 	{

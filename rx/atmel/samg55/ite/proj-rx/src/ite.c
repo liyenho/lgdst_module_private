@@ -31,7 +31,12 @@
 	const uint32_t *pblw = (uint32_t*)(lkup_video_buffer+TSLUT_BUFFER_SIZE),
 								 	*pblr = (uint32_t*)lkup_video_buffer;
 #endif
-
+#ifdef CTRL_RADIO_ENCAP
+	uint8_t pb_rdo_ctrl[I2SC_BUFFER_SIZE],
+					*pb_rdo_ctrl_e= pb_rdo_ctrl+sizeof(pb_rdo_ctrl);
+	static uint8_t *pbr= pb_rdo_ctrl;
+	extern void radio_pkt_filled(int bsz);
+#endif
 #if defined(SMS_DVBT2_DOWNLOAD) || defined(RECV_IT913X)
  extern uint32_t g_ul_wait_10ms;
  extern twi_packet_t packet_tx, packet_rx;
@@ -88,7 +93,7 @@ void RTT_Handler(void)
 	static unsigned int cc_prev=0;
 	unsigned int cc_next;
 #endif
-	int i;
+	int i, ii;
 	                                                            #ifdef DEBUG_VIDEOPIPE
 																					//monitoring/debugging variables
 																					unsigned int cpucyclecntlocal;
@@ -294,6 +299,34 @@ found: {
 next:
 #else
 		  usb_write_buf(gs_uc_rbuffer+((unsigned int)spibuff_rdptr*(I2SC_BUFFER_SIZE/4)) );  //burst out a usb transfer
+#ifdef CTRL_RADIO_ENCAP
+		uint32_t *pbt, pid, mde, usr, bsz;
+		  pbt=gs_uc_rbuffer+((unsigned int)spibuff_rdptr*(I2SC_BUFFER_SIZE/4));
+		uint8_t *pbi= ((uint8_t*)pbt)+/*sizeof(ts_rdo_hdr)*/7;
+		for (i=0; i<I2SC_BUFFER_SIZE/188; i++) {
+			pid = *(pbt+0) & 0xff00001f;
+			mde = *(pbt+0) & 0x00ff0000;
+			usr = *(pbt+1) & 0x000000ff;
+			if (PID_CTL ==pid && MDE_CTL ==mde && USR_CTL ==usr) {
+				// radio control packet found
+				bsz = (*(pbt+1) & 0xff000000)>>24;
+				uint16_t word, *pw= (uint16_t*)(pbi+1);
+				*pbr++ = *(pbi-1); // odd position
+				for (ii=0; ii<(bsz-1)/2; ii++) {
+					word = *pw++;
+					*pbr++ = 0xff & (word>>8);
+					*pbr++ = 0xff & word;
+				}
+				if (!(1&bsz))
+					*pbr++ = 0xff & (*pw>>8);
+				radio_pkt_filled(bsz);
+				if ((pb_rdo_ctrl_e-188)<pbr)
+					pbr =pb_rdo_ctrl ;
+			}
+			pbt += 188/4;
+			pbi += 188;
+		}
+#endif
 #endif
 		spibuff_rdptr++;
 		if(spibuff_rdptr>= GRAND_BUFFER_BLKS)
@@ -603,8 +636,9 @@ int  init_video_subsystem()
 	error= it9137_control_power_saving(0,1);
 	if(error)goto _exit;
 #endif
+	return 0;
 _exit:
-	return error;
+	while (1) {;} // sticky error exception
 }
 
 int  start_video_subsystem()
@@ -620,18 +654,18 @@ int  start_video_subsystem()
 	//if(error)goto _exit;
 	error=it9137_get_signal_quality(0);
 	if(error)goto _exit;
-//	error=it9137_get_signal_quality_indication(0);
-//	if(error)goto _exit;
-//	error=it9137_get_signal_strength(0);
-//	if(error)goto _exit;
-//	error=it9137_get_signal_strength_indication(0);
-//	if(error)goto _exit;
-//	error=it9137_get_statistic(0);
-//	if(error)goto _exit;
+	error=it9137_get_signal_quality_indication(0);
+	if(error)goto _exit;
+	error=it9137_get_signal_strength(0);
+	if(error)goto _exit;
+	error=it9137_get_signal_strength_indication(0);
+	if(error)goto _exit;
+	error=it9137_get_statistic(0);
+	if(error)goto _exit;
 	error=it9137_get_signal_strength_dbm(0);
 	if(error)goto _exit;
-//	error=it9137_get_postviterbi_bit_error_rate(0);
-//	if(error)goto _exit;
+	error=it9137_get_postviterbi_bit_error_rate(0);
+	if(error)goto _exit;
 	error=it9137_get_snr(0);
 	if(error)goto _exit;
 	//error= it9137_reset();
@@ -640,7 +674,7 @@ int  start_video_subsystem()
 	//if(error)goto _exit;
 	i++;
 	}
+	return 0;
 _exit:
-	return error;
-
+	while (1) {;} // sticky error exception
 }

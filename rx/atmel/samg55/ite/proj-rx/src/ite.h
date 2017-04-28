@@ -5,6 +5,11 @@
 #define LO_Frequency 							1583000
 #define PID_VID 										0x00000001	/*0x100*/
 #define TSLUT_BUFFER_SIZE		(188*10)
+#ifdef CTRL_RADIO_ENCAP
+  #define PID_CTL										0x00000010	/*0x1000*/
+  #define MDE_CTL										0x00300000 // adaptation field w payload, cc=0
+  #define USR_CTL										0x00000082 // user private mode, no track of cc
+#endif
 //#define MEASURE_TIMING // NEVER enable this option, it can't work!!! liyenho
 #ifdef MEASURE_TIMING
 	extern volatile uint32_t tick_30us ;
