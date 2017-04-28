@@ -74,8 +74,6 @@ static volatile bool main_b_cdc_enable = false;
 #define SPI_DLYBS /*0x40*/ 0x10
 /* Delay between consecutive transfers. */
 #define SPI_DLYBCT /*0x10*/ 0x0
- // 10 TS packet per ping/pong buffer
-//#define I2SC_BUFFER_SIZE		10*188
 /* UART baudrate. */
 #define UART_BAUDRATE      115200
 /* SPI clock setting (Hz). */
@@ -130,7 +128,27 @@ volatile static uint32_t g_ul_led_ticks=0, g_ul_wait_100ms=50, g_ul_wait_1s=100;
 static bool health_led_onoff = false;
 volatile bool usb_write_start = false ; // called back from udc.c, liyenho
 	uint32_t gs_uc_rbuffer[2*I2SC_BUFFER_SIZE/sizeof(int)];
-static uint32_t gs_uc_tbuffer[2*I2SC_BUFFER_SIZE/sizeof(int)];
+#ifndef CTRL_RADIO_ENCAP
+	static uint32_t gs_uc_tbuffer[2*(I2SC_BUFFER_SIZE)/sizeof(int)];
+#else
+	/* adapt to requirement of control radio data encapsulation */
+static uint32_t gs_uc_tbuffer[2*(TP_SIZE+I2SC_BUFFER_SIZE)/sizeof(int)];
+const unsigned char nullts[188]={
+	0x47,0x1f,0xff,0x10,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
+	0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
+	0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
+	0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
+	0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
+	0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
+	0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
+	0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
+	0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
+	0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
+	0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
+	0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff
+};
+extern uint8_t fill_radio_pkt(uint8_t *pusb);
+#endif
 volatile static uint32_t usbfrm = 0, prev_usbfrm= 0;
 //algorithm from digibest sdk, using bulk transfer pipe, liyenho
 volatile uint32_t upgrade_fw_hdr[FW_UPGRADE_HDR_LEN/sizeof(int)]={-1} ;
@@ -1331,9 +1349,17 @@ int main(void)
 	ui_init();
 	delay_ms(10); //atmelStudio fail debug breakpoint
 	ui_powerdown();
-#if 1 /*defined(RADIO_SI4463)*/
+#if 0 /*defined(RADIO_SI4463)*/
 	/* Initialize the console UART. */
 	configure_console(); // used for si446x radio dev, liyenho
+ #ifdef UART_TEST
+  	int c = getchar();
+ 	//usart_serial_putchar(CONSOLE_UART, (const uint8_t)c);
+ 	// test code
+ 	pio_set_output(PIOA, PIO_PA3, HIGH, DISABLE, ENABLE);
+ 	delay_ms(10);
+ 	pio_clear(PIOA, PIO_PA3);
+ #endif
 #endif
 	// Start USB stack to authorize VBus monitoring
 	udc_start();
@@ -1511,7 +1537,6 @@ system_restart:  // system restart entry, liyenho
   ul_page_addr=PAGE_ADDRESS ;
   	do {
 	  	memcpy(gs_uc_rbuffer, ul_page_addr, I2SC_BUFFER_SIZE);
-
 		  delay_us(3000); // see if this stablize? it does!
   		usb_write_buf(gs_uc_rbuffer);
   		ul_page_addr += I2SC_BUFFER_SIZE;
@@ -1602,7 +1627,6 @@ bypass:
  	tick_prev_antv = *DWT_CYCCNT;
  #endif
 #endif
-	int ts_pkt_cnt = 0;
 	// The main loop manages only the power mode
 	// because the USB management is done by interrupt
 	while (true) {
@@ -1898,7 +1922,12 @@ tune_done:
 		#endif //CTRL_DYNAMIC_MOD
 #endif
 		// start usb rx line
+#ifndef CTRL_RADIO_ENCAP
 		pusb = (1 & usbfrm) ?((uint8_t*)gs_uc_tbuffer)+I2SC_BUFFER_SIZE : gs_uc_tbuffer;
+#else
+												/* adapt to requirement of control radio data encapsulation */
+		pusb = (1 & usbfrm) ?((uint8_t*)gs_uc_tbuffer)+I2SC_BUFFER_SIZE+TP_SIZE : gs_uc_tbuffer;
+#endif
   #ifdef MEDIA_ON_FLASH
    #ifdef NO_USB
    	memcpy(pusb, pusbs, ts_inc*188);
@@ -2005,6 +2034,23 @@ tune_done:
 		startup_video_tm = *DWT_CYCCNT;
 		if (vid_ant_switch)
 			vid_ant_switch1 = true;
+#ifdef CTRL_RADIO_ENCAP
+			if (ctrl_tdma_enable) {
+				uint8_t bs = fill_radio_pkt(pusb);
+				if (!bs) // no ctrl data pending
+					memcpy(pusb,nullts,sizeof(nullts));
+				else {// ctrl data filled
+					*(pusb+6) = bs;
+					const int hdr_sz=/*sizeof(ts_rdo_hdr)*/7;
+					memset(pusb+hdr_sz+bs,
+									0xff /*stuff bytes*/,
+									188-hdr_sz-bs);
+				}
+				spi_tx_transfer(pusb, 188,
+					gs_uc_rbuffer/*don't care*/, 188, 1/*video*/);
+				while (usb_data_done) ;
+			}
+#endif
    #else
 		spi_tx_transfer(pusb, I2SC_BUFFER_SIZE,
 			pusb1, I2SC_BUFFER_SIZE, 1/*video*/);
