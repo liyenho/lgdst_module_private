@@ -14,7 +14,10 @@
 #include <compiler.h>  // for U8/16/32 definition, liyenho
 #include "usb_protocol_cdc.h"
 
-#define I2SC_BUFFER_SIZE		10*188
+//#define CTRL_RADIO_ENCAP  // ctrl radio data packet in video TS
+
+#define TP_SIZE					188
+#define I2SC_BUFFER_SIZE		10*TP_SIZE
  // host usb/spi buffer for ctrl/sts, link up with fpga or 6612, liyenho
 #define USB_DEVICE_SPECIFIC_REQUEST()			main_vender_specific()
 #define USB_DEVICE_SYSTEM_RESTART()			main_loop_restart()  // restart yuneec design if usb restart, liyenho

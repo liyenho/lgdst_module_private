@@ -125,7 +125,12 @@ volatile static uint32_t g_ul_led_ticks=0, g_ul_wait_100ms=50, g_ul_wait_1s=100;
 static bool health_led_onoff = false;
 volatile bool usb_write_start = false ; // called back from udc.c, liyenho
 	uint32_t gs_uc_rbuffer[2*I2SC_BUFFER_SIZE/sizeof(int)];
-static uint32_t gs_uc_tbuffer[2*I2SC_BUFFER_SIZE/sizeof(int)];
+#ifndef CTRL_RADIO_ENCAP
+	static uint32_t gs_uc_tbuffer[2*(I2SC_BUFFER_SIZE)/sizeof(int)];
+#else
+	/* adapt to requirement of control radio data encapsulation */
+static uint32_t gs_uc_tbuffer[2*(TP_SIZE+I2SC_BUFFER_SIZE)/sizeof(int)];
+#endif
 volatile static uint32_t usbfrm = 0, prev_usbfrm= 0;
 //algorithm from digibest sdk, using bulk transfer pipe, liyenho
 volatile uint32_t upgrade_fw_hdr[FW_UPGRADE_HDR_LEN/sizeof(int)]={-1} ;
@@ -1060,6 +1065,26 @@ void init_4463()
 
  	 return;
  }
+ /*********************************************************************/
+#ifdef CTRL_RADIO_ENCAP
+const unsigned char ts_rdo_hdr[] = { // ctrl radio pid : 0x1000
+	0x47,0x10,0x00,0x30,0x02,0x82,
+	0x00/*size to be filled*/ };
+
+uint8_t fill_radio_pkt(uint8_t *pusb) {
+	// To be filled in by Bill
+	static int hdr_sz = sizeof(ts_rdo_hdr);
+	memcpy(pusb, ts_rdo_hdr, hdr_sz);
+	pusb += hdr_sz;
+	// test code by liyenho
+	 static unsigned char c = 1;
+	 uint8_t n, bsz = 188 - hdr_sz;
+	 for (n=0; n<bsz; n++) {
+	 	*pusb++ = c++;
+ 	}
+	return bsz;
+}
+#endif
 /* Jump to CM vector table */
 #if defined   (__CC_ARM)     /* Keil µVision 4 */
 static __asm__ void jump_to_app(void *code_addr)
@@ -1888,7 +1913,12 @@ tune_done:
 		#endif //CTRL_DYNAMIC_MOD
 #endif
 		// start usb rx line
+#ifndef CTRL_RADIO_ENCAP
 		pusb = (1 & usbfrm) ?((uint8_t*)gs_uc_tbuffer)+I2SC_BUFFER_SIZE : gs_uc_tbuffer;
+#else
+												/* adapt to requirement of control radio data encapsulation */
+		pusb = (1 & usbfrm) ?((uint8_t*)gs_uc_tbuffer)+I2SC_BUFFER_SIZE+TP_SIZE : gs_uc_tbuffer;
+#endif
   #ifdef MEDIA_ON_FLASH
    #ifdef NO_USB
    	memcpy(pusb, pusbs, ts_inc*188);
@@ -1914,6 +1944,7 @@ tune_done:
 	 volatile uint8_t *pusb1;
 	   pusb1 = (1 & usbfrm) ?((uint8_t*)gs_uc_rbuffer)+I2SC_BUFFER_SIZE : gs_uc_rbuffer;
   #endif
+		usb_data_done = true;
   #ifndef TEST_USB
   	#ifndef TEST_SPI
 #ifndef  VIDEO_DUAL_BUFFER
@@ -1965,12 +1996,27 @@ tune_done:
 			pusb += 188;  // accommodate cpld to generate ts_syn/ts_valid, liyenho
 		}
 #endif
+#ifdef CTRL_RADIO_ENCAP
+			if (ctrl_tdma_enable) {
+				uint8_t bs = fill_radio_pkt(pusb);
+				if (bs) {// ctrl data filled
+					*(pusb+6) = bs;
+					const int hdr_sz=/*sizeof(ts_rdo_hdr)*/7;
+					memset(pusb+hdr_sz+bs,
+									0xff /*stuff bytes*/,
+									188-hdr_sz-bs);
+					while (usb_data_done) ;
+					usb_data_done = true;
+					spi_tx_transfer(pusb, 188/2,
+						gs_uc_rbuffer/*don't care*/, 188/2, 1/*video*/);
+				}
+			}
+#endif
    #else
 		spi_tx_transfer(pusb, I2SC_BUFFER_SIZE/2,
 			pusb1, I2SC_BUFFER_SIZE/2, 1/*video*/);
    #endif
   #endif
-		usb_data_done = true;
   #if defined(TEST_USB) || defined(TEST_SPI)
 #ifdef TEST_SPI
 		while (usb_data_done) ;

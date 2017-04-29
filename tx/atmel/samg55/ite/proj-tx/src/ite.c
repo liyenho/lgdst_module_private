@@ -245,7 +245,7 @@ int start_video_subsystem()
 }
 #ifdef CTRL_RADIO_ENCAP
 const unsigned char ts_rdo_hdr[] = { // ctrl radio pid : 0x1000
-	0x47,0x10,0x00,0x30,0x03,0x82,
+	0x47,0x10,0x00,0x30,0x02,0x82,
 	0x00/*size to be filled*/ };
 
 uint8_t fill_radio_pkt(uint8_t *pusb) {
