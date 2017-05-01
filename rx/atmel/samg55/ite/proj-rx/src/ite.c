@@ -463,7 +463,7 @@ void configure_rtt(unsigned int clkcnt )
 	rtt_write_alarm_time(RTT, clkcnt ); // fired every sec (0 gives about 2sec)
 
 	pio_handler_set(PIOA, ID_PIOA, TS_FAIL_INT,
-		PIO_IT_AIME | PIO_IT_EDGE, ts_fail_handler); // add ts_fail counter
+		PIO_IT_AIME | PIO_IT_RE_OR_HL| PIO_IT_EDGE, ts_fail_handler); // add ts_fail counter
 	pio_enable_interrupt(PIOA, TS_FAIL_INT);
 	pio_handler_set_priority(PIOA, PIOA_IRQn, 1/*long latency event*/);
 
