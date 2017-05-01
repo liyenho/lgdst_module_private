@@ -15,8 +15,8 @@
 #include "platform_it9137.h"
 #include "type.h"
 //#define DEBUG_VIDEOPIPE
-#ifdef TIME_ANT_SW
  extern int timedelta(bool reset, unsigned int bignum, unsigned int smallnum);
+#ifdef TIME_ANT_SW
   volatile uint32_t startup_video_tm= 0, // to measure hold off time
   										last_done_spi= 0;
   volatile int32_t intv_max= -1,
@@ -61,7 +61,13 @@
 
 unsigned int dbg_usbtransfercnt=0;
 unsigned int dbg_usbtransferfail=0;
-volatile uint32_t gl_TS_count_error=0;
+#ifdef RECV_IT913X
+  volatile static uint32_t ts_count_error=0;
+  volatile static uint32_t last_half_sec= 0;
+  //bypass transient stage during video startup
+  volatile bool reset_ts_count_error=true;
+  volatile bool gl_vid_ant_sw = false; // antenna switch request
+#endif
 extern unsigned char trig500ms;
 extern uint8_t mon_ts47bad_cnt;
 
@@ -339,6 +345,27 @@ next:
 		//if(dbg_usbtransfercnt>10000)
 			//dbg_usbtransfercnt=0;  //break point tap
 	}
+#ifdef RECV_IT913X
+		if (reset_ts_count_error)
+			last_half_sec = *DWT_CYCCNT;
+		else if (last_half_sec) {
+			uint32_t cur_time;
+			 cur_time = *DWT_CYCCNT;
+			int dur;
+			 dur= timedelta(0, cur_time, last_half_sec);
+			 // 120 mhz core clock assumed, tried to align
+			 // rtt fire period into closest time on half sec,
+			 // it will be 480 ms if it is time exact...
+			 if ((115200000/2) < dur) {
+				 if (TP_ERR_RATE< ts_count_error) {
+					 // try to switch antenna
+					gl_vid_ant_sw = true;
+				 }
+			 	 last_half_sec = cur_time;
+				 ts_count_error = 0;
+			 }
+		}
+#endif
   }
 	                                                           #ifdef DEBUG_VIDEOPIPE
 																				  //monitoring and debuging
@@ -399,6 +426,17 @@ void TWI_Handler(void)  // sms4470 i2c polling handler
 			sms_poll_done = (int)true;
 		}
 }
+#else
+void ts_fail_handler(const uint32_t id, const uint32_t index)
+{
+	if ((id == ID_PIOA) && (index == TS_FAIL_INT)){
+		// bump up ts fail cnt each time we get interrupt
+		if (reset_ts_count_error) {
+			ts_count_error = 1;
+		} else
+		ts_count_error = ts_count_error+ 1;
+	}
+}
 #endif
 /**********************************************************************************************************
  * \brief RTT configuration function.
@@ -423,6 +461,11 @@ void configure_rtt(unsigned int clkcnt )
 	while (ul_previous_time == rtt_read_timer_value(RTT));
 
 	rtt_write_alarm_time(RTT, clkcnt ); // fired every sec (0 gives about 2sec)
+
+	pio_handler_set(PIOA, ID_PIOA, TS_FAIL_INT,
+		PIO_IT_AIME | PIO_IT_EDGE, ts_fail_handler); // add ts_fail counter
+	pio_enable_interrupt(PIOA, TS_FAIL_INT);
+	pio_handler_set_priority(PIOA, PIOA_IRQn, 1/*long latency event*/);
 
 	/* Enable RTT interrupt */
 	NVIC_DisableIRQ(RTT_IRQn);

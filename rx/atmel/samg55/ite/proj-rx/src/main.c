@@ -129,6 +129,9 @@ volatile bool usb_write_start = false ; // called back from udc.c, liyenho
 	state_write_usb_t sms4470_usb_ctx ;
   	bool i2c_read_cb_on = false; // adopt cb ext, liyenho
  #endif
+  bool first_in = true ;
+ extern volatile bool reset_ts_count_error;
+ extern volatile bool gl_vid_ant_sw;
 #else // non-real time mode
 	uint32_t gs_uc_rbuffer[2*I2SC_BUFFER_SIZE/sizeof(int)];
 #endif
@@ -582,10 +585,18 @@ void SysTick_Handler(void)
 			fhop_offset = hop_chn_sel(fhop_offset);
 		}
 #endif  //!TEMPERATURE_MEASURE
-		if(hop_state!= IDLE)
+		if(hop_state!= IDLE) {
 	    vRadio_StartTx_Variable_Packet(pRadioConfiguration->Radio_ChannelNumber, gp_rdo_tpacket_l,
 	    	 RADIO_PKT_LEN);
-
+			if (gl_vid_ant_sw) {
+			 /* FIX_ME ...
+			 	Hi Bill, can you please help to fill in this section with
+			 	pseudo control command sent to Tx for antenna switch?
+			 	thank you very much
+			 */
+				gl_vid_ant_sw = false;
+			}
+		}
 	    radio_mon_txcnt++;
 		tdma_sndthr = tdma_sndthr + TDMA_PERIOD;
 	  }
@@ -1372,7 +1383,7 @@ int main(void)
 #elif defined(CONF_BOARD_USB_RX)
 										*pusb=gs_uc_tbuffer;
 #endif
-	uint32_t i, n, tdel, tcurr, first_in = true;
+	uint32_t i, n, tdel, tcurr, last_three_sec;
 #if defined(MEDIA_ON_FLASH) || defined(CONFIG_ON_FLASH) || defined(FWM_DNLD_DBG)
 	uint32_t page_addr_bypass = IFLASH_ADDR + IFLASH_SIZE -  // to store flash media download flag, liyenho
 												(NUM_OF_FPGA_REGS+ NUM_OF_ATMEL_REGS) -4/*sizeof(int)*/-1 ;
@@ -1496,8 +1507,8 @@ system_restart:  // system restart entry, liyenho
  	delay_ms(10); // flush all data from Pipe
  #ifndef RX_SPI_CHAINING
 	i2c_read_cb_on = false ;
-	first_in = true; // be sure to reset 'first time flag' too
  #endif
+	first_in = true; // be sure to reset 'first time flag' too
 	pio_clear(PIOB, PIO_PB9); // disable TS gate
 	spi_disable(g_p_spis_pdc); // I think that is only spi need to be reset? liyenho
 #endif
@@ -1558,6 +1569,7 @@ system_restart:  // system restart entry, liyenho
 	// The main loop manages
 #if defined(RECV_IT913X)
   #include "ite.h"
+		reset_ts_count_error = true;
   #if defined(RX_SPI_CHAINING)
 		mon_spidmachainfail_cnt  = 0;
 		mon_ts47bad_cnt = 0;
@@ -1590,6 +1602,21 @@ system_restart:  // system restart entry, liyenho
 		stream = -1;  // invalidated
 #endif
 		start_it913x_spi(true);
+	} else {
+		if (first_in) {
+			last_three_sec = *DWT_CYCCNT;
+			//first_in = false;
+		}
+		else if(reset_ts_count_error) {
+			uint32_t cur_time;
+			 cur_time = *DWT_CYCCNT;
+			int dur;
+			 dur= timedelta(0, cur_time, last_three_sec);
+			if ((3*120000000)<dur) {
+				// assume video dem/dec get stable after 3 sec, liyenho
+				reset_ts_count_error = false;
+			}
+		}
 	}
 	  //Ctrl led control -------------------------------------------------
 	  if(ctrl_sndflag >0 )
@@ -1959,6 +1986,7 @@ _reg_acs:
 							 #ifdef TIME_ANT_SW
 							 	startup_video_tm = *DWT_CYCCNT;
 							 #endif
+								first_in = false;  // now it is safe to time vid ant sw
 							#endif
 							break;
 				default: /* host msg in error */
@@ -2051,7 +2079,10 @@ volatile bool main_vender_specific() {
 		else return false ;
 	}
 	if (USB_START_VID_SUBSYS == udd_g_ctrlreq.req.wValue) {
-		if (!start_video_subsystem()) return true;
+		if (!start_video_subsystem()) {
+			first_in = false;  // now it is safe to time vid ant sw
+			return true;
+		}
 		else return false ;
 	}
 /**********************************************************/
@@ -2076,6 +2107,7 @@ volatile bool main_vender_specific() {
 		 return (bool)-1 ;
 	 }
 	 else if (USB_ANT_SW_VAL == udd_g_ctrlreq.req.wValue) {
+			gl_vid_ant_sw = true; // try to switch antenna
 		 /* FIX_ME ...
 		 	Hi Bill, can you please help to fill in this section with
 		 	pseudo control command sent to Tx for antenna switch?

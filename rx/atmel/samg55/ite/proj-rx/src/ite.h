@@ -3,6 +3,12 @@
 #ifdef CONF_BOARD_USB_TX
 #include "main.h"
 #define LO_Frequency 							1583000
+#ifdef RECV_IT913X
+	#define TS_FAIL_INT						PIO_PA24
+	#define TS_CAPACITY						(4.5*1000000) // 4.5 mb/s assumed
+																				// if errors account for 75% of ts traffic
+	#define TP_ERR_RATE						0.75*TS_CAPACITY/188
+#endif
 #define PID_VID 										0x00000001	/*0x100*/
 #define TSLUT_BUFFER_SIZE		(188*10)
 #ifdef CTRL_RADIO_ENCAP
