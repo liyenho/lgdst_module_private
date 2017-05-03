@@ -57,11 +57,11 @@
   #define USART_HANDLER    /*FLEXCOM6_Handler*/ FLEXCOM2_Handler
   #define USART_INT_IRQn   /*FLEXCOM6_IRQn*/ FLEXCOM2_IRQn
 #elif defined(CONF_BOARD_USB_RX)
-  #define BOARD_FLEXCOM    /*FLEXCOM7*/ FLEXCOM6
-  #define USART_BASE       /*USART7*/ USART6
-  #define USART_ID         /*ID_FLEXCOM7*/ ID_FLEXCOM6
-  #define USART_HANDLER    /*FLEXCOM7_Handler*/ FLEXCOM6_Handler
-  #define USART_INT_IRQn   /*FLEXCOM7_IRQn*/ FLEXCOM6_IRQn
+  #define BOARD_FLEXCOM    /*FLEXCOM7*/ FLEXCOM3
+  #define USART_BASE       /*USART7*/ USART3
+  #define USART_ID         /*ID_FLEXCOM7*/ ID_FLEXCOM3
+  #define USART_HANDLER    /*FLEXCOM7_Handler*/ FLEXCOM3_Handler
+  #define USART_INT_IRQn   /*FLEXCOM7_IRQn*/ FLEXCOM3_IRQn
 #endif
 #define USART_INT_LEVEL  3
 
