@@ -486,20 +486,20 @@ static inline bool usb_read_buf(void *pb)
 	int itr=0, read=0, size=I2SC_BUFFER_SIZE;
 	static uint8_t rd_int_buff[I2SC_BUFFER_SIZE];
 	static int once=1, left=0;
-	uint8_t *pbr, *pbi;
+	uint8_t *pbr= rd_int_buff, *pbi;
 	if (0 == once) {
 		memcpy(pb,
 			rd_int_buff+I2SC_BUFFER_SIZE-left,
 			left);
 	}
 	do {
-		iram_size_t b = size-udi_cdc_read_buf(rd_int_buff, size);
+		iram_size_t b = size-udi_cdc_read_buf(pbr, size);
 		if (0 == b) {
 			itr += 1;
 			if (10000 == itr)
 				return false;
 		} else itr = 0;
-		pb += b;
+		pbr += b;
 		size -= b;
 		read += b;
 	} while (I2SC_BUFFER_SIZE != read && !system_main_restart);
@@ -513,7 +513,7 @@ static inline bool usb_read_buf(void *pb)
 			*(pbi+0) = *pbr++;
 			size -= 1;
 		} while (PID_VID != (0x00ff1fff & read)
-							&& 0 <= size
+							&& 0 < size
 							&& !system_main_restart);
 		if (0 == size)
 			return false; // video packet not found yet

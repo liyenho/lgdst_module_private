@@ -14,7 +14,7 @@
 #include <compiler.h>  // for U8/16/32 definition, liyenho
 #include "usb_protocol_cdc.h"
 
-//#define CTRL_RADIO_ENCAP  // ctrl radio data packet in video TS
+#define CTRL_RADIO_ENCAP  // ctrl radio data packet in video TS
 
 #define TP_SIZE					188
 #define I2SC_BUFFER_SIZE		10*TP_SIZE
