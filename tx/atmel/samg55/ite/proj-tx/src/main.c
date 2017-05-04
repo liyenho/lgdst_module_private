@@ -515,6 +515,8 @@ static inline bool usb_read_buf(void *pb)
 		} while (PID_VID != (0x00ff1fff & read)
 							&& 0 <= size
 							&& !system_main_restart);
+		if (0 == size)
+			return false; // video packet not found yet
 		left = size+1;
 		once = 0;
 	}
@@ -526,6 +528,21 @@ static inline bool usb_read_buf(void *pb)
 	}
 	return true;
 }
+/*{
+	int itr=0, read=0, size = I2SC_BUFFER_SIZE;
+	do {
+		iram_size_t b = size-udi_cdc_read_buf(pb, size);
+		if (0 == b) {
+			itr += 1;
+			if (10000 == itr)
+			return false;
+		} else itr = 0;
+		pb += b;
+		size -= b;
+		read += b;
+	} while (I2SC_BUFFER_SIZE != read && !system_main_restart);
+	return true;
+}*/
 //#ifdef SMS_DVBT2_DOWNLOAD
 /*static inline*/ void usb_read_buf1(void *pb, int size0)
 {
@@ -1332,21 +1349,9 @@ int main(void)
 #else
 	system_init();
 #endif
-	ui_init();
+	//ui_init();
 	delay_ms(10); //atmelStudio fail debug breakpoint
-	ui_powerdown();
-#if 0 /*defined(RADIO_SI4463)*/
-	/* Initialize the console UART. */
-	configure_console(); // used for si446x radio dev, liyenho
- #ifdef UART_TEST
-  	int c = getchar();
- 	//usart_serial_putchar(CONSOLE_UART, (const uint8_t)c);
- 	// test code
- 	pio_set_output(PIOA, PIO_PA3, HIGH, DISABLE, ENABLE);
- 	delay_ms(10);
- 	pio_clear(PIOA, PIO_PA3);
- #endif
-#endif
+	//ui_powerdown();
 	// Start USB stack to authorize VBus monitoring
 	udc_start();
 #if (defined(MEDIA_ON_FLASH) && !defined(NO_USB)) || defined(CONFIG_ON_FLASH) || defined(FWM_DNLD_DBG)
@@ -1602,6 +1607,28 @@ bypass:
  	main_loop_on = true;  // enter run time stage, liyenho
 	if (system_upgrade)
 		upgrade_sys_fw(system_upgrade);
+#if true/*defined(RADIO_SI4463)*/
+	/* Initialize the console UART. */
+	configure_console(); // used for generic system messages logging, liyenho
+COMPILER_WORD_ALIGNED
+		static usb_cdc_line_coding_t uart_coding; // used for si446x radio dev, liyenho
+	uart_coding.dwDTERate = CPU_TO_LE32(UDI_CDC_DEFAULT_RATE);
+	uart_coding.bCharFormat = UDI_CDC_DEFAULT_STOPBITS;
+	uart_coding.bParityType = UDI_CDC_DEFAULT_PARITY;
+	uart_coding.bDataBits = UDI_CDC_DEFAULT_DATABITS;
+	// re-config/open for si4463 ctrl with uart port, liyenho
+	uart_config(0, &uart_coding);
+	uart_open(0);
+ #ifdef UART_TEST
+  	int c = getchar();
+ 	printf("%c", c);
+ 	/* test code
+ 	pio_set_output(PIOA, PIO_PA3, HIGH, DISABLE, ENABLE);
+ 	delay_ms(10);
+ 	pio_clear(PIOA, PIO_PA3);
+ 	*/
+ #endif
+#endif
 #ifdef RADIO_SI4463
 	r4463_sts.tick_prev = tick_prev = *DWT_CYCCNT;
 #endif
@@ -2161,13 +2188,13 @@ _reg_acs:
 void main_suspend_action(void)
 {
 	return ;
-	ui_powerdown();
+	//ui_powerdown();
 }
 
 void main_resume_action(void)
 {
 	return ;
-	ui_wakeup();
+	//ui_wakeup();
 }
 
 volatile bool main_usb_host_msg() // Attach this api to usb rx isr service, liyenho
@@ -2538,26 +2565,26 @@ void main_sof_action(void)
 	return ;
 	if (!main_b_cdc_enable)
 		return;
-	ui_process(udd_get_frame_number());
+	//ui_process(udd_get_frame_number());
 }
 
 #ifdef USB_DEVICE_LPM_SUPPORT
 void main_suspend_lpm_action(void)
 {
 	return ;
-	ui_powerdown();
+	//ui_powerdown();
 }
 
 void main_remotewakeup_lpm_disable(void)
 {
 	return ;
-	ui_wakeup_disable();
+	//ui_wakeup_disable();
 }
 
 void main_remotewakeup_lpm_enable(void)
 {
 	return ;
-	ui_wakeup_enable();
+	//ui_wakeup_enable();
 }
 #endif
 
