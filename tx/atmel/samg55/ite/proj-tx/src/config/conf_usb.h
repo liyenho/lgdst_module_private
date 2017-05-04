@@ -163,7 +163,7 @@
 #if BOARD == UC3B_BOARD_CONTROLLER
 # define  UDI_CDC_DEFAULT_RATE             57600
 #else
-# define  UDI_CDC_DEFAULT_RATE             115200
+# define  UDI_CDC_DEFAULT_RATE             115200 // this value shall define final baud rate on uart line, liyenho
 #endif
 #define  UDI_CDC_DEFAULT_STOPBITS         CDC_STOP_BITS_1
 #define  UDI_CDC_DEFAULT_PARITY           CDC_PAR_NONE
