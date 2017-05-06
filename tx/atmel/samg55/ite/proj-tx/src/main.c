@@ -1373,21 +1373,21 @@ int main(void)
 #if true  //for video now
 	NVIC_DisableIRQ(SPI_IRQn);  // spi5 peripheral instance = 21, liyenho
 	NVIC_ClearPendingIRQ(SPI_IRQn);
-	NVIC_SetPriority(SPI_IRQn, 0);
+	NVIC_SetPriority(SPI_IRQn, /*0*/2);
 	NVIC_EnableIRQ(SPI_IRQn);
 #endif
 	NVIC_DisableIRQ(SPI0_IRQn);  // spi0 peripheral instance = 8, liyenho
 	NVIC_ClearPendingIRQ(SPI0_IRQn);
-	NVIC_SetPriority(SPI0_IRQn, 0);
+	NVIC_SetPriority(SPI0_IRQn, /*0*/1);
 	NVIC_EnableIRQ(SPI0_IRQn);
  #ifdef RADIO_SI4463
 	NVIC_DisableIRQ(PIOA_IRQn);  // pioa radio instance = 11, liyenho
 	NVIC_ClearPendingIRQ(PIOA_IRQn);
-	NVIC_SetPriority(PIOA_IRQn, 0);
+	NVIC_SetPriority(PIOA_IRQn, /*0*/1);
 	NVIC_EnableIRQ(PIOA_IRQn);
 	NVIC_DisableIRQ(SPI2_IRQn);  // spi2 peripheral instance = 8, liyenho
 	NVIC_ClearPendingIRQ(SPI2_IRQn);
-	NVIC_SetPriority(SPI2_IRQn, 0);
+	NVIC_SetPriority(SPI2_IRQn, /*0*/1);
 	NVIC_EnableIRQ(SPI2_IRQn);
  #endif
  	if (SysTick_Config(sysclk_get_cpu_hz() / 500)) { // 2 msec tick
@@ -1933,6 +1933,16 @@ tune_done:
 			r4463_sts.ctrl_bits_ctx[n] = r4463_sts.ctrl_bits_ctx[n-1];
 		*r4463_sts.ctrl_bits_ctx = r4463_sts.bw_ctrl_bits;
 		#endif //CTRL_DYNAMIC_MOD
+ #ifdef UART_TEST
+ 	// Bill shall utilize these funtions to pull or push actual
+ 	// control packets from inbound and outbound while
+ 	// outbound traffic can be variable length, with
+ 	// maximum length of (120 - 6) bytes, how to fit these
+ 	// into fixed length control packets is not in the scope
+ 	// of these functions
+ 	ctrl_buffer_send_ur(rpacket_grp); // send constant 30 bytes to host
+  	ctrl_buffer_recv_ur(tpacket_grp);  // receive variable/30 bytes from host
+ #endif
 #endif
 		// start usb rx line
 #ifndef CTRL_RADIO_ENCAP
