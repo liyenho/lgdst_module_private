@@ -1933,7 +1933,6 @@ tune_done:
 			r4463_sts.ctrl_bits_ctx[n] = r4463_sts.ctrl_bits_ctx[n-1];
 		*r4463_sts.ctrl_bits_ctx = r4463_sts.bw_ctrl_bits;
 		#endif //CTRL_DYNAMIC_MOD
- #ifdef UART_TEST
  	// Bill shall utilize these funtions to pull or push actual
  	// control packets from inbound and outbound while
  	// outbound traffic can be variable length, with
@@ -1941,8 +1940,7 @@ tune_done:
  	// into fixed length control packets is not in the scope
  	// of these functions
  	ctrl_buffer_send_ur(rpacket_grp); // send constant 30 bytes to host
-  	ctrl_buffer_recv_ur(tpacket_grp);  // receive variable/30 bytes from host
- #endif
+  	ctrl_buffer_recv_ur(tpacket_grp);  // receive variable bytes from host
 #endif
 		// start usb rx line
 #ifndef CTRL_RADIO_ENCAP
@@ -2293,6 +2291,9 @@ volatile bool main_vender_specific() {
 	if (USB_START_VID_SUBSYS == udd_g_ctrlreq.req.wValue) {
 		if (!start_video_subsystem()) return true;
 		else return false ;
+	}
+	if (USB_VID_ANT_SWITCH == udd_g_ctrlreq.req.wValue) {
+		vid_ant_switch = true; // host request to switch video antenna
 	}
 /**********************************************************/
 	if (USB_HOST_MSG_TX_VAL == udd_g_ctrlreq.req.wValue ||

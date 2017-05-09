@@ -24,6 +24,7 @@
  #define USB_SYSTEM_RESTART_VAL				0xa5
 #define USB_INIT_VID_SUBSYS								0xa1		// ite video subsystem init
 #define USB_START_VID_SUBSYS							0xa2		// ite video subsystem start
+#define USB_VID_ANT_SWITCH								0xa3		// switch video antenna
  #define USB_ATMEL_VER_VAL								0x20
 #define USB_STREAM_OFF_VAL							0xa
 #define USB_STREAM_ON_VAL							0xe
@@ -37,7 +38,7 @@
   #define USB_HOST_MSG_LEN						sizeof(dev_access)
   #define RADIO_SPI_BR											1000000
 #define PID_VID 											0x00000147	/*0x100*/
-#define TIME_ANT_SW		// enable latency measurement on video antenna switch
+//#define TIME_ANT_SW		// enable latency measurement on video antenna switch
 //#define VIDEO_DUAL_BUFFER	// enable video TS stream ruplication
 #define RADIO_SI4463
 #define RADIO_CTRL_AUTO   //be sure to include #define MEDIA_ON_FLASH
