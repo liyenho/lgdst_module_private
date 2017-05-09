@@ -356,8 +356,8 @@ next:
 			 // 120 mhz core clock assumed, tried to align
 			 // rtt fire period into closest time on half sec,
 			 // it will be 480 ms if it is time exact...
-			 if ((115200000/2) < dur) {
-				 if (TP_ERR_RATE< ts_count_error) {
+			 if (/*(115200000/2)*/(5*115200000) < dur) { // let's do 5 sec video antenna switch instead half sec, for better stability
+				 if ((5*TP_ERR_RATE)< ts_count_error) {
 					 // try to switch antenna
 					gl_vid_ant_sw = true;
 				 }
