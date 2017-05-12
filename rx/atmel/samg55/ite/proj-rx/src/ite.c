@@ -464,7 +464,7 @@ void configure_rtt(unsigned int clkcnt )
 	pmc_enable_periph_clk(ID_PIOB);
 	pio_set_input(PIOB, PIO_PB12, PIO_PULLUP);
 	pio_handler_set(PIOB, ID_PIOB, PIO_PB12,
-	PIO_IT_AIME | PIO_IT_RE_OR_HL | PIO_IT_EDGE, tigger_button_handler);
+	PIO_IT_AIME | PIO_IT_RE_OR_HL, tigger_button_handler);
 	pio_enable_interrupt(PIOB, PIO_PB12);
 	//pio_handler_set_priority(PIOB, PIOB_IRQn, 1/*low priority event*/);
 #endif
