@@ -73,7 +73,7 @@ typedef enum {	// mainly for maintenance purpose, liyenho
 typedef unsigned char  usart_packet_rx[RADIO_GRPPKT_LEN+MAVLINK_HDR_LEN];
 typedef unsigned char  usart_packet_tx[MAX_USART_PKT_LEN/*-MAVLINK_HDR_LEN*/];
 
-#define USART_PKT_QUEUE_LEN		10
+#define USART_PKT_QUEUE_LEN		8 // be reasonable short to minimize refresh latency
 #define USART_AT_CMD_LEN				3
 #define USART_PKT_LEN_LEN				sizeof(short) //MAX_USART_PKT_LEN
 
