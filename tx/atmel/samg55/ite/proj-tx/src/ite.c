@@ -191,8 +191,8 @@ int init_video_subsystem()
 	uint16_t sawBandwidth = 8000;
 	uint32_t error = ModulatorError_NO_ERROR;
 
-	init_rf2072();
-
+	if (!init_rf2072())
+		goto exit;
 	error=it9517_initialize (Bus_I2C,SERIAL_TS_INPUT);
 	if(error)goto exit;
 	//error= it9517_loadIQ_calibration_table (const char*file_name);
@@ -244,6 +244,7 @@ int start_video_subsystem()
 	while (1) {;} // sticky error exception
 }
 #ifdef CTRL_RADIO_ENCAP
+											// To be utilized by Bill
 const unsigned char ts_rdo_hdr[] = { // ctrl radio pid : 0x1000
 	0x47,0x10,0x00,0x30,0x02,0x82,
 	0x00/*size to be filled*/ };

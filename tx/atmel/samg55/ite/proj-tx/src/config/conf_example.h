@@ -63,7 +63,7 @@
   #define USART_HANDLER    /*FLEXCOM7_Handler*/ FLEXCOM3_Handler
   #define USART_INT_IRQn   /*FLEXCOM7_IRQn*/ FLEXCOM3_IRQn
 #endif
-#define USART_INT_LEVEL  /*3*/0
+#define USART_INT_LEVEL  /*3*/ 0
 
 //#define SPI_Handler     FLEXCOM5_Handler
 //#define SPI_IRQn        FLEXCOM5_IRQn

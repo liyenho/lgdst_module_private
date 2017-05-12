@@ -115,8 +115,8 @@ void system_board_init(void)
 	//ioport_set_port_peripheral_mode(PINS_USART7_PORT, PINS_USART7,
 			//PINS_USART7_FLAGS);
 #ifdef CONF_BOARD_USB_RX
-	ioport_set_port_peripheral_mode(PINS_USART6_PORT, PINS_USART6,
-			PINS_USART6_FLAGS);
+	ioport_set_port_peripheral_mode(PINS_USART3_PORT, PINS_USART3,
+			PINS_USART3_FLAGS);
 #elif defined(CONF_BOARD_USB_TX)
 	ioport_set_port_peripheral_mode(PINS_USART2_PORT, PINS_USART2,
 			PINS_USART2_FLAGS);
