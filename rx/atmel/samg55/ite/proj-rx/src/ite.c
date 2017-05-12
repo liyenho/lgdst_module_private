@@ -67,6 +67,7 @@ unsigned int dbg_usbtransferfail=0;
   //bypass transient stage during video startup
   volatile bool reset_ts_count_error=true;
   volatile bool gl_vid_ant_sw = false; // antenna switch request
+   //#define PIO_PB12_TEST
 #endif
 extern unsigned char trig500ms;
 extern uint8_t mon_ts47bad_cnt;
@@ -356,8 +357,8 @@ next:
 			 // 120 mhz core clock assumed, tried to align
 			 // rtt fire period into closest time on half sec,
 			 // it will be 480 ms if it is time exact...
-			 if (/*(115200000/2)*/(5*115200000) < dur) { // let's do 5 sec video antenna switch instead half sec, for better stability
-				 if ((5*TP_ERR_RATE)< ts_count_error) {
+			 if (/*(115200000/2)*/(5*115200000) < dur) { // let it be 5 sec instead half sec, to gain stability
+				 if (TP_ERR_RATE< ts_count_error) {
 					 // try to switch antenna
 					gl_vid_ant_sw = true;
 				 }
@@ -437,6 +438,14 @@ void ts_fail_handler(const uint32_t id, const uint32_t index)
 		ts_count_error = ts_count_error+ 1;
 	}
 }
+ #ifdef PIO_PB12_TEST
+  void tigger_button_handler(const uint32_t id, const uint32_t index)
+	{
+		if ((id == ID_PIOB) && (index == PIO_PB12)) {
+ 			gl_vid_ant_sw = true;  // user button pressed
+		}
+	}
+ #endif
 #endif
 /**********************************************************************************************************
  * \brief RTT configuration function.
@@ -446,6 +455,19 @@ void ts_fail_handler(const uint32_t id, const uint32_t index)
  */
 void configure_rtt(unsigned int clkcnt )
 {
+#ifdef PIO_PB12_TEST
+	/* specify PB12 as GPIO instead flash erasure */
+	uint32_t sysio ;
+	sysio = matrix_get_system_io();
+	matrix_set_system_io(sysio | CCFG_SYSIO_SYSIO12);
+	/* Test user trigger button for video antenna switch */
+	pmc_enable_periph_clk(ID_PIOB);
+	pio_set_input(PIOB, PIO_PB12, PIO_PULLUP);
+	pio_handler_set(PIOB, ID_PIOB, PIO_PB12,
+	PIO_IT_AIME | PIO_IT_RE_OR_HL | PIO_IT_EDGE, tigger_button_handler);
+	pio_enable_interrupt(PIOB, PIO_PB12);
+	//pio_handler_set_priority(PIOB, PIOB_IRQn, 1/*low priority event*/);
+#endif
 	//tick period = clkcnt*30.5us
 	//e.g.: 16 = 500us
 	uint32_t ul_previous_time;
