@@ -249,6 +249,7 @@ again:				BACK_TO_NONE
 						}
 						gl_usart_comm_ctx.chr_cnt -= 1;
 						if (!gl_usart_comm_ctx.chr_cnt) {
+							 usart_disable_interrupt(USART_BASE, US_IDR_TXRDY); // turn off Tx pipe, liyenho
 							memcpy(&atcmd, gl_usart_comm_ctx.last_at_cmd, USART_AT_CMD_LEN);
 							switch(atcmd) {
 								case 0x315441:
@@ -266,6 +267,7 @@ again:				BACK_TO_NONE
 										gl_usart_comm_ctx.chr_cnt=sizeof(usart_packet_rx)-1;
 										gl_usart_comm_ctx.state = QUEUE_UP;
 										gl_usart_comm_ctx.queue_ptr_rd -= 1;
+										usart_enable_interrupt(USART_BASE, US_IER_TXRDY); // turn on Tx pipe, liyenho
 										usart_write(USART_BASE, *gl_usart_comm_ctx.mavlk_frm_ptr++);
 									} // otherwise, host retreives too fast resulted buffer underflow
 									else {
@@ -300,6 +302,7 @@ again:				BACK_TO_NONE
 							}
 							else { // a mavlink frame sent
 								BACK_TO_NONE
+								usart_disable_interrupt(USART_BASE, US_IDR_TXRDY); // turn off Tx pipe, liyenho
 								gl_usart_comm_ctx.last_rec_tm = cur_time;
 							}
 						}
