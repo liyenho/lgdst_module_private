@@ -47,12 +47,29 @@
 #ifndef _UART_H_
 #define _UART_H_
 
-#define UART_TEST
-#define MAX_USART_PKT_LEN		263 // downlink from drone, variable length
+//#define UART_TEST
+//#define DBG_UART_SND
+//#define DBG_UART_REC
+#define X25_INIT_CRC 							0xffff
+#define X25_VALIDATE_CRC 				0xf0b8
+
+static inline void crc_accumulate(uint8_t data, uint16_t *crcAccum)
+{
+        //Accumulate one byte of data into the CRC
+        uint8_t tmp;
+
+        tmp = data ^ (uint8_t)(*crcAccum &0xff);
+        tmp ^= (tmp<<4);
+        *crcAccum = (*crcAccum>>8) ^ ((uint16_t)tmp<<8) ^ ((uint16_t)tmp <<3) ^ (tmp>>4);
+}
+
+#define MAX_USART_PKT_LEN		120 // downlink from drone, variable length
 #define MAVLINK_HDR_LEN				6
+#define MAVLINK_START_SIGN		0x55
+#define START_SIGN_LEN				1  // one byte
+#define CHKSUM_LEN							2  // two bytes
 #define RADIO_GRPPKT_LEN    	30	// uplink from controller, fixed length
-				// two byte period per 115200 baud, 120 mhz core clock assumed
-#define USART_WAIT_TIME				20833
+#define USART_ACK_LEN					3 // "ATA"
 
 typedef enum {
 	STA_NULL= 0,
@@ -70,29 +87,25 @@ typedef enum {	// mainly for maintenance purpose, liyenho
 	REC_FRAME= 4,
 } usart_cmd;
 
-typedef unsigned char  usart_packet_rx[RADIO_GRPPKT_LEN+MAVLINK_HDR_LEN];
+typedef unsigned char  usart_packet_rx[RADIO_GRPPKT_LEN+MAVLINK_HDR_LEN+CHKSUM_LEN];
 typedef unsigned char  usart_packet_tx[MAX_USART_PKT_LEN/*-MAVLINK_HDR_LEN*/];
 
 #define USART_PKT_QUEUE_LEN		8 // be reasonable short to minimize refresh latency
-#define USART_AT_CMD_LEN				3
-#define USART_PKT_LEN_LEN				sizeof(short) //MAX_USART_PKT_LEN
 
 typedef struct {
-	 usart_state state;
-	 usart_cmd cmd;
+	 usart_state state_rx, state_tx;
+	 usart_state state_next_rx, state_next_tx;
+	 usart_cmd cmd_extr, cmd_tx;
 	usart_packet_rx *queue_start_rx;
 	usart_packet_rx *queue_end_rx;
 	usart_packet_rx *queue_ptr_rd;
 	usart_packet_tx *queue_start_tx;
 	usart_packet_tx *queue_end_tx;
 	usart_packet_tx *queue_ptr_wr;
-	uint8_t *mavlk_frm_ptr;
-	uint32_t this_rec_tm;
-	uint32_t last_rec_tm;
-	uint32_t chr_cnt;
-	uint16_t mavlk_frm_sz;
-	uint16_t mavlk_chksum;
-	uint8_t last_at_cmd[USART_AT_CMD_LEN];
+	uint8_t *mavlk_frm_ptr_rx, *mavlk_frm_ptr_tx;
+	uint32_t chr_cnt_rx, chr_cnt_tx;
+	//uint16_t mavlk_frm_sz;
+	uint16_t mavlk_chksum_rx,mavlk_chksum_tx;
 	uint8_t frm_squ_rx;
 } ctx_usart;
 

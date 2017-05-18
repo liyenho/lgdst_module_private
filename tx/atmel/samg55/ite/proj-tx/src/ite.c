@@ -226,7 +226,7 @@ int start_video_subsystem()
 	//if(error)goto exit;
 	//error=it9517_get_output_gain_range(809000,6000);
 	//if(error)goto exit;
-	error=it9517_adjust_output_gain(0);
+	error=it9517_adjust_output_gain(0/*-50*/);
 	if(error)goto exit;
 	//	error = it9517_reset_pidfilter();
 	//	if(error)goto exit;

@@ -1295,6 +1295,11 @@ static void _app_exec(void *addr)
 				while (1); // wait for processor reset
 			}
 	}
+// to enable embedded ITE asic  video subsystem ***********
+extern int init_video_subsystem();
+ volatile bool init_video_flag = false;
+extern int start_video_subsystem();
+ volatile bool start_video_flag = false;
 /*! \brief Main function. Execution starts here.
  */
 int main(void)
@@ -1607,26 +1612,21 @@ bypass:
  	main_loop_on = true;  // enter run time stage, liyenho
 	if (system_upgrade)
 		upgrade_sys_fw(system_upgrade);
-#if true/*defined(RADIO_SI4463)*/
+#if false/*defined(RADIO_SI4463)*/
 	/* Initialize the console UART. */
-	configure_console(); // used for generic system messages logging, liyenho
-COMPILER_WORD_ALIGNED
-		static usb_cdc_line_coding_t uart_coding; // used for si446x radio dev, liyenho
-	uart_coding.dwDTERate = CPU_TO_LE32(UDI_CDC_DEFAULT_RATE);
-	uart_coding.bCharFormat = UDI_CDC_DEFAULT_STOPBITS;
-	uart_coding.bParityType = UDI_CDC_DEFAULT_PARITY;
-	uart_coding.bDataBits = UDI_CDC_DEFAULT_DATABITS;
+		configure_console(); // used for generic system messages logging, liyenho
+	COMPILER_WORD_ALIGNED
+	static usb_cdc_line_coding_t uart_coding; // used for si446x radio dev, liyenho
+	  uart_coding.dwDTERate = CPU_TO_LE32(UDI_CDC_DEFAULT_RATE);
+	  uart_coding.bCharFormat = UDI_CDC_DEFAULT_STOPBITS;
+	  uart_coding.bParityType = UDI_CDC_DEFAULT_PARITY;
+	  uart_coding.bDataBits = UDI_CDC_DEFAULT_DATABITS;
 	// re-config/open for si4463 ctrl with uart port, liyenho
-	uart_config(0, &uart_coding);
-	uart_open(0);
- #ifdef UART_TEST
-  	int c = getchar();
- 	printf("%c", c);
- 	/* test code
- 	pio_set_output(PIOA, PIO_PA3, HIGH, DISABLE, ENABLE);
- 	delay_ms(10);
- 	pio_clear(PIOA, PIO_PA3);
- 	*/
+		uart_config(0, &uart_coding);
+		uart_open(0);
+ #if 0 //def UART_TEST
+		int c = getchar();
+		puts("hello");
  #endif
 #endif
 #ifdef RADIO_SI4463
@@ -1646,6 +1646,14 @@ COMPILER_WORD_ALIGNED
 		if (system_main_restart ) goto system_restart;
 	if (system_upgrade)
 		upgrade_sys_fw(system_upgrade);
+		if (init_video_flag) {
+			init_video_subsystem();
+			init_video_flag = false;
+		}
+		else if (start_video_flag) {
+			start_video_subsystem();
+			start_video_flag = false;
+		}
 		if (!stream_flag) goto _reg_acs; // stop TS stream if flag isn't true, liyenho
 #ifdef TIME_ANT_SW
 		else /*if (stream_flag)*/ {
@@ -1939,8 +1947,10 @@ tune_done:
  	// maximum length of (120 - 6) bytes, how to fit these
  	// into fixed length control packets is not in the scope
  	// of these functions
+ #ifdef UART_TEST
  	ctrl_buffer_send_ur(rpacket_grp); // send constant 30 bytes to host
   	ctrl_buffer_recv_ur(tpacket_grp);  // receive variable bytes from host
+ #endif
 #endif
 		// start usb rx line
 #ifndef CTRL_RADIO_ENCAP
@@ -2269,9 +2279,7 @@ bool main_usb_load_media() {
  	return true;
 }
  #endif
-// to enable embedded ITE asic  video subsystem ***********
-extern int init_video_subsystem();
-extern int start_video_subsystem();
+
 /**********************************************************/
 volatile bool main_vender_specific() {
  #ifdef CONFIG_ON_FLASH

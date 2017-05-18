@@ -54,6 +54,7 @@
 #include "flexcom.h"
 #endif
 #include "ctrl.h"  // for tm_delta() def
+#include "delay.h"
 
 #if SAM4L
 #   define USART_PERIPH_CLK_ENABLE() sysclk_enable_peripheral_clock(USART_BASE)
@@ -65,9 +66,19 @@
 #endif
 
 extern volatile uint32_t *DWT_CYCCNT;
+volatile static uint32_t prev_time_intr = 0,
+												prev_time_snd = 0,
+												tdelx_intr, tdelx;  // timing measure facility
+extern volatile bool init_video_flag, start_video_flag;
 
 static sam_usart_opt_t usart_options;
-volatile static uint8_t rec_intr_buffer[MAX_USART_PKT_LEN];
+//volatile static uint8_t rec_intr_buffer[MAX_USART_PKT_LEN];
+static volatile bool uart_port_start0 = false,
+										uart_port_start = false/*true*/,
+										first_ignored = true;  // timing measure facility
+
+static volatile uint8_t dbg_chr_rx[1000] ;
+static volatile uint32_t dbg_chr_cnt ;
 
 volatile ctx_usart gl_usart_comm_ctx ; // global interrupt context for serial comm
 			// point of view from control link
@@ -76,21 +87,36 @@ static usart_packet_rx usart_queue_recv[USART_PKT_QUEUE_LEN];
 	  																		0x55, // start sign
   																			RADIO_GRPPKT_LEN+MAVLINK_HDR_LEN,
   																			0x0, // sequence, to be filled in
-  																			0x01, // system id
-  																			0x14, // component id
-  																			0x00, // to be filled by Bill
+  																			0x01,
+  																			0x14,
+  																			0x00, // msg def, to be filled in by Bill
   																		};
 static usart_packet_tx usart_queue_sent[USART_PKT_QUEUE_LEN];
 
-#define BACK_TO_NONE \
-	gl_usart_comm_ctx.chr_cnt = USART_AT_CMD_LEN; \
-	gl_usart_comm_ctx.state = STA_NULL; \
-	gl_usart_comm_ctx.cmd = CMD_NONE;
+#ifdef UART_TEST
+ #define BACK_TO_NONE_RX \
+	gl_usart_comm_ctx.chr_cnt_rx = 3;/*wait for at cmd*/ \
+	gl_usart_comm_ctx.mavlk_chksum_rx = X25_INIT_CRC; \
+	gl_usart_comm_ctx.state_rx = STA_NULL; \
+	gl_usart_comm_ctx.cmd_extr = CMD_NONE;
+#else
+ #define BACK_TO_NONE_RX \
+	gl_usart_comm_ctx.chr_cnt_rx = START_SIGN_LEN; \
+	gl_usart_comm_ctx.mavlk_chksum_rx = X25_INIT_CRC; \
+	gl_usart_comm_ctx.state_rx = STA_NULL; \
+	gl_usart_comm_ctx.cmd_extr = CMD_NONE;
+#endif
+#define BACK_TO_NONE_TX \
+	gl_usart_comm_ctx.chr_cnt_tx = 0; \
+	gl_usart_comm_ctx.mavlk_chksum_tx = X25_INIT_CRC; \
+	gl_usart_comm_ctx.state_tx = STA_NULL; \
+	gl_usart_comm_ctx.cmd_tx = CMD_NONE;
 
 ISR(USART_HANDLER)  // we need this ISR to pump status data to usb cdc comm, liyenho
 {
 	uint32_t sr = usart_get_status(USART_BASE);
-	uint32_t tdel, atcmd=0, cur_time = *DWT_CYCCNT;
+	uint32_t tdel, cur_time, prev_time = *DWT_CYCCNT;
+	// disable TXRDY to avoid usb cdc rx get interferenced, liyenho
 	if (sr & US_CSR_RXRDY) {
 		// Data received
 		//ui_com_tx_start();
@@ -102,10 +128,11 @@ ISR(USART_HANDLER)  // we need this ISR to pump status data to usb cdc comm, liy
 			usart_enable_rx(USART_BASE);
 			//udi_cdc_signal_framing_error();
 			//ui_com_error();
-			gl_usart_comm_ctx.last_rec_tm = 0U;
-			BACK_TO_NONE
+			BACK_TO_NONE_RX
 			return;
 		}
+  if (1000 > dbg_chr_cnt)  // for debug
+  dbg_chr_rx[dbg_chr_cnt++] = (char)value;
 #if false  // not used for usb cdc app...
 		// Transfer UART RX fifo to CDC TX
 		if (!udi_cdc_is_tx_ready()) {
@@ -117,109 +144,156 @@ ISR(USART_HANDLER)  // we need this ISR to pump status data to usb cdc comm, liy
 		}
 		ui_com_tx_stop();
 #else
-		switch(gl_usart_comm_ctx.state) {
+		switch(gl_usart_comm_ctx.state_rx) {
 			case STA_NULL:
-						if ('A' == (char)value) {
-												gl_usart_comm_ctx.this_rec_tm = cur_time;
-												gl_usart_comm_ctx.last_at_cmd[gl_usart_comm_ctx.chr_cnt--]= (char)value;
-												gl_usart_comm_ctx.state = SYNC_UP;
-											}
-							else goto again;
-						break;
-			case SYNC_UP:
-						switch (gl_usart_comm_ctx.chr_cnt) {
-							case USART_AT_CMD_LEN-1:
-											if ('T' == (char)value) {
-												gl_usart_comm_ctx.last_at_cmd[gl_usart_comm_ctx.chr_cnt--]= (char)value;
-											}
-											else goto again;
-											break;
-							case USART_AT_CMD_LEN-2:
-											if ('0' <= (char)value
-													&& '9' >= (char)value) {
-												gl_usart_comm_ctx.last_at_cmd[gl_usart_comm_ctx.chr_cnt--]= (char)value;
-											}
-											else goto again;
-											break;
-							default : goto again;
+						if (ACK_BACK == gl_usart_comm_ctx.state_next_tx) {
+							if ('A' == (char)value) {
+								gl_usart_comm_ctx.chr_cnt_rx = USART_ACK_LEN-1;
+								gl_usart_comm_ctx.state_rx = QUEUE_UP;
+							}
+							else  {
+								gl_usart_comm_ctx.queue_ptr_rd += 1;
+								if (gl_usart_comm_ctx.queue_end_rx-1<gl_usart_comm_ctx.queue_ptr_rd)
+									gl_usart_comm_ctx.queue_ptr_rd = gl_usart_comm_ctx.queue_end_rx-1;
+								 gl_usart_comm_ctx.state_next_tx = STA_NULL;
+								BACK_TO_NONE_RX // bad link
+							}
+							break;
 						}
-						tm_delta(gl_usart_comm_ctx.last_rec_tm,
-											gl_usart_comm_ctx.this_rec_tm,
-											tdel)
-						if (USART_WAIT_TIME < tdel || !gl_usart_comm_ctx.last_rec_tm) {
-							if (!gl_usart_comm_ctx.chr_cnt) {
-								gl_usart_comm_ctx.chr_cnt =USART_AT_CMD_LEN-1;
-								gl_usart_comm_ctx.state = ACK_BACK;
-								usart_enable_interrupt(USART_BASE, US_IER_TXRDY); // turn on Tx pipe, liyenho
-								while(usart_write(USART_BASE, 'A')) ;
-							}}
-						else {
-again:				BACK_TO_NONE
-						}
-						break;
-			case GET_LEN:
-						switch (gl_usart_comm_ctx.chr_cnt) {
-							case USART_PKT_LEN_LEN:
-											gl_usart_comm_ctx.mavlk_frm_sz= 0xff&value;
-											gl_usart_comm_ctx.chr_cnt -=1;
-											break;
-							case USART_PKT_LEN_LEN-1:
-											gl_usart_comm_ctx.mavlk_frm_sz |= 0xff00&(value<<8);
-											if (MAX_USART_PKT_LEN>=gl_usart_comm_ctx.mavlk_frm_sz &&
-													MAVLINK_HDR_LEN < gl_usart_comm_ctx.mavlk_frm_sz) {
-												// valid cmd sequence so far
-												memcpy(&atcmd, gl_usart_comm_ctx.last_at_cmd, USART_AT_CMD_LEN);
-												switch(atcmd) {
-													case 0x335441:
-														gl_usart_comm_ctx.cmd= REC_FRAME;
-														gl_usart_comm_ctx.state = QUEUE_UP;
-														gl_usart_comm_ctx.mavlk_frm_ptr= rec_intr_buffer;
-														gl_usart_comm_ctx.chr_cnt=gl_usart_comm_ctx.mavlk_frm_sz;
-														break;
-													default : assert(0); // can't happen
+#ifdef UART_TEST
+						else if ('A' == (char)value) {
+												if (3 == gl_usart_comm_ctx.chr_cnt_rx--) {
+													gl_usart_comm_ctx.state_rx = SYNC_UP;
+												}
+												else {
+													BACK_TO_NONE_RX
 												}
 											}
-											else {
-												BACK_TO_NONE
+#endif
+						else if (MAVLINK_START_SIGN == (char)value) {
+												gl_usart_comm_ctx.state_rx = SYNC_UP;
+												gl_usart_comm_ctx.chr_cnt_rx = START_SIGN_LEN;
+												gl_usart_comm_ctx.mavlk_frm_ptr_rx= /*rec_intr_buffer*/gl_usart_comm_ctx.queue_ptr_wr;
+												*gl_usart_comm_ctx.mavlk_frm_ptr_rx++ = MAVLINK_START_SIGN;
 											}
-											break;
-							default : assert(0); // can't happen
+						break;
+			case SYNC_UP:
+#ifdef UART_TEST
+						if ('T' == (char)value && 2 == gl_usart_comm_ctx.chr_cnt_rx)
+							  { gl_usart_comm_ctx.chr_cnt_rx-- ;  }
+						else if (('1' == (char)value || '2' == (char)value || '0' == (char)value) &&
+										1 == gl_usart_comm_ctx.chr_cnt_rx ) {
+								gl_usart_comm_ctx.chr_cnt_rx = 3;
+								if ('0' == (char)value)
+									uart_port_start0 = true;  // initial uart sub-system start
+								else if ('1' == (char)value)
+									init_video_flag = true;
+								else if ('2' == (char)value)
+									start_video_flag = true;
+								BACK_TO_NONE_RX
+								if (STA_NULL == gl_usart_comm_ctx.state_tx &&
+										gl_usart_comm_ctx.state_next_tx == STA_NULL) {
+									usart_enable_tx(USART_BASE);
+									usart_enable_interrupt(USART_BASE, US_IER_TXRDY); // turn on Tx pipe, liyenho
+									gl_usart_comm_ctx.state_next_rx = ACK_BACK;
+									goto send_ack_1st_char;  // so we can trigger next US_CSR_TXRDY
+								}
+						} else
+#endif
+						if (!--gl_usart_comm_ctx.chr_cnt_rx) {
+							if ((MAX_USART_PKT_LEN)>value &&
+								(MAVLINK_HDR_LEN+CHKSUM_LEN)<=value ) {
+								gl_usart_comm_ctx.chr_cnt_rx = (char)value-1;
+								//gl_usart_comm_ctx.mavlk_frm_sz = (char)value;
+								*gl_usart_comm_ctx.mavlk_frm_ptr_rx++= (char)value;
+								crc_accumulate((uint8_t)value, &gl_usart_comm_ctx.mavlk_chksum_rx);
+								gl_usart_comm_ctx.cmd_extr= REC_FRAME;
+								gl_usart_comm_ctx.state_rx = QUEUE_UP;
+							}
+							else { // has to be greater than chksum length
+								BACK_TO_NONE_RX
+							}
 						}
 						break;
 			case QUEUE_UP:
-						if (gl_usart_comm_ctx.cmd== REC_FRAME) {
-							if (gl_usart_comm_ctx.chr_cnt--) {
-								*gl_usart_comm_ctx.mavlk_frm_ptr++ = (char)value;
-								if ( (2-1)<gl_usart_comm_ctx.chr_cnt && // excluded start sign
-									gl_usart_comm_ctx.mavlk_frm_sz-1 != gl_usart_comm_ctx.chr_cnt )
-									gl_usart_comm_ctx.mavlk_chksum += (short)value;
+						if (gl_usart_comm_ctx.cmd_extr== REC_FRAME) {
+							if (--gl_usart_comm_ctx.chr_cnt_rx) {
+								*gl_usart_comm_ctx.mavlk_frm_ptr_rx++ = (char)value;
+								if ( CHKSUM_LEN<=gl_usart_comm_ctx.chr_cnt_rx)
+									crc_accumulate((uint8_t)value, &gl_usart_comm_ctx.mavlk_chksum_rx);
 							}
 							else { // check if a mavlink frame recv-ed
+									*gl_usart_comm_ctx.mavlk_frm_ptr_rx = (char)value;
 								uint16_t chksum;
-								  chksum = *(gl_usart_comm_ctx.mavlk_frm_ptr-2);
-								  chksum |= ((uint16_t)*(gl_usart_comm_ctx.mavlk_frm_ptr-1)<<8);
-								if (chksum == gl_usart_comm_ctx.mavlk_chksum) {
+								  chksum = *(gl_usart_comm_ctx.mavlk_frm_ptr_rx-1);
+								  chksum |= ((uint16_t)*(gl_usart_comm_ctx.mavlk_frm_ptr_rx)<<8);
+								if (chksum == gl_usart_comm_ctx.mavlk_chksum_rx) {
 									// it is a valid packet
 									if (gl_usart_comm_ctx.queue_end_tx-1 >gl_usart_comm_ctx.queue_ptr_wr) {
-										memcpy(gl_usart_comm_ctx.queue_ptr_wr,
-															rec_intr_buffer/*+MAVLINK_HDR_LEN*/,
-															gl_usart_comm_ctx.mavlk_frm_sz/*-MAVLINK_HDR_LEN*/);
+										//memcpy(gl_usart_comm_ctx.queue_ptr_wr,
+										//					rec_intr_buffer/*+MAVLINK_HDR_LEN*/,
+										//					gl_usart_comm_ctx.mavlk_frm_sz/*-MAVLINK_HDR_LEN*/);
 										gl_usart_comm_ctx.queue_ptr_wr += 1;
 									} // otherwise, host forwards too fast resulted buffer overflow
-									gl_usart_comm_ctx.last_rec_tm = cur_time;
+									//gl_usart_comm_ctx.mavlk_frm_sz =0;
+									BACK_TO_NONE_RX
+									if (STA_NULL == gl_usart_comm_ctx.state_tx &&
+											gl_usart_comm_ctx.state_next_tx == STA_NULL) {
+										usart_enable_tx(USART_BASE);
+										usart_enable_interrupt(USART_BASE, US_IER_TXRDY); // turn on Tx pipe, liyenho
+										gl_usart_comm_ctx.state_next_rx = ACK_BACK;
+										goto send_ack_1st_char;  // so we can trigger next US_CSR_TXRDY
+									}
 								}
-								gl_usart_comm_ctx.mavlk_chksum = 0;
-								gl_usart_comm_ctx.mavlk_frm_sz =0;
-								BACK_TO_NONE
+								else {
+									gl_usart_comm_ctx.mavlk_frm_ptr_rx = 0;
+									//gl_usart_comm_ctx.mavlk_frm_sz =0;
+									BACK_TO_NONE_RX
+								}
 							}
+						}
+						else if (ACK_BACK == gl_usart_comm_ctx.state_next_tx) {
+							/*if (!gl_usart_comm_ctx.chr_cnt_rx) {
+								gl_usart_comm_ctx.state_next_tx = STA_NULL;
+								BACK_TO_NONE_RX
+							}
+							else*/
+								switch(gl_usart_comm_ctx.chr_cnt_rx) {
+									case USART_ACK_LEN-1:
+												if ('T' == (char)value)
+													gl_usart_comm_ctx.chr_cnt_rx -= 1;
+												else  {
+													gl_usart_comm_ctx.queue_ptr_rd += 1;
+													if (gl_usart_comm_ctx.queue_end_rx-1<gl_usart_comm_ctx.queue_ptr_rd)
+														gl_usart_comm_ctx.queue_ptr_rd = gl_usart_comm_ctx.queue_end_rx-1;
+													 gl_usart_comm_ctx.state_next_tx = STA_NULL;
+													BACK_TO_NONE_RX // bad link
+												}
+												break;
+									case USART_ACK_LEN-2:
+												if ('K' == (char)value) {
+													gl_usart_comm_ctx.chr_cnt_rx -= 1;
+													// no more chr comes in...
+													gl_usart_comm_ctx.state_next_tx = STA_NULL;
+													BACK_TO_NONE_RX
+												}
+												else  {
+													gl_usart_comm_ctx.queue_ptr_rd += 1;
+													if (gl_usart_comm_ctx.queue_end_rx-1<gl_usart_comm_ctx.queue_ptr_rd)
+														gl_usart_comm_ctx.queue_ptr_rd = gl_usart_comm_ctx.queue_end_rx-1;
+													 gl_usart_comm_ctx.state_next_tx = STA_NULL;
+													BACK_TO_NONE_RX // bad link
+												}
+												break;
+									default: assert(0); // can't happen
+								}
 						}
 						break;
 			default : assert(0);
 		}
 #endif
-		return;
+		// return;
 	}
-	// disable TXRDY to avoid usb cdc rx get interferenced, liyenho
 	if ( sr & US_CSR_TXRDY) {
 		// Data send
 #if false  // not used for usb cdc app...
@@ -236,85 +310,99 @@ again:				BACK_TO_NONE
 			ui_com_rx_stop();
 		}
 #else
-		switch(gl_usart_comm_ctx.state) {
-			case ACK_BACK:
-						switch (gl_usart_comm_ctx.chr_cnt) {
-							case USART_AT_CMD_LEN-1:
-											usart_write(USART_BASE, 'T');
-											break;
-							case USART_AT_CMD_LEN-2:
-											usart_write(USART_BASE, 'A');
-											break ;
-							default : assert(0); // can't happen
+		switch(gl_usart_comm_ctx.state_tx) {
+			case STA_NULL:
+						if (ACK_BACK == gl_usart_comm_ctx.state_next_rx) {
+send_ack_1st_char:
+							gl_usart_comm_ctx.chr_cnt_tx = USART_ACK_LEN-1;
+							gl_usart_comm_ctx.state_tx = QUEUE_UP;
+							usart_write(USART_BASE, 'A');
 						}
-						gl_usart_comm_ctx.chr_cnt -= 1;
-						if (!gl_usart_comm_ctx.chr_cnt) {
-							 usart_disable_interrupt(USART_BASE, US_IDR_TXRDY); // turn off Tx pipe, liyenho
-							memcpy(&atcmd, gl_usart_comm_ctx.last_at_cmd, USART_AT_CMD_LEN);
-							switch(atcmd) {
-								case 0x315441:
-									gl_usart_comm_ctx.cmd = INIT_VIDEO;
-									BACK_TO_NONE
-									break;
-								case 0x325441:
-									gl_usart_comm_ctx.cmd = START_VIDEO;
-									BACK_TO_NONE
-									break;
-								case 0x345441:
-									// when ctrl link gets new radio packet, Bill shall copy into payload section of
-									// gl_usart_comm_ctx.queue_ptr_rd, then bump up gl_usart_comm_ctx.queue_ptr_rd
-									if (gl_usart_comm_ctx.queue_start_rx<gl_usart_comm_ctx.queue_ptr_rd) {
-										gl_usart_comm_ctx.chr_cnt=sizeof(usart_packet_rx)-1;
-										gl_usart_comm_ctx.state = QUEUE_UP;
-										gl_usart_comm_ctx.queue_ptr_rd -= 1;
-										usart_enable_interrupt(USART_BASE, US_IER_TXRDY); // turn on Tx pipe, liyenho
-										usart_write(USART_BASE, *gl_usart_comm_ctx.mavlk_frm_ptr++);
-									} // otherwise, host retreives too fast resulted buffer underflow
-									else {
-										BACK_TO_NONE
-									}
-									break;
-								case 0x335441:
-									gl_usart_comm_ctx.chr_cnt =USART_PKT_LEN_LEN;
-									gl_usart_comm_ctx.state = GET_LEN;
-									break;
-								default:  // invalid or not implemented yet
-									BACK_TO_NONE
-									break;
-							}
-						}
-						else if (1==gl_usart_comm_ctx.chr_cnt) {//one before last one
-							memcpy(&atcmd, gl_usart_comm_ctx.last_at_cmd, USART_AT_CMD_LEN);
-							if (0x345441 == atcmd &&
-								gl_usart_comm_ctx.queue_start_rx<gl_usart_comm_ctx.queue_ptr_rd) {
-								// do all these here in case it gets too tight at the last char of ATA ack
-									gl_usart_comm_ctx.cmd= SND_FRAME;
-									gl_usart_comm_ctx.mavlk_frm_ptr= (uint8_t*)gl_usart_comm_ctx.queue_ptr_rd;
-									*(gl_usart_comm_ctx.mavlk_frm_ptr+1) = sizeof(usart_packet_rx); // assign payload length
-									*(gl_usart_comm_ctx.mavlk_frm_ptr+2) = gl_usart_comm_ctx.frm_squ_rx++; // assign sequence cnt
-							}
+						else if (gl_usart_comm_ctx.queue_start_rx<gl_usart_comm_ctx.queue_ptr_rd) {
+							gl_usart_comm_ctx.mavlk_frm_ptr_tx= (uint8_t*)gl_usart_comm_ctx.queue_ptr_rd;
+							*(gl_usart_comm_ctx.mavlk_frm_ptr_tx+1) = sizeof(usart_packet_rx)-START_SIGN_LEN; // assign payload length
+							*(gl_usart_comm_ctx.mavlk_frm_ptr_tx+2) = gl_usart_comm_ctx.frm_squ_rx++; // assign sequence cnt
+							gl_usart_comm_ctx.chr_cnt_tx=sizeof(usart_packet_rx)-1;
+							gl_usart_comm_ctx.state_tx = QUEUE_UP;
+							gl_usart_comm_ctx.cmd_tx= SND_FRAME;
+							gl_usart_comm_ctx.queue_ptr_rd -= 1;
+							usart_write(USART_BASE, *gl_usart_comm_ctx.mavlk_frm_ptr_tx++);
 						}
 						break;
 			case QUEUE_UP:
-						if (gl_usart_comm_ctx.cmd== SND_FRAME) {
-							if (gl_usart_comm_ctx.chr_cnt--) {
-								usart_write(USART_BASE, *gl_usart_comm_ctx.mavlk_frm_ptr++);
+						if (gl_usart_comm_ctx.cmd_tx== SND_FRAME) {
+							if (gl_usart_comm_ctx.chr_cnt_tx--) {
+								//usart_enable_interrupt(USART_BASE, US_IER_TXRDY); // for some reason we lost it in midway, re-enable intr
+								if ( CHKSUM_LEN<=gl_usart_comm_ctx.chr_cnt_tx)
+									crc_accumulate(*gl_usart_comm_ctx.mavlk_frm_ptr_tx,
+																		&gl_usart_comm_ctx.mavlk_chksum_tx);
+								else {
+									if (gl_usart_comm_ctx.chr_cnt_tx) // low byte
+								  		*(gl_usart_comm_ctx.mavlk_frm_ptr_tx) =
+								  			(char)gl_usart_comm_ctx.mavlk_chksum_tx;
+								  	else {// high byte
+								  		*(gl_usart_comm_ctx.mavlk_frm_ptr_tx) =
+								  			(char)(gl_usart_comm_ctx.mavlk_chksum_tx>>8);
+								  			// to prevent ack byte from being returned too fast from the other end...
+								  			usart_write(USART_BASE, *gl_usart_comm_ctx.mavlk_frm_ptr_tx++);
+								  			goto last_byte_sent;
+							  			}
+								}
+								usart_write(USART_BASE, *gl_usart_comm_ctx.mavlk_frm_ptr_tx++);
 							}
 							else { // a mavlink frame sent
-								BACK_TO_NONE
+last_byte_sent:
+								usart_disable_tx(USART_BASE);
 								usart_disable_interrupt(USART_BASE, US_IDR_TXRDY); // turn off Tx pipe, liyenho
-								gl_usart_comm_ctx.last_rec_tm = cur_time;
+								gl_usart_comm_ctx.state_next_tx = ACK_BACK;
+								BACK_TO_NONE_TX
 							}
+						}
+						else if (ACK_BACK == gl_usart_comm_ctx.state_next_rx) {
+							if (!gl_usart_comm_ctx.chr_cnt_tx) {
+								usart_disable_tx(USART_BASE);
+								usart_disable_interrupt(USART_BASE, US_IDR_TXRDY); // turn off Tx pipe, liyenho
+								gl_usart_comm_ctx.state_next_rx = STA_NULL;
+								if (uart_port_start0)
+									uart_port_start = true;
+								BACK_TO_NONE_TX
+							}
+							else
+								switch(gl_usart_comm_ctx.chr_cnt_tx--) {
+									case USART_ACK_LEN-1:
+												usart_write(USART_BASE, 'T');
+												break;
+									case USART_ACK_LEN-2:
+												usart_write(USART_BASE, 'K');
+												break;
+									default: assert(0); // can't happen
+								}
 						}
 						break;
 			default : assert(0);
 		}
 #endif
+		//return;
 	}
+	cur_time= *DWT_CYCCNT;
+	tm_delta(prev_time, cur_time, tdel);
+	if (tdelx < tdel)
+		tdelx = tdel;
+	if (prev_time_intr) {
+		tm_delta(prev_time_intr, prev_time, tdel);
+		// anything greater 5 sec is not of concern...
+		if (5*120000000 > tdel && tdelx_intr < tdel)
+			tdelx_intr = tdel;
+	} // measure turnaround time
+	prev_time_intr = prev_time;
 }
 
 
 void ctrl_buffer_send_ur(void* pctl) {
+#ifdef DBG_UART_SND
+	return ; // for debug uart recv on atmel
+#endif
+	if (!uart_port_start) return; // host isn't up yet, liyenho
 	irqflags_t flags;
 	if (gl_usart_comm_ctx.queue_end_rx-1>gl_usart_comm_ctx.queue_ptr_rd) {
 		uint8_t *pr = (uint8_t*)(gl_usart_comm_ctx.queue_ptr_rd+1);
@@ -323,21 +411,44 @@ void ctrl_buffer_send_ur(void* pctl) {
 #ifdef UART_TEST
 		*(pr+MAVLINK_HDR_LEN-1) = 0x0; // data assumed
 #else
-		*(pr+MAVLINK_HDR_LEN-1) = /*Bill, can you implement this per fs_streamflow spec?*/;
+		*(pr+MAVLINK_HDR_LEN-1) = /*Bill, can you implemented this per fs_sreamflow spec?t*/;
 #endif
 		flags = cpu_irq_save();
 			gl_usart_comm_ctx.queue_ptr_rd += 1;
 		cpu_irq_restore(flags);
 	} // otherwise, host retreives too slow resulted buffer overflow
+//	uint32_t tdel, cur_time = *DWT_CYCCNT;
+	if (gl_usart_comm_ctx.state_tx == STA_NULL &&
+			gl_usart_comm_ctx.state_next_tx == STA_NULL) {
+		if (!(US_IMR_TXRDY & usart_get_interrupt_mask(USART_BASE))) {
+			usart_enable_tx(USART_BASE);
+			usart_enable_interrupt(USART_BASE, US_IER_TXRDY); // turn on Tx pipe, liyenho
+		}
+//		prev_time = cur_time;
+	}
+	/*else {
+		if (!prev_time ) {
+			assert(0); // shouldn't happen...
+		}
+		else {
+			tm_delta(prev_time, cur_time, tdel);
+			if (12000000 < tdel) { // 0.1 sec
+		      // force giving up if takes too long
+				gl_usart_comm_ctx.state_next_tx = STA_NULL;
+				BACK_TO_NONE_TX
+				prev_time = cur_time;
+			}
+		}
+	}*/
 }
 
 void ctrl_buffer_recv_ur(void *pctl1) {
 	irqflags_t flags;
 	if (gl_usart_comm_ctx.queue_start_tx<gl_usart_comm_ctx.queue_ptr_wr) {
 		flags = cpu_irq_save();
-			uint8_t *pw = (uint8_t*)(gl_usart_comm_ctx.queue_ptr_wr),
-								len= *(pw+1)-(MAVLINK_HDR_LEN-1);
+			uint8_t *pw = (uint8_t*)(gl_usart_comm_ctx.queue_ptr_wr), len ;
 		cpu_irq_restore(flags);
+		len = *(pw+1)-(MAVLINK_HDR_LEN+CHKSUM_LEN-1);
 		memcpy((uint8_t*)pctl1,
 							pw+MAVLINK_HDR_LEN, len);
 		flags = cpu_irq_save();
@@ -441,13 +552,19 @@ void uart_open(uint8_t port)
 	gl_usart_comm_ctx.queue_end_tx = usart_queue_sent+USART_PKT_QUEUE_LEN;
 	gl_usart_comm_ctx.queue_start_tx = usart_queue_sent;
 	gl_usart_comm_ctx.queue_ptr_wr = usart_queue_sent;
-	gl_usart_comm_ctx.state = STA_NULL;
-	gl_usart_comm_ctx.cmd = CMD_NONE;
-	memset(gl_usart_comm_ctx.last_at_cmd, 0x0, USART_AT_CMD_LEN);
-	gl_usart_comm_ctx.chr_cnt = USART_AT_CMD_LEN;
-	gl_usart_comm_ctx.this_rec_tm = gl_usart_comm_ctx.last_rec_tm = 0; // invalidated
-	gl_usart_comm_ctx.mavlk_frm_sz=(uint16_t)-1; // invalidated
-	gl_usart_comm_ctx.mavlk_chksum = 0;
+	gl_usart_comm_ctx.state_rx = gl_usart_comm_ctx.state_next_rx = STA_NULL;
+	gl_usart_comm_ctx.state_tx = gl_usart_comm_ctx.state_next_tx = STA_NULL;
+	gl_usart_comm_ctx.cmd_extr = gl_usart_comm_ctx.cmd_tx = CMD_NONE;
+#ifdef UART_TEST
+	gl_usart_comm_ctx.chr_cnt_rx = 3; // wait for at cmd to init/start video sub-system
+#else
+	gl_usart_comm_ctx.chr_cnt_rx = START_SIGN_LEN;
+#endif
+	gl_usart_comm_ctx.chr_cnt_tx = 0;
+	//gl_usart_comm_ctx.mavlk_frm_sz=(uint16_t)-1; // invalidated
+	gl_usart_comm_ctx.mavlk_frm_ptr_rx = 0;
+	gl_usart_comm_ctx.mavlk_chksum_rx =
+	gl_usart_comm_ctx.mavlk_chksum_tx = X25_INIT_CRC;
 
 	// IO is initialized in board init
 	// Enable interrupt with priority higher than USB
@@ -468,6 +585,7 @@ void uart_open(uint8_t port)
 	usart_enable_rx(USART_BASE);
 	// Enable interrupts, disable TXRDY to avoid usb cdc rx get interferenced, liyenho
 	usart_enable_interrupt(USART_BASE, US_IER_RXRDY /*| US_IER_TXRDY*/);
+
 }
 
 void uart_close(uint8_t port)

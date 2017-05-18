@@ -174,7 +174,7 @@ void main_sof_action(void);
   #define ITE_FW_HDR_LEN						(4) // total firmware byte length
 
 //#define FWM_DNLD_DBG		// don't turn in on unless it's necessary, the last chunk of data would not match but it is ok...
-#define FW_DNLD_SIZE			7200 /*15000*/ // NEVER be divisible into 64 or usb core shall malfunction (a big bug!!!)
+#define FW_DNLD_SIZE			7200/*15000*/ // NEVER be divisible into 64 or usb core shall malfunction (a big bug!!!)
 #define FW_UPGRADE_HDR_LEN		(12)
 #define USB_BOOT_APP_VAL						0xa4
 #define USB_CPLD_UPGRADE_VAL	0x21  // cpld upgrade cmd
