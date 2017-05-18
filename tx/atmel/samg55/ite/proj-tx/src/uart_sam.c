@@ -343,15 +343,11 @@ send_ack_1st_char:
 								  	else {// high byte
 								  		*(gl_usart_comm_ctx.mavlk_frm_ptr_tx) =
 								  			(char)(gl_usart_comm_ctx.mavlk_chksum_tx>>8);
-								  			// to prevent ack byte from being returned too fast from the other end...
-								  			usart_write(USART_BASE, *gl_usart_comm_ctx.mavlk_frm_ptr_tx++);
-								  			goto last_byte_sent;
 							  			}
 								}
 								usart_write(USART_BASE, *gl_usart_comm_ctx.mavlk_frm_ptr_tx++);
 							}
 							else { // a mavlink frame sent
-last_byte_sent:
 								usart_disable_tx(USART_BASE);
 								usart_disable_interrupt(USART_BASE, US_IDR_TXRDY); // turn off Tx pipe, liyenho
 								gl_usart_comm_ctx.state_next_tx = ACK_BACK;

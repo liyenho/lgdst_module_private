@@ -1612,7 +1612,7 @@ bypass:
  	main_loop_on = true;  // enter run time stage, liyenho
 	if (system_upgrade)
 		upgrade_sys_fw(system_upgrade);
-#if false/*defined(RADIO_SI4463)*/
+#if /*defined(RADIO_SI4463)*/ false
 	/* Initialize the console UART. */
 		configure_console(); // used for generic system messages logging, liyenho
 	COMPILER_WORD_ALIGNED

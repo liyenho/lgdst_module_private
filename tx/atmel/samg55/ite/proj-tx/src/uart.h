@@ -47,7 +47,7 @@
 #ifndef _UART_H_
 #define _UART_H_
 
-//#define UART_TEST
+#define UART_TEST
 //#define DBG_UART_SND
 //#define DBG_UART_REC
 #define X25_INIT_CRC 							0xffff
