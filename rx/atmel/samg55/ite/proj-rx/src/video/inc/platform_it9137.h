@@ -37,4 +37,5 @@ uint32_t it9137_get_if_agc(uint8_t chip);
 uint32_t it9137_get_rf_agc_gain(uint8_t chip);
 uint32_t it9137_set_streamtype( StreamType  streamType);
 uint32_t it9137_set_architecture( Architecture  architecture);
+uint32_t it9137_get_statistic(uint8_t chip) ;
 #endif
