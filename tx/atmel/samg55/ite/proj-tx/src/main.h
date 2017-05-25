@@ -180,7 +180,7 @@ void main_sof_action(void);
 #define USB_CPLD_UPGRADE_VAL	0x21  // cpld upgrade cmd
 #define USB_ATMEL_UPGRADE_VAL	0x23	// atmel upgrade cmd
 /** ite 951x to host irq assignment */
-#define LO_Frequency 								1583000
+#define LO_Frequency 								/*1583000*/ 1686000
 #define ITE_HOST_INT			PIO_PA26 // not used at all...
 #define _TWI_READ_(adr,buf,len) \
 	packet_rx.chip = adr; \

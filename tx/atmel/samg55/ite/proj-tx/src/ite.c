@@ -212,7 +212,7 @@ int start_video_subsystem()
 {
 	uint32_t error = ModulatorError_NO_ERROR;
 	ChannelModulation      channel_Modulation;
-	//	channel_Modulation.frequency=809000;
+	//	channel_Modulation.frequency=/*809000*/720000;
 	//	channel_Modulation.bandwidth=6000;
 	channel_Modulation.constellation=Constellation_QPSK;
 	channel_Modulation.highCodeRate=CodeRate_1_OVER_2;
@@ -220,11 +220,11 @@ int start_video_subsystem()
 	channel_Modulation.transmissionMode=TransmissionMode_2K;
 	error=it9517_set_channel_modulation( channel_Modulation,2);
 	if(error)goto exit;
-	error=it9517_acquire_channel(809000,6000);
+	error=it9517_acquire_channel(/*809000*/720000,6000);
 	if(error)goto exit;
 	//error=it9517_get_output_gain();
 	//if(error)goto exit;
-	//error=it9517_get_output_gain_range(809000,6000);
+	//error=it9517_get_output_gain_range(/*809000*/720000,6000);
 	//if(error)goto exit;
 	error=it9517_adjust_output_gain(0/*-50*/);
 	if(error)goto exit;

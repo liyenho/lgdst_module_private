@@ -2,7 +2,7 @@
 #define _SMS_H_ // detailed sms4470 header
 #ifdef CONF_BOARD_USB_TX
 #include "main.h"
-#define LO_Frequency 							1583000
+#define LO_Frequency 							/*1583000*/ 1686000
 #ifdef RECV_IT913X
 	#define TS_FAIL_INT						PIO_PA24
 	#define TS_CAPACITY						(4.5*1000000) // 4.5 mb/s assumed
