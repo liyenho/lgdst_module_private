@@ -196,7 +196,7 @@ void main_sof_action(void);
 	packet_tx.length = size; \
 	if (twi_master_write(BOARD_BASE_TWI_SMS4470, &packet_tx) != TWI_SUCCESS) { \
 		/*puts("-E-\tTWI master write packet failed.\r");*/ \
-		while (1) { \
+		while (0/*don't lock atmel up*/) { \
 			; /* Capture error */ \
 		} \
 	}
@@ -205,7 +205,7 @@ void main_sof_action(void);
 	if ( err != TWI_SUCCESS ) { \
 		/*if(err != TWI_ERROR_TIMEOUT)*/ \
 			/*puts("-E-\tTWI master read packet failed.\r");*/ \
-			while (1) { \
+			while (0/*don't lock atmel up*/) { \
 				; /* Capture error */ \
 			} \
 	}

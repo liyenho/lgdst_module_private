@@ -250,7 +250,7 @@ typedef struct {
 	packet_tx.length = size; \
 	if (twi_master_write(BOARD_BASE_TWI_SMS4470, &packet_tx) != TWI_SUCCESS) { \
 		/*puts("-E-\tTWI master write packet failed.\r");*/ \
-		while (1) { \
+		while (0/*don't lock atmel up*/) { \
 			; /* Capture error */ \
 		} \
 	}
@@ -259,7 +259,7 @@ typedef struct {
 	if ( err != TWI_SUCCESS ) { \
 		/*if(err != TWI_ERROR_TIMEOUT)*/ \
 			/*puts("-E-\tTWI master read packet failed.\r");*/ \
-			while (1) { \
+			while (0/*don't lock atmel up*/) { \
 				; /* Capture error */ \
 			} \
 	}
@@ -288,7 +288,7 @@ extern uint32_t twi_master_cb_read(Twi *p_twi, twi_packet_cb_t *p_packet) ;
 	if ( err != TWI_SUCCESS ) { \
 		/*if(err != TWI_ERROR_TIMEOUT )*/ \
 			/*puts("-E-\tTWI master read packet failed.\r");*/ \
-			while (1) { \
+			while (0/*don't lock atmel up*/) { \
 				; /* Capture error */ \
 			} \
 	}
