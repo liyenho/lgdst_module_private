@@ -116,7 +116,7 @@ ISR(USART_HANDLER)  // we need this ISR to pump status data to usb cdc comm, liy
 {
 	uint32_t sr = usart_get_status(USART_BASE);
 	uint32_t tdel, cur_time, prev_time = *DWT_CYCCNT;
-	// disable TXRDY to avoid usb cdc rx get interferenced, liyenho
+	// disable TXRDY to avoid usb cdc rx get interferred, liyenho
 	if (sr & US_CSR_RXRDY) {
 		// Data received
 		//ui_com_tx_start();
@@ -407,7 +407,7 @@ void ctrl_buffer_send_ur(void* pctl) {
 #ifdef UART_TEST
 		*(pr+MAVLINK_HDR_LEN-1) = 0x0; // data assumed
 #else
-		*(pr+MAVLINK_HDR_LEN-1) = /*Bill, can you implemented this per fs_sreamflow spec?t*/;
+		*(pr+MAVLINK_HDR_LEN-1) = /*Bill, can you implemented this per fs_streamflow spec?t*/;
 #endif
 		flags = cpu_irq_save();
 			gl_usart_comm_ctx.queue_ptr_rd += 1;
