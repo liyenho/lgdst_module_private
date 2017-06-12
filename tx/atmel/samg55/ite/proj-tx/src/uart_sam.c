@@ -404,11 +404,8 @@ void ctrl_buffer_send_ur(void* pctl) {
 		uint8_t *pr = (uint8_t*)(gl_usart_comm_ctx.queue_ptr_rd+1);
 		memcpy(pr+MAVLINK_HDR_LEN,
 							(uint8_t*)pctl, RADIO_GRPPKT_LEN);
-#ifdef UART_TEST
+									/*Bill, can you implemented this per fs_streamflow spec?t*/
 		*(pr+MAVLINK_HDR_LEN-1) = 0x0; // data assumed
-#else
-		*(pr+MAVLINK_HDR_LEN-1) = /*Bill, can you implemented this per fs_streamflow spec?t*/;
-#endif
 		flags = cpu_irq_save();
 			gl_usart_comm_ctx.queue_ptr_rd += 1;
 		cpu_irq_restore(flags);
