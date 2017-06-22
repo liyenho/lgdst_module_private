@@ -84,7 +84,7 @@ extern "C" {
 #define TWI_CLK_DIV_MIN      7
 
 #define TWI_WP_KEY_VALUE TWI_WPMR_WPKEY_PASSWD
-#define NACK_RETRIES		3/*0*/  //retry count prior to give up, liyenho
+//#define NACK_RETRIES		3/*0*/  //retry count prior to give up, liyenho
 /**
  * \brief Enable TWI master mode.
  *
@@ -258,7 +258,7 @@ uint32_t twi_master_read(Twi *p_twi, twi_packet_t *p_packet)
 	uint8_t *buffer = p_packet->buffer;
 	uint8_t stop_sent = 0;
 	uint32_t timeout = TWI_TIMEOUT;;
-	int32_t nack_wait;  // counteract nack response from ite dev, liyenho
+	//int32_t nack_wait;  // counteract nack response from ite dev, liyenho
 
 	/* Check argument */
 	if (cnt == 0) {
@@ -283,14 +283,16 @@ uint32_t twi_master_read(Twi *p_twi, twi_packet_t *p_packet)
 		p_twi->TWI_CR = TWI_CR_START;
 		stop_sent = 0;
 	}
-	nack_wait = NACK_RETRIES;  // loop prior to give up, liyenho
+	//nack_wait = NACK_RETRIES;  // loop prior to give up, liyenho
 	while (cnt > 0) {
 		status = p_twi->TWI_SR;
 		if (status & TWI_SR_NACK) {
-			if (0<nack_wait--) {
+			/*if (0<nack_wait--) {
 				delay_ms(1); // wait a bit before retry, liyenho
-			} else // give up & report error, liyenho
-			return TWI_RECEIVE_NACK;
+			} else*/ { // give up & report error, liyenho
+				p_twi->TWI_CR = TWI_CR_STOP;
+				return TWI_RECEIVE_NACK;
+			}
 		}
 
 		if (!timeout--) {
@@ -336,7 +338,7 @@ uint32_t twi_master_write(Twi *p_twi, twi_packet_t *p_packet)
 	uint32_t status;
 	uint32_t cnt = p_packet->length;
 	uint8_t *buffer = p_packet->buffer;
-	int32_t nack_wait;  // counteract nack response from ite dev, liyenho
+	//int32_t nack_wait;  // counteract nack response from ite dev, liyenho
 
 	/* Check argument */
 	if (cnt == 0) {
@@ -352,15 +354,17 @@ uint32_t twi_master_write(Twi *p_twi, twi_packet_t *p_packet)
 	/* Set internal address for remote chip */
 	p_twi->TWI_IADR = 0;
 	p_twi->TWI_IADR = twi_mk_addr(p_packet->addr, p_packet->addr_length);
-	nack_wait = NACK_RETRIES;  // loop prior to give up, liyenho
+	//nack_wait = NACK_RETRIES;  // loop prior to give up, liyenho
 	/* Send all bytes */
 	while (cnt > 0) {
 		status = p_twi->TWI_SR;
 		if (status & TWI_SR_NACK) {
-			if (0<nack_wait--) {
+			/*if (0<nack_wait--) {
 				delay_ms(1); // wait a bit before retry, liyenho
-			} else // give up & report error, liyenho
-			return TWI_RECEIVE_NACK;
+			} else*/ { // give up & report error, liyenho
+				p_twi->TWI_CR = TWI_CR_STOP;
+				return TWI_RECEIVE_NACK;
+			}
 		}
 
 		if (!(status & TWI_SR_TXRDY)) {
@@ -370,14 +374,16 @@ uint32_t twi_master_write(Twi *p_twi, twi_packet_t *p_packet)
 
 		cnt--;
 	}
-	nack_wait = NACK_RETRIES;  // loop prior to give up, liyenho
+	//nack_wait = NACK_RETRIES;  // loop prior to give up, liyenho
 	while (1) {
 		status = p_twi->TWI_SR;
 		if (status & TWI_SR_NACK) {
-			if (0<nack_wait--) {
+			/*if (0<nack_wait--) {
 				delay_ms(1); // wait a bit before retry, liyenho
-			} else // give up & report error, liyenho
-			return TWI_RECEIVE_NACK;
+			} else*/ { // give up & report error, liyenho
+				p_twi->TWI_CR = TWI_CR_STOP;
+				return TWI_RECEIVE_NACK;
+			}
 		}
 
 		if (status & TWI_SR_TXRDY) {
