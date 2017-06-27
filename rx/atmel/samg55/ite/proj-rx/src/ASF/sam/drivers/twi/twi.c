@@ -84,7 +84,7 @@ extern "C" {
 #define TWI_CLK_DIV_MIN      7
 
 #define TWI_WP_KEY_VALUE TWI_WPMR_WPKEY_PASSWD
-//#define NACK_RETRIES		3/*0*/  //retry count prior to give up, liyenho
+#define NACK_RETRIES		8/*0*/  //retry count prior to give up, liyenho
 /**
  * \brief Enable TWI master mode.
  *
@@ -258,7 +258,7 @@ uint32_t twi_master_read(Twi *p_twi, twi_packet_t *p_packet)
 	uint8_t *buffer = p_packet->buffer;
 	uint8_t stop_sent = 0;
 	uint32_t timeout = TWI_TIMEOUT;;
-	//int32_t nack_wait;  // counteract nack response from ite dev, liyenho
+	int32_t nack_wait;  // counteract nack response from ite dev, liyenho
 
 	/* Check argument */
 	if (cnt == 0) {
@@ -275,6 +275,25 @@ uint32_t twi_master_read(Twi *p_twi, twi_packet_t *p_packet)
 	p_twi->TWI_IADR = 0;
 	p_twi->TWI_IADR = twi_mk_addr(p_packet->addr, p_packet->addr_length);
 
+
+
+  //Start
+  nack_wait = NACK_RETRIES;
+  p_twi->TWI_CR = TWI_CR_START;
+  status = p_twi->TWI_SR;
+  while ((status & TWI_SR_NACK) && (nack_wait > 0))
+  {
+    p_twi->TWI_CR = TWI_CR_STOP;
+    delay_ms(1); // wait a bit before retry, liyenho
+    p_twi->TWI_CR = TWI_CR_START;
+    status = p_twi->TWI_SR;
+    nack_wait--;
+  }
+  if(nack_wait == 0)
+  {
+    p_twi->TWI_CR = TWI_CR_STOP;
+    return TWI_RECEIVE_NACK;
+  }
 	/* Send a START condition */
 	if (cnt == 1) {
 		p_twi->TWI_CR = TWI_CR_START | TWI_CR_STOP;
@@ -283,20 +302,16 @@ uint32_t twi_master_read(Twi *p_twi, twi_packet_t *p_packet)
 		p_twi->TWI_CR = TWI_CR_START;
 		stop_sent = 0;
 	}
-	//nack_wait = NACK_RETRIES;  // loop prior to give up, liyenho
-	while (cnt > 0) {
-		status = p_twi->TWI_SR;
-		if (status & TWI_SR_NACK) {
-			/*if (0<nack_wait--) {
-				delay_ms(1); // wait a bit before retry, liyenho
-			} else*/ { // give up & report error, liyenho
-				p_twi->TWI_CR = TWI_CR_STOP;
-				return TWI_RECEIVE_NACK;
-			}
-		}
+  while (cnt > 0) {
+    status = p_twi->TWI_SR;
+    if (status & TWI_SR_NACK) {
+      p_twi->TWI_CR = TWI_CR_STOP;
+      return TWI_RECEIVE_NACK;
+    }
 
-		if (!timeout--) {
+    if (!timeout--) {
 			p_packet->length -= cnt; // crucial info from timeout, liyenho
+      	p_twi->TWI_CR = TWI_CR_STOP;
 			return TWI_ERROR_TIMEOUT;
 		}
 
@@ -306,21 +321,25 @@ uint32_t twi_master_read(Twi *p_twi, twi_packet_t *p_packet)
 			stop_sent = 1;
 		}
 
-		if (!(status & TWI_SR_RXRDY)) {
+    if (!(status & TWI_SR_RXRDY/*TWI_SR_TXRDY silly*/)) {
 			continue;
 		}
-		*buffer++ = p_twi->TWI_RHR;
+    *buffer++ = p_twi->TWI_RHR;
 
-		cnt--;
-		timeout = TWI_TIMEOUT;
+    cnt--;
+    timeout = TWI_TIMEOUT;
+  }
+
+  //Stop
+//  p_twi->TWI_CR = TWI_CR_STOP;
+
+
+  while (!(p_twi->TWI_SR & TWI_SR_TXCOMP)) {
 	}
 
-	while (!(p_twi->TWI_SR & TWI_SR_TXCOMP)) {
-	}
+  	p_twi->TWI_SR;
 
-	p_twi->TWI_SR;
-
-	return TWI_SUCCESS;
+  	return TWI_SUCCESS;
 }
 #ifdef CONF_BOARD_USB_TX
  #include <assert.h> // declr for cb ext, liyenho
