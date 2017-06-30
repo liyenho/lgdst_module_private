@@ -84,7 +84,7 @@ extern "C" {
 #define TWI_CLK_DIV_MIN      7
 
 #define TWI_WP_KEY_VALUE TWI_WPMR_WPKEY_PASSWD
-#define NACK_RETRIES		8/*0*/  //retry count prior to give up, liyenho
+#define NACK_RETRIES		16/*0*/  //retry count prior to give up, liyenho
 /**
  * \brief Enable TWI master mode.
  *
