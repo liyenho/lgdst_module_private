@@ -260,7 +260,8 @@
     <avrtool>com.atmel.avrdbg.tool.samice</avrtool>
     <avrtoolserialnumber>29424316</avrtoolserialnumber>
     <avrdeviceexpectedsignature>0x24570AE0</avrdeviceexpectedsignature>
-    <avrtoolinterface>JTAG</avrtoolinterface>
+    <avrtoolinterface>
+    </avrtoolinterface>
     <com_atmel_avrdbg_tool_edbg>
       <ToolOptions>
         <InterfaceProperties>
@@ -476,6 +477,11 @@
       <Value>../src/ASF/common/services/flash_efc</Value>
       <Value>../src/ASF/sam/drivers/rtt</Value>
       <Value>../src/ASF/sam/drivers/wdt</Value>
+      <Value>../src/video</Value>
+      <Value>../src/si446x</Value>
+      <Value>../src/si446x/app</Value>
+      <Value>../src/si446x/radio</Value>
+      <Value>../src/si446x/radio/core</Value>
     </ListValues>
   </armgcc.compiler.directories.IncludePaths>
   <armgcc.compiler.optimization.OtherFlags>-fdata-sections</armgcc.compiler.optimization.OtherFlags>
@@ -614,7 +620,11 @@
     <Folder Include="src\ASF\thirdparty\CMSIS\Lib\" />
     <Folder Include="src\ASF\thirdparty\CMSIS\Lib\GCC\" />
     <Folder Include="src\config\" />
-    <Folder Include="src\si4463" />
+    <Folder Include="src\si446x\app" />
+    <Folder Include="src\si446x\radio" />
+    <Folder Include="src\si446x\radio\core" />
+    <Folder Include="src\video" />
+    <Folder Include="src\si446x" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="src\ASF\common\services\delay\delay.h">
@@ -651,6 +661,105 @@
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="src\ASF\sam\drivers\i2sc\i2sc.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\si446x\app\GPS.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\si446x\app\GPS.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\si446x\app\radio.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\si446x\app\radio.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\si446x\app\radio_config.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\si446x\radio\core\lgdst_4463_spi.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\si446x\radio\core\lgdst_4463_spi.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\si446x\radio\core\si446x_api_lib.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\si446x\radio\core\si446x_api_lib.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\si446x\radio\core\si446x_cmd.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\si446x\radio\core\si446x_defs.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\si446x\radio\core\si446x_nirq.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\si446x\radio\core\si446x_nirq.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\si446x\radio\core\si446x_prop.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\si446x\radio\core\spi.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\si446x\radio\core\spi.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\si446x\radio\cpld.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\si446x\radio\radio_comm.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\si446x\radio\radio_comm.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\si446x\radio\radio_hal.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\si446x\radio\radio_hal.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\video\DigiBestDefine.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\video\DigiBestFrontend.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\video\DigiBestFrontend.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\video\DigiBestOSPorting.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\video\DigiBestOSPorting.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\video\DigiBestPlatformPorting.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\video\DigiBestPlatformPorting.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\video\DigiBestSms4470Core.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\video\DigiBestSms4470Core.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\video\DigiBestTypedef.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\video\SMS4470_A2_DVBT2_MRC_Firmware_%282.0.1.14%29.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\video\SMS4470_A2_DVBT_MRC_Firmware_%282.0.0.47%29.h">
       <SubType>compile</SubType>
     </Compile>
     <None Include="src\ASF\sam\drivers\i2sc\i2sc.h">
@@ -1244,136 +1353,37 @@
     <Compile Include="src\ASF\sam\utils\syscalls\gcc\syscalls.c">
       <SubType>compile</SubType>
     </Compile>
-    <Compile Include="src\cpld.c">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="src\DigiBestDefine.h">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="src\DigiBestFrontend.c">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="src\DigiBestFrontend.h">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="src\DigiBestOSPorting.c">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="src\DigiBestOSPorting.h">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="src\DigiBestPlatformPorting.c">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="src\DigiBestPlatformPorting.h">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="src\DigiBestSms4470Core.c">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="src\DigiBestSms4470Core.h">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="src\DigiBestTypedef.h">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="src\GPS.h">
-      <SubType>compile</SubType>
-    </Compile>
     <Compile Include="src\main.c">
       <SubType>compile</SubType>
     </Compile>
-    <Compile Include="src\si4463\application_defs.h">
+    <Compile Include="src\si446x\application_defs.h">
       <SubType>compile</SubType>
     </Compile>
-    <Compile Include="src\si4463\bsp.h">
+    <Compile Include="src\si446x\bsp.h">
       <SubType>compile</SubType>
     </Compile>
-    <Compile Include="src\si4463\compiler_defs.h">
+    <Compile Include="src\si446x\compiler_defs.h">
       <SubType>compile</SubType>
     </Compile>
-    <Compile Include="src\si4463\GPS.c">
+    <Compile Include="src\si446x\hardware_defs_factory.h">
       <SubType>compile</SubType>
     </Compile>
-    <Compile Include="src\si4463\hardware_defs_factory.h">
+    <Compile Include="src\si446x\hardware_defs_rx.h">
       <SubType>compile</SubType>
     </Compile>
-    <Compile Include="src\si4463\hardware_defs_rx.h">
+    <Compile Include="src\si446x\lgdstrx_def.h">
       <SubType>compile</SubType>
     </Compile>
-    <Compile Include="src\si4463\lgdstrx_def.h">
+    <Compile Include="src\si446x\platform_defs_factory.h">
       <SubType>compile</SubType>
     </Compile>
-    <Compile Include="src\si4463\lgdst_4463_spi.c">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="src\si4463\lgdst_4463_spi.h">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="src\si4463\platform_defs_factory.h">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="src\si4463\platform_defs_rx.h">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="src\si4463\radio.c">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="src\si4463\radio.h">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="src\si4463\radio_comm.c">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="src\si4463\radio_comm.h">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="src\si4463\radio_config.h">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="src\si4463\radio_hal.c">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="src\si4463\radio_hal.h">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="src\si4463\si446x_api_lib.c">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="src\si4463\si446x_api_lib.h">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="src\si4463\si446x_cmd.h">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="src\si4463\si446x_defs.h">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="src\si4463\si446x_nirq.c">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="src\si4463\si446x_nirq.h">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="src\si4463\si446x_prop.h">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="src\si4463\spi.c">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="src\si4463\spi.h">
+    <Compile Include="src\si446x\platform_defs_rx.h">
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="src\sms.c">
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="src\sms.h">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="src\SMS4470_A2_DVBT2_MRC_Firmware_%282.0.1.14%29.h">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="src\SMS4470_A2_DVBT_MRC_Firmware_%282.0.0.47%29.h">
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="src\uart_sam.c">
