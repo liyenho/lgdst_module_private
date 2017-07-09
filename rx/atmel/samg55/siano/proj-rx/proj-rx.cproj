@@ -482,6 +482,7 @@
       <Value>../src/si446x/app</Value>
       <Value>../src/si446x/radio</Value>
       <Value>../src/si446x/radio/core</Value>
+      <Value>../src/video/inc</Value>
     </ListValues>
   </armgcc.compiler.directories.IncludePaths>
   <armgcc.compiler.optimization.OtherFlags>-fdata-sections</armgcc.compiler.optimization.OtherFlags>
@@ -625,6 +626,7 @@
     <Folder Include="src\si446x\radio\core" />
     <Folder Include="src\video" />
     <Folder Include="src\si446x" />
+    <Folder Include="src\video\inc" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="src\ASF\common\services\delay\delay.h">
@@ -726,34 +728,34 @@
     <Compile Include="src\si446x\radio\radio_hal.h">
       <SubType>compile</SubType>
     </Compile>
-    <Compile Include="src\video\DigiBestDefine.h">
-      <SubType>compile</SubType>
-    </Compile>
     <Compile Include="src\video\DigiBestFrontend.c">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="src\video\DigiBestFrontend.h">
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="src\video\DigiBestOSPorting.c">
       <SubType>compile</SubType>
     </Compile>
-    <Compile Include="src\video\DigiBestOSPorting.h">
-      <SubType>compile</SubType>
-    </Compile>
     <Compile Include="src\video\DigiBestPlatformPorting.c">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="src\video\DigiBestPlatformPorting.h">
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="src\video\DigiBestSms4470Core.c">
       <SubType>compile</SubType>
     </Compile>
-    <Compile Include="src\video\DigiBestSms4470Core.h">
+    <Compile Include="src\video\inc\DigiBestDefine.h">
       <SubType>compile</SubType>
     </Compile>
-    <Compile Include="src\video\DigiBestTypedef.h">
+    <Compile Include="src\video\inc\DigiBestFrontend.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\video\inc\DigiBestOSPorting.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\video\inc\DigiBestPlatformPorting.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\video\inc\DigiBestSms4470Core.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\video\inc\DigiBestTypedef.h">
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="src\video\SMS4470_A2_DVBT2_MRC_Firmware_%282.0.1.14%29.h">
