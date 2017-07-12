@@ -16,6 +16,9 @@
 
 // USER DEFINED PARAMETERS
 // Define your own parameters here
+#define EXTERNAL_PA			1
+#define Si4463_USE_TCXO		1
+
 
 // INPUT DATA
 /*
@@ -45,7 +48,12 @@
 // Command:                  RF_POWER_UP
 // Description:              Command to power-up the device and select the operational mode and functionality.
 */
+
+#if Si4463_USE_TCXO
+#define RF_POWER_UP 0x02, 0x01, 0x01, 0x01, 0xE8, 0x48, 0x00
+#else
 #define RF_POWER_UP 0x02, 0x01, 0x00, 0x01, 0xE8, 0x48, 0x00
+#endif //
 
 /*
 // Command:                  RF_GPIO_PIN_CFG
@@ -485,8 +493,12 @@
 //   PA_BIAS_CLKDUTY - Configuration of the PA Bias and duty cycle of the TX clock source.
 //   PA_TC - Configuration of PA ramping parameters.
 */
-#define RF_PA_MODE_4 0x11, 0x22, 0x04, 0x00, 0x08, 0x7F, 0x00, 0x3D  //full power mode
-//#define RF_PA_MODE_4 0x11, 0x22, 0x04, 0x00, 0x08, 0x00, 0x00, 0x3D //low power mode
+#if EXTTERNAL_PA
+  #define RF_PA_MODE_4 0x11, 0x22, 0x04, 0x00, 0x88, 0x7F, 0x00, 0x3D  //full power mode
+#else
+  #define RF_PA_MODE_4 0x11, 0x22, 0x04, 0x00, 0x08, 0x7F, 0x00, 0x3D  //full power mode
+  //#define RF_PA_MODE_4 0x11, 0x22, 0x04, 0x00, 0x08, 0x00, 0x00, 0x3D //low power mode
+#endif
 
 /*
 // Set properties:           RF_SYNTH_PFDCP_CPFF_7

@@ -180,6 +180,9 @@ typedef struct {
  //#ifdef CTRL_DYNAMIC_MOD
 #ifdef CONFIG_RF2072
 	#define CPLD_2072_TRIG    PIO_PA25
+	#define FLUSH_2072_SPI \
+						while (spi_tgt_done) ; /*flush any pending spi xfer*/ \
+							spi_tgt_done = true;
 	#define ACCESS_PROLOG_2072 \
 						  pio_set(PIOA, PIO_PA23); \
 						/*delay_cycles(0);*/ \
@@ -190,6 +193,18 @@ typedef struct {
 						  pio_set(PIOA, PIO_PA23); \
 						/*delay_cycles(0);*/ \
 						  pio_clear(PIOA, PIO_PA23);
+	#define WRITE_2072_SPI(adr, hi, lo) \
+							*pth = 0x7f & adr; /*write access*/ \
+							spi_tx_transfer(pth, 1, &tmpw, 1, 0/*ctrl/sts*/); \
+							while (spi_tgt_done) ; spi_tgt_done = true; \
+							*pth = (uint16_t)hi; /*high byte*/ \
+							spi_tx_transfer(pth, 1, &tmpw, 1, 0/*ctrl/sts*/); \
+							while (spi_tgt_done) ; spi_tgt_done = true; \
+							*pth = (uint16_t)lo; /*low byte*/ \
+							spi_tx_transfer(pth, 1, &tmpw, 1, 0/*ctrl/sts*/); \
+							while (spi_tgt_done) ; \
+						  /*delay_us(1);*/ \
+						  pio_set(PIOA, CPLD_2072_TRIG);
 	#define READ_MID_PROC_2072 \
 						  pio_set(PIOA, PIO_PA23); \
 						/*delay_cycles(0);*/ \
@@ -197,6 +212,17 @@ typedef struct {
  						 /*spi_set_clock_phase*/(SPI0, SPI_CHIP_SEL, 0/*captured @ falling, transit @ rising*/); \
  						 spi_set_clock_polarity(SPI0, SPI_CHIP_SEL, 1/*clk idle state is high*/);
 						/*delay_cycles(0);*/
+	#define READ_2072_SPI(adr, hi, lo) \
+							*pth = 0x80| (0x7f&adr); /*read access*/ \
+							spi_tx_transfer(pth, 1, &tmpw, 1, 0); \
+							while (spi_tgt_done); spi_tgt_done = true; \
+							READ_MID_PROC_2072 \
+							spi_rx_transfer(pth, 1, &tmpw, 1, 0/*ctrl/sts*/); /*high byte*/ \
+							while (spi_tgt_done) ; spi_tgt_done = true; \
+							hi = 0xff & tmpw; \
+							spi_rx_transfer(pth, 1, &tmpw, 1, 0/*ctrl/sts*/); /*low byte*/ \
+							while (spi_tgt_done) ; \
+							lo = (0xff & tmpw);
 	#define READ_END_REV_2072 \
 						 /*spi_set_clock_phase*/(SPI0, SPI_CHIP_SEL, 1/*captured @ rising, transit @ falling*/); \
 						 pio_set(PIOA, CPLD_2072_TRIG); \
