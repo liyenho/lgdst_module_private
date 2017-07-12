@@ -2123,39 +2123,16 @@ _reg_acs:
 						pio_set (PIOA, PIO_PA26);
 						//delay_us(1);
 #if false  // do not set relock bit prior to program 2072...
-						while (spi_tgt_done) ; // flush any pending spi xfer
-							spi_tgt_done = true;
+							FLUSH_2072_SPI
 							ACCESS_PROLOG_2072
-							// setup spi to write addressed data
-							*pth = 0x7f & 0x9; // set relock in PLL_CTRL
-							spi_tx_transfer(pth, 1, &tmpw, 1, 0/*ctrl/sts*/);
-							while (spi_tgt_done) ; spi_tgt_done = true;
-							*pth = (uint16_t)0x0; // high byte
-							spi_tx_transfer(pth, 1, &tmpw, 1, 0/*ctrl/sts*/);
-							while (spi_tgt_done) ; spi_tgt_done = true;
-							*pth = (uint16_t)0x8; // low byte
-							spi_tx_transfer(pth, 1, &tmpw, 1, 0/*ctrl/sts*/);
-							while (spi_tgt_done) ;
-						 //delay_us(1);
-						 pio_set(PIOA, CPLD_2072_TRIG);
+							WRITE_2072_SPI(0x9, 0x0, 0x8)
 #endif
 						break;
 				case RF2072_READ:
 						assert(!(pt->dcnt & 1));
-						while (spi_tgt_done) ; // flush any pending spi xfer
-							spi_tgt_done = true;
+						 FLUSH_2072_SPI
 							ACCESS_PROLOG_2072
-							*pth = 0x80| (0x7f&pt->addr); // read access
-							spi_tx_transfer(pth, 1, &tmpw, 1, 0);
-							while (spi_tgt_done);
-							spi_tgt_done = true;
-							READ_MID_PROC_2072
-							spi_rx_transfer(pth, 1, &tmpw, 1, 0/*ctrl/sts*/); // high byte
-							while (spi_tgt_done) ; spi_tgt_done = true;
-							pr->data[1] = 0xff & tmpw;
-							spi_rx_transfer(pth, 1, &tmpw, 1, 0/*ctrl/sts*/); // low byte
-							while (spi_tgt_done) ;
-							pr->data[0] = (0xff & tmpw);
+							READ_2072_SPI(pt->addr,pr->data[1],pr->data[0])
 #ifdef TEST_FLASH
 	wtmp = *(uint32_t*)(~0x3&(ul_page_addr_c+pt->addr));
 	shf = ((ul_page_addr_c+pt->addr) & 0x3) * 8;
@@ -2165,22 +2142,9 @@ _reg_acs:
 							break;
 				case RF2072_WRITE:
 						assert(!(pt->dcnt & 1));
-						while (spi_tgt_done) ; // flush any pending spi xfer
-							spi_tgt_done = true;
+						 FLUSH_2072_SPI
 							ACCESS_PROLOG_2072
-							// setup spi to write addressed data
-							*pth = 0x7f & pt->addr; // write access
-							spi_tx_transfer(pth, 1, &tmpw, 1, 0/*ctrl/sts*/);
-							while (spi_tgt_done) ;
-							spi_tgt_done = true;
-							*pth = (uint16_t)pt->data[1]; // high byte
-							spi_tx_transfer(pth, 1, &tmpw, 1, 0/*ctrl/sts*/);
-							while (spi_tgt_done) ; spi_tgt_done = true;
-							*pth = (uint16_t)pt->data[0]; // low byte
-							spi_tx_transfer(pth, 1, &tmpw, 1, 0/*ctrl/sts*/);
-							while (spi_tgt_done) ;
-						  //delay_us(1);
-							pio_set(PIOA, CPLD_2072_TRIG);
+							WRITE_2072_SPI(pt->addr,pt->data[1],pt->data[0])
 							break;
 				case IT951X_READ:
 							_TWI_READ_(pr->addr,pr->data,pr->dcnt)
