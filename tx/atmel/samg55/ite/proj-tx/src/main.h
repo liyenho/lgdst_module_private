@@ -208,8 +208,30 @@ void main_sof_action(void);
 			while (0/*don't lock atmel up*/) { \
 				; /* Capture error */ \
 			} \
-	}
-
+         if (err == TWI_ERROR_TIMEOUT) { \
+	      	len_prev = packet_rx.length; \
+            memcpy(tmp_buff, \
+            	packet_rx.buffer, \
+               len_prev); \
+         } \
+         else  { /*nack received*/ \
+				/*Configure the options of TWI driver*/ \
+				twi_options_t opt; \
+				opt.master_clk = sysclk_get_cpu_hz(); \
+				opt.speed      = TWI_CLK; \
+            twi_master_init(BOARD_BASE_TWI_SMS4470, &opt); \
+          } \
+	} \
+	if (err_prev == TWI_ERROR_TIMEOUT) { \
+		/*concatenate two transfer buffers*/ \
+		memmove((uint8_t*)packet_rx.buffer+len_prev, \
+								(uint8_t*)packet_rx.buffer, \
+		                	len0 - len_prev); \
+		memcpy(packet_rx.buffer, \
+		             tmp_buff, \
+		             len_prev); \
+	} \
+	err_prev = err; // keep previous err code
  #define NUM_OF_PAGES	400	// let's reserve 200 kbyte (half) storage for TS file
  #define NUM_OF_FPGA_REGS		128
  #define NUM_OF_ATMEL_REGS		64

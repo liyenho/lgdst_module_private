@@ -262,7 +262,30 @@ typedef struct {
 			while (0/*don't lock atmel up*/) { \
 				; /* Capture error */ \
 			} \
-	}
+         if (err == TWI_ERROR_TIMEOUT) { \
+	      	len_prev = packet_rx.length; \
+            memcpy(tmp_buff, \
+            	packet_rx.buffer, \
+               len_prev); \
+         } \
+         else  { /*nack received*/ \
+				/*Configure the options of TWI driver*/ \
+				twi_options_t opt; \
+				opt.master_clk = sysclk_get_cpu_hz(); \
+				opt.speed      = TWI_CLK; \
+            twi_master_init(BOARD_BASE_TWI_SMS4470, &opt); \
+          } \
+	} \
+	if (err_prev == TWI_ERROR_TIMEOUT) { \
+		/*concatenate two transfer buffers*/ \
+		memmove((uint8_t*)packet_rx.buffer+len_prev, \
+								(uint8_t*)packet_rx.buffer, \
+		                	len0 - len_prev); \
+		memcpy(packet_rx.buffer, \
+		             tmp_buff, \
+		             len_prev); \
+	} \
+	err_prev = err; // keep previous err code
 // redefine twi_packet type for callback feature
 typedef void (*cb_task_t) ();
 typedef struct twi_packet_cb {

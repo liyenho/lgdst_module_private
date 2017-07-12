@@ -348,7 +348,10 @@ void twi_sms4470_handler(const uint32_t id, const uint32_t index);
   void twi_sms4470_handler(const uint32_t id, const uint32_t index)
 	{
 		if ((id == ID_PIOA) && (index == ITE_HOST_INT)){
-			uint32_t err; // error code requried
+			uint32_t err, // error code requried
+								len0 = packet_rx.length;
+			static uint8_t tmp_buff[HOST_BUFFER_SIZE];
+			static uint32_t err_prev, len_prev;
 			{	TWI_READ	}
 			i2c_read_done = true;
 		}

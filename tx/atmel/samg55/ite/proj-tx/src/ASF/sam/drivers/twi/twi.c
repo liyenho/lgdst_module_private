@@ -258,7 +258,7 @@ uint32_t twi_master_read(Twi *p_twi, twi_packet_t *p_packet)
 	uint8_t *buffer = p_packet->buffer;
 	uint8_t stop_sent = 0;
 	uint32_t timeout = TWI_TIMEOUT;;
-	int32_t nack_wait;  // counteract nack response from ite dev, liyenho
+	//int32_t nack_wait;  // counteract nack response from ite dev, liyenho
 
 	/* Check argument */
 	if (cnt == 0) {
@@ -276,7 +276,7 @@ uint32_t twi_master_read(Twi *p_twi, twi_packet_t *p_packet)
 	p_twi->TWI_IADR = twi_mk_addr(p_packet->addr, p_packet->addr_length);
 
 
-
+#if false // violate atmel i2c hw flow
   //Start
   nack_wait = NACK_RETRIES;
   p_twi->TWI_CR = TWI_CR_START;
@@ -294,6 +294,7 @@ uint32_t twi_master_read(Twi *p_twi, twi_packet_t *p_packet)
     p_twi->TWI_CR = TWI_CR_STOP;
     return TWI_RECEIVE_NACK;
   }
+#endif
 	/* Send a START condition */
 	if (cnt == 1) {
 		p_twi->TWI_CR = TWI_CR_START | TWI_CR_STOP;
@@ -305,13 +306,14 @@ uint32_t twi_master_read(Twi *p_twi, twi_packet_t *p_packet)
   while (cnt > 0) {
     status = p_twi->TWI_SR;
     if (status & TWI_SR_NACK) {
-      p_twi->TWI_CR = TWI_CR_STOP;
-      return TWI_RECEIVE_NACK;
+      //p_twi->TWI_CR = TWI_CR_STOP;
+      //return TWI_RECEIVE_NACK;
+      cnt = 1;  // to comply atmel i2c spec
     }
 
     if (!timeout--) {
 			p_packet->length -= cnt; // crucial info from timeout, liyenho
-      	p_twi->TWI_CR = TWI_CR_STOP;
+      	//p_twi->TWI_CR = TWI_CR_STOP;
 			return TWI_ERROR_TIMEOUT;
 		}
 
@@ -321,7 +323,7 @@ uint32_t twi_master_read(Twi *p_twi, twi_packet_t *p_packet)
 			stop_sent = 1;
 		}
 
-    if (!(status & TWI_SR_RXRDY/*TWI_SR_TXRDY silly*/)) {
+    if (!(status & (TWI_SR_RXRDY|TWI_SR_NACK)/*TWI_SR_TXRDY silly*/)) {
 			continue;
 		}
     *buffer++ = p_twi->TWI_RHR;
@@ -339,7 +341,7 @@ uint32_t twi_master_read(Twi *p_twi, twi_packet_t *p_packet)
 
   	p_twi->TWI_SR;
 
-  	return TWI_SUCCESS;
+  	return (status & TWI_SR_NACK)?TWI_RECEIVE_NACK:TWI_SUCCESS;
 }
 
 /**
@@ -381,12 +383,13 @@ uint32_t twi_master_write(Twi *p_twi, twi_packet_t *p_packet)
 			/*if (0<nack_wait--) {
 				delay_ms(1); // wait a bit before retry, liyenho
 			} else*/ { // give up & report error, liyenho
-				p_twi->TWI_CR = TWI_CR_STOP;
-				return TWI_RECEIVE_NACK;
+				//p_twi->TWI_CR = TWI_CR_STOP;
+				//return TWI_RECEIVE_NACK;
+      		cnt = 1;  // to comply atmel i2c spec
 			}
 		}
 
-		if (!(status & TWI_SR_TXRDY)) {
+		if (!(status & (TWI_SR_TXRDY|TWI_SR_NACK))) {
 			continue;
 		}
 		p_twi->TWI_THR = *buffer++;
@@ -396,17 +399,17 @@ uint32_t twi_master_write(Twi *p_twi, twi_packet_t *p_packet)
 	//nack_wait = NACK_RETRIES;  // loop prior to give up, liyenho
 	while (1) {
 		status = p_twi->TWI_SR;
-		if (status & TWI_SR_NACK) {
-			/*if (0<nack_wait--) {
+		/*if (status & TWI_SR_NACK) {
+			if (0<nack_wait--) {
 				delay_ms(1); // wait a bit before retry, liyenho
-			} else*/ { // give up & report error, liyenho
+			} else { // give up & report error, liyenho
 				p_twi->TWI_CR = TWI_CR_STOP;
 				return TWI_RECEIVE_NACK;
 			}
-		}
+		}*/  // to comply atmel i2c spec
 
-		if (status & TWI_SR_TXRDY) {
-			break;
+		if (status & (TWI_SR_TXRDY|TWI_SR_NACK)) {
+			break;  // to comply atmel i2c spec
 		}
 	}
 
@@ -415,7 +418,7 @@ uint32_t twi_master_write(Twi *p_twi, twi_packet_t *p_packet)
 	while (!(p_twi->TWI_SR & TWI_SR_TXCOMP)) {
 	}
 
-	return TWI_SUCCESS;
+	return (status & TWI_SR_NACK)?TWI_RECEIVE_NACK:TWI_SUCCESS;
 }
 
 /**
