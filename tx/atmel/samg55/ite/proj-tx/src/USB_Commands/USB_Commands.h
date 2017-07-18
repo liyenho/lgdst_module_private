@@ -3,14 +3,27 @@
  *
  * Created: 2/2/2017 6:25:53 PM
  *  Author: Drone-0
- */ 
+ */
 
 
 #ifndef USB_COMMANDS_H_
 #define USB_COMMANDS_H_
 
+  #include <udd.h>
+  
+  extern void si4463_radio_cb();
+  extern uint32_t fifolvlcalc(uint32_t wrptr, uint32_t rdptr, uint32_t fifodepth);
+  extern uint32_t wrptr_inc(uint32_t *wrptr,  uint32_t *rdptr, uint32_t fifodepth, int step);
+  extern uint32_t rdptr_inc(uint32_t *wrptr,  uint32_t *rdptr, uint32_t fifodepth, int step);
+  extern volatile bool ctrl_tdma_lock, ctrl_tdma_enable;
+  extern unsigned char gs_rdo_tpacket_ovflw;
+  extern volatile uint32_t wrptr_rdo_tpacket, wrptr_rdo_rpacket,
+  									rdptr_rdo_tpacket, rdptr_rdo_rpacket;
+  extern unsigned int *gp_rdo_rpacket;
+  extern uint32_t gs_uc_hrbuffer[(USB_HOST_MSG_LEN+HOST_BUFFER_SIZE+3)/sizeof(int)];
 
-
+  // usb control command portal
+  void usb_ctrl_cmd_portal(udd_ctrl_request_t *udd_g_ctrlreq);
 
 //directional antenna selection
 #define DRONE_GPS_IDX								0x10
