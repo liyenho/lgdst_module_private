@@ -806,8 +806,7 @@ void cap_bank_calibrate() {
 }
 
 #ifdef CTRL_DYNAMIC_MOD
-  void process_range_mode() {
-	  static uint32_t tick_curr, tick_prev;
+  void process_range_mode(uint32_t tick_curr,uint32_t tick_prev) {
 		if (SI446X_CMD_GET_INT_STATUS_REP_PH_PEND_PACKET_RX_PEND_BIT==bMain_IT_Status_m) {
 	  		irqflags_t flags;
 			flags = cpu_irq_save();

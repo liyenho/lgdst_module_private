@@ -1630,7 +1630,7 @@ bypass:
 		fhop_flag = false ;
 	}
  #ifdef CTRL_DYNAMIC_MOD
-	process_range_mode();
+	process_range_mode(tick_curr, tick_prev);
  #endif
 #endif
 		// start usb rx line
