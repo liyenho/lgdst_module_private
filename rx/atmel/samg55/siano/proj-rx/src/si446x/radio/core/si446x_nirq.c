@@ -13,9 +13,7 @@
 	volatile si446x_mdm_hdlr_pend  mdm;
 	volatile si446x_chip_hdlr_pend chip;
 	volatile uint16_t temp1_intm;	// also read by user temperature query
-	static uint8_t tune_cap_str[] = {RF_GLOBAL_XO_TUNE_2};
 	extern uint32_t ul_page_addr_ctune, ul_page_addr_mtemp;
-	extern uint8_t tune_cap_str[];
 	// time instrumentation
 	extern volatile uint32_t *DWT_CYCCNT;
 	extern volatile uint32_t gs_rdo_rpacket[RDO_RPACKET_FIFO_SIZE*RDO_ELEMENT_SIZE];
@@ -130,6 +128,7 @@ void recalibrate_capval (void* ul_page_addr_mtemp, uint8_t median) {
 		static uint8_t ctemp0= 0;
 		int8_t dmc, dcc;
 	if (	!ctemp0 || TEMP_DEL_THR<abs(ctemp0-ctemp)) {
+		static uint8_t tune_cap_str[] = {RF_GLOBAL_XO_TUNE_2};
 		uint8_t mtemp = *(uint8_t*)ul_page_addr_mtemp,
 		TCTBL_ACCESS(dmc, mtemp);
 		TCTBL_ACCESS(dcc, ctemp);
