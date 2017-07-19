@@ -113,7 +113,7 @@ U8 range_mode_configure(U8 range); // added for dynamic range configuration
 U8 ctrl_band_select(U8 len, U8 *ch_param); // ctrl radio band selection
 
 void cap_bank_calibrate();
-#define CTRL_DYNAMIC_MOD
+//#define CTRL_DYNAMIC_MOD
  #ifdef CTRL_DYNAMIC_MOD
   void process_range_mode(U8 bMain_IT_Status);
  #endif
