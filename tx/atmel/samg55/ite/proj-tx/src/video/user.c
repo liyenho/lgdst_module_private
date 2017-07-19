@@ -9,7 +9,8 @@
 extern void twi_sms4470_handler(const uint32_t id, const uint32_t index);
  extern /*static*/ twi_packet_t packet_tx;
  extern twi_packet_t packet_rx;
- extern volatile bool i2c_read_done;
+ //extern volatile bool i2c_read_done;
+ extern volatile context_it951x ctx_951x;
 
 static DCtable dc_table[7];
 static DCtable ofs_table[7];

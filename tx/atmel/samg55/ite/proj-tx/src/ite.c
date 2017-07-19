@@ -191,8 +191,8 @@ int init_video_subsystem()
 	uint16_t sawBandwidth = 8000;
 	uint32_t error = ModulatorError_NO_ERROR;
 
-	if (!init_rf2072())
-		goto exit;
+	if (!init_rf2072()) ;
+		//goto exit;
 	error=it9517_initialize (Bus_I2C,SERIAL_TS_INPUT);
 	if(error)goto exit;
 	//error= it9517_loadIQ_calibration_table (const char*file_name);

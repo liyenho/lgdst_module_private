@@ -58,8 +58,6 @@ volatile uint32_t *DEMCR = (uint32_t *)0xE000EDFC;
 #endif
   volatile uint32_t fc_siano_tuned = 482000000;
 static volatile bool main_b_cdc_enable = false;
-  /** TWI Bus Clock 100kHz */
-  #define TWI_CLK     /*200000*/ 100000
   /** The address for TWI IT951X */
   #define IT951X_ADDRESS        0x3A  // not sure if this is the one but it is ok to guess
 
@@ -145,7 +143,8 @@ volatile uint32_t upgrade_fw_hdr[FW_UPGRADE_HDR_LEN/sizeof(int)]={-1} ;
  // host to fpga/6612 ctrl/sts buffer
 /*static*/ uint32_t gs_uc_htbuffer[(USB_HOST_MSG_LEN+HOST_BUFFER_SIZE+3)/sizeof(int)];
 /*static*/ uint32_t gs_uc_hrbuffer[(USB_HOST_MSG_LEN+HOST_BUFFER_SIZE+3)/sizeof(int)];
-  volatile bool i2c_read_done = false;
+  //volatile bool i2c_read_done = false;
+  volatile context_it951x ctx_951x={0};
   /*static*/ twi_packet_t packet_tx;
   twi_packet_t packet_rx;
    // host/sms ctrl/sts buffer
@@ -347,12 +346,13 @@ void twi_sms4470_handler(const uint32_t id, const uint32_t index);
   void twi_sms4470_handler(const uint32_t id, const uint32_t index)
 	{
 		if ((id == ID_PIOA) && (index == ITE_HOST_INT)){
+			ctx_951x.i2c_done_rd = false;
 			uint32_t err, // error code requried
 								len0 = packet_rx.length;
 			static uint8_t tmp_buff[HOST_BUFFER_SIZE];
 			static uint32_t err_prev, len_prev;
 			{	TWI_READ	}
-			i2c_read_done = true;
+			ctx_951x.i2c_done_rd = true;
 		}
 	}
 /**
@@ -568,16 +568,7 @@ static inline bool usb_read_buf(void *pb)
 		} while (size0 != written);
 	}
 //#endif
-static inline void usb_write_buf(void *pb)
-{
-	int written=0, size = I2SC_BUFFER_SIZE;
-	do {
-		iram_size_t b = size-udi_cdc_write_buf(pb, size);
-		pb += b;
-		size -= b;
-		written += b;
-	} while (I2SC_BUFFER_SIZE != written && !system_main_restart);
-}
+
  #if defined(MEDIA_ON_FLASH) && !defined(NO_USB)
   static void host_usb_mda_flash_cb() {
 		if (Is_udd_in_sent(0) ||
@@ -624,6 +615,19 @@ static inline void usb_write_buf(void *pb)
 			return;
 		}
 		dev_access *ps = gs_uc_htbuffer,*ps1 = gs_uc_hrbuffer;
+		 /////////////////
+		//host/client handshake time sensitive processes (YH)
+		if (0!=ctx_951x.it951x_access &&
+			(!ctx_951x.i2c_done_rd || !ctx_951x.i2c_done_wr))
+			return ; // no further action taken
+       if (ps->access == IT951X_READ) {
+	      ctx_951x.it951x_access = IT951X_READ;
+	      ctx_951x.i2c_done_rd = false;  //YH: not-ready response to usb request
+		}
+		else if (ps->access == IT951X_WRITE ) {
+	      ctx_951x.it951x_access = IT951X_WRITE;
+	      ctx_951x.i2c_done_wr = false;  //YH: not-ready response to usb request
+		}
 		// prepare confirm msg by echo whatever received
 		memcpy(gs_uc_hrbuffer, udd_g_ctrlreq.payload, USB_HOST_MSG_LEN-sizeof(ps->data[0]));
 		usb_host_msg = true; // enable mainloop process
@@ -1535,7 +1539,7 @@ system_restart:  // system restart entry, liyenho
   	do {
 	  	memcpy(gs_uc_rbuffer, ul_page_addr, I2SC_BUFFER_SIZE);
 		  delay_us(3000); // see if this stablize? it does!
-  		usb_write_buf(gs_uc_rbuffer);
+  		usb_write_buf1(gs_uc_rbuffer,I2SC_BUFFER_SIZE);
   		ul_page_addr += I2SC_BUFFER_SIZE;
   	} while (0<--bcnt);
   #endif
@@ -2097,7 +2101,7 @@ tune_done:
 	   usb_data_done = false;
 #endif
    #ifndef MEDIA_ON_FLASH
-  		usb_write_buf(pusb1);
+  		usb_write_buf(pusb1,I2SC_BUFFER_SIZE);
    #endif
   #endif
 next:
@@ -2222,9 +2226,39 @@ volatile bool main_usb_host_reply()
 		if (!cnf_echo) {
 			udd_set_setup_payload( gs_uc_hrbuffer,
 				USB_HOST_MSG_LEN+(ps->dcnt-1)*sizeof(uint8_t));
+			if(ps->access == IT951X_READ) {
+				if(ctx_951x.i2c_done_rd == false) {
+					((dev_access*)gs_uc_hrbuffer)->dcnt= (uint8_t)-128;
+				}
+				else if (ctx_951x.it951x_err_rd !=TWI_SUCCESS) {
+					((dev_access*)gs_uc_hrbuffer)->dcnt= (uint8_t)-127;
+				}
+	        else if(ctx_951x.it951x_access !=IT951X_READ) {
+	          //error: status request, when read request not yet initiated.
+	          ((dev_access*)gs_uc_hrbuffer)->dcnt=(uint8_t)-126;
+	        }
+				else {
+   	       ctx_951x.it951x_access = 0; // invalidate for next access
+       	  }
+			}
 		} else { //confirmation by echo, 1 data entry is included
 			udd_set_setup_payload( gs_uc_hrbuffer,
 				USB_HOST_MSG_LEN-sizeof(ps->data[0]));
+			if(ps->access == IT951X_WRITE) {
+				if(ctx_951x.i2c_done_wr == false) {
+					((dev_access*)gs_uc_hrbuffer)->dcnt= (uint8_t)-128;
+				}
+				else if (ctx_951x.it951x_err_wr !=TWI_SUCCESS) {
+					((dev_access*)gs_uc_hrbuffer)->dcnt= (uint8_t)-127;
+				}
+				else if(ctx_951x.it951x_access !=IT951X_WRITE) {
+					//error: status request, when write request not yet initiated.
+					((dev_access*)gs_uc_hrbuffer)->dcnt=(uint8_t)-126;
+				}
+				else {
+					ctx_951x.it951x_access = 0; // invalidate for next access
+				}
+			}
 		}
 	/* no need to setup callback in READ case */
 	return (true != spi_tgt_done);
