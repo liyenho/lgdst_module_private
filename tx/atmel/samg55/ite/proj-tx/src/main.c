@@ -191,44 +191,7 @@ volatile uint32_t wrptr_rdo_rpacket=RDO_RPACKET_FIFO_SIZE-1,       //wrptr to va
 	unsigned int  rxnorec_intv=0;  // not a count but interval
 
 	static uint32_t tick_curr, tick_prev;
-/*******************************************************************/
-//const unsigned int initPeriod = 3000; // startup period in msec, m.a. was in fast tracking pace
-#define initCnt		30
-const unsigned int initWgt = 8,
-									initScl = 3,
-									Ewis = 3,
-									Ewim = 8-3;
-//const unsigned int intePeriod = 30000; // intermediate period in msec, m.a. was in normal tracking pace
-#define inteCnt		200
-const unsigned int inteWgt = 16,
-									inteScl = 4,
-									Ewms = 5,
-									Ewmm = 16-5;
-const unsigned int normWgt = 16,
-									normScl = 4,
-									Ewns = 3,
-									Ewnm = 16-3;
-const unsigned int lgThr = 3, shThr= 1;
-const uint32_t error_weight_cks6b[] __attribute__((aligned(8)))= {
-	0, 1, 1, 2, 1, 2, 2, 3,
-	1, 2, 2, 3, 2, 3, 3, 4,
-	1, 2, 2, 3, 2, 3, 3, 4,
-	2, 3, 3, 4, 3, 4, 4, 5,
-	1, 2, 2, 3, 2, 3, 3, 4,
-	2, 3, 3, 4, 3, 4, 4, 5,
-	2, 3, 3, 4, 3, 4, 4, 5,
-	3, 4, 4, 5, 4, 5, 5, 6,
-} ;
-#define CTRL_MON_PERIOD	250  // in msec
-#define CTRL_FAIL_PERIOD	(6* CTRL_MON_PERIOD) // can't be too short in order to prevent spi comm lockup
-#define CTRL0_MSK			(-1+(1<<CTRL_BITS))
-#define CTRL0_IMSK			(0xff & ~CTRL0_MSK)
-#define CTRL_MSK				(CTRL0_MSK<<CTRL_BITS)
-#define CHKSM_MSK		(0xff ^ CTRL0_MSK)
-// 4463 stats mon obj
-volatile /*static*/ ctrl_radio_stats  r4463_sts;
-static BW_CTRL cmd_ctrl_bits = LONG_RNG;
-/*******************************************************************/
+	extern volatile ctrl_radio_stats  r4463_sts;
 #endif //RADIO_SI4463
 /**
  *  \brief Configure the Console UART.
@@ -640,8 +603,8 @@ static inline bool usb_read_buf(void *pb)
 /*const*/ COMPILER_ALIGNED(8) tRadioConfiguration RadioConfiguration = RADIO_CONFIGURATION_DATA;
 /*const*/ tRadioConfiguration *pRadioConfiguration = &RadioConfiguration;
 	SEGMENT_VARIABLE(bMain_IT_Status, U8, SEG_XDATA);
-	SEGMENT_VARIABLE(bMain_IT_Status_m, U8, SEG_XDATA); // backup flag for main loop proc
-	 static void ctrl_hop_global_update(bool listen) {
+
+	 /*static*/ void ctrl_hop_global_update(bool listen) {
 	#if HOP_2CH_ENABLE
 			if (0 != ctrl_band_select(RF_FREQ_CONTROL_INTE_LEN, chtbl_ctrl_rdo[fhop_offset*2])) {
 	#else // accommodate further frequency shift algorithm too, liyenho
@@ -1681,106 +1644,7 @@ bypass:
 			once = 1;
 		}
   #endif
-		 if (si4463_factory_tune.calib_gated) {
-			tcurr = *DWT_CYCCNT;
-			tm_delta(si4463_factory_tune.tm_curr, tcurr, tdel)
-			if (CALIB_DWELL_INTV<=tdel) {
-				if (0x7f==si4463_factory_tune.cap_curr) {
-					irqflags_t flags;
-					flags = cpu_irq_save();
-					  si4463_factory_tune.calib_gated = false;
-					cpu_irq_restore(flags);
-					si4463_factory_tune.tm_ended = tcurr;
-					si4463_factory_tune.median =
-						(si4463_factory_tune.lower+
-						si4463_factory_tune.upper+1) / 2;
-	#ifdef CONFIG_ON_FLASH
-					erase_last_sector();
-					CHECKED_FLASH_WR(
-						IFLASH_ADDR + IFLASH_SIZE-sizeof(backup),
-						backup, NUM_OF_FPGA_REGS +1 +4)
-					CHECKED_FLASH_WR(ul_page_addr_ctune,
-																			&si4463_factory_tune.median,
-																			1/*1 byte flag*/)
-					uint8_t ctemp = get_si446x_temp();
-					CHECKED_FLASH_WR(ul_page_addr_mtemp,
-																			&ctemp, 1/*1 byte flag*/)
-					CHECKED_FLASH_WR(
-						IFLASH_ADDR + IFLASH_SIZE-NUM_OF_ATMEL_REGS +2,
-						backup +NUM_OF_FPGA_REGS +1 +4 +2,
-						sizeof(backup)-NUM_OF_FPGA_REGS-1 -4 -2)
-	#endif
-					tune_cap_str[CAP_VAL_POS] = si4463_factory_tune.median;
-					if (radio_comm_SendCmdGetResp(sizeof(tune_cap_str), tune_cap_str, 0, 0) != 0xFF) {
-						while (1) {
-							; // Capture error
-						}
-					}
-			  #ifdef RADIO_CTRL_AUTO
-			  		ctrl_tdma_lock = false;
-					fhop_in_search = true;
-					fhop_flag = false ;
-					fhop_base = 0;
-					fhop_offset = HOP_2CH_ENABLE?WRAP_OFFSET(HOP_2CH_OFFSET0):0;
-					if (fhopless)
-					  switch(fhopless) {
-						  case 0/*low*/: fhop_offset = 0;
-						  case 2/*mid*/: fhop_offset = (CHTBL_SIZE)/2-1;
-						  case 3/*high*/: fhop_offset = (CHTBL_SIZE)-1;
-					  }
-					ctrl_hop_global_update(true);
-				#endif
-					si4463_factory_tune.tm_curr = *DWT_CYCCNT; // record startup time for recurrent adjustment
-					ctrl_tdma_enable = true;	// turn flag back on
-					goto tune_done;
-				}
-				si4463_factory_tune.tm_curr = tcurr;
-				if (si4463_factory_tune.calib_det_rx) {
-					if (CAP_TUNE_THR<si4463_factory_tune.calib_det_rx) {
-						minmax(si4463_factory_tune.lower,
-										si4463_factory_tune.upper,
-										si4463_factory_tune.cap_curr)
-					}
-					si4463_factory_tune.calib_det_rx = 0; // invalidated
-				}
-				si4463_factory_tune.cap_curr += 1;
-				tune_cap_str[CAP_VAL_POS] = si4463_factory_tune.cap_curr;
-				if (radio_comm_SendCmdGetResp(sizeof(tune_cap_str), tune_cap_str, 0, 0) != 0xFF) {
-					while (1) {
-						; // Capture error
-					}
-				}
-			}
-		 }
-		 else if (si4463_factory_tune.calib_req_h) {
-			 const uint8_t freq_reset_str[] = {RF_FREQ_CONTROL_INTE_8}; // tune frequency on 915 mhz
-			if (radio_comm_SendCmdGetResp(sizeof(freq_reset_str), freq_reset_str, 0, 0) != 0xFF) {
-				while (1) {
-					; // Capture error
-				}
-			}
-			const uint8_t afc_gear_str[] = {0x11, 0x20, 0x03, 0x30, 0x25, 0x16, 0xC0}; // use narrower tracking range on AFC limiter
-			if (radio_comm_SendCmdGetResp(sizeof(afc_gear_str), afc_gear_str, 0, 0) != 0xFF) {
-				while (1) {
-					; // Capture error
-				}
-			}
-			si4463_factory_tune.tm_started = *DWT_CYCCNT;
-			si4463_factory_tune.tm_curr = si4463_factory_tune.tm_started;
-			si4463_factory_tune.calib_req_h = false;
-			si4463_factory_tune.calib_det_rx = 0; // invalidated
-			si4463_factory_tune.cap_curr = 0x0; // start from lowest possible cap value
-			tune_cap_str[CAP_VAL_POS] = si4463_factory_tune.cap_curr;
-			if (radio_comm_SendCmdGetResp(sizeof(tune_cap_str), tune_cap_str, 0, 0) != 0xFF) {
-				while (1) {
-					; // Capture error
-				}
-			}
-		  	vRadio_StartRX(pRadioConfiguration->Radio_ChannelNumber,
-		  		pRadioConfiguration->Radio_PacketLength);  // enter listening mode
-			si4463_factory_tune.calib_gated = true;  // let si4463_radio_handler() begin to receive
-		 }
-tune_done:
+  cap_bank_calibrate();
     //tdd lock time out routine ----------------------------------------
 	tick_curr = *DWT_CYCCNT;
 	if (tick_curr < tick_prev) {
@@ -1801,151 +1665,9 @@ tune_done:
 		fhop_in_search = true;
 		fhop_flag = false ;
 	}
-		if (SI446X_CMD_GET_INT_STATUS_REP_PH_PEND_PACKET_RX_PEND_BIT==bMain_IT_Status_m) {
-	  		irqflags_t flags;
-			flags = cpu_irq_save();
-		      bMain_IT_Status_m = 0;  // reset nirq flag
-			cpu_irq_restore(flags);
-			//just got an RX packet from radio, bRadio_Check_Tx_RX() already read the fifo
-			#ifdef CTRL_DYNAMIC_MOD
-			static BW_CTRL prev_ctrl_bits = (BW_CTRL) -1;
-			/************************************************************/
-			{	static unsigned int recv_cnt = 0;
-				BW_CTRL ctrl_bits_tmp;
-				uint8_t j, err, cks=0, *pb = (uint8_t*)gp_rdo_rpacket_l;
-				for (j=0;j<pRadioConfiguration->Radio_PacketLength-1;j++)
-				{	cks ^= *pb++;  } // generate 2's mod checksum
-				cmd_ctrl_bits = CTRL0_MSK & *pb; // fetch range cmd from rx side
-				cks &= CTRL0_IMSK;  // took high 6 bits
-				cks ^= CTRL_MSK & (*pb<<CTRL_BITS); // then bw ctrl bits @ end
-				err = (CHKSM_MSK & *pb) ^ cks;
-				uint32_t ew;
-				ew = error_weight_cks6b[err>>CTRL_BITS];
-				//lapse = recv_cnt * LOOP_LATENCY;
-				// update error accum per time lapse
-				if (initCnt > recv_cnt) {
-					r4463_sts.errPerAcc = r4463_sts.errPerAcc * Ewim + ew * Ewis;
-					r4463_sts.errPerAcc >>= initScl;
-				}
-				else if (initCnt <= recv_cnt && inteCnt > recv_cnt) {
-					r4463_sts.errPerAcc = r4463_sts.errPerAcc * Ewmm + ew * Ewms;
-					r4463_sts.errPerAcc >>= inteScl;
-				}
-				else {
-					r4463_sts.errPerAcc = r4463_sts.errPerAcc * Ewnm + ew * Ewns;
-					r4463_sts.errPerAcc >>= normScl;
-				}
-				// compute range estimation
-				if (shThr >= r4463_sts.errPerAcc) {
-						if (shThr >= ew)
-							ctrl_bits_tmp = SHORT_RNG;
-						else
-							ctrl_bits_tmp = NEUTRAL;
-					}
-				else if (lgThr < r4463_sts.errPerAcc) {
-					ctrl_bits_tmp = LONG_RNG;
-				}
-				else {
-					if (lgThr < ew)
-						ctrl_bits_tmp = LONG_RNG;
-					else
-						ctrl_bits_tmp = NEUTRAL;
-				}
-				// perform hangover procedure
-				switch(ctrl_bits_tmp) {
-					case SHORT_RNG :
-						for (j=0; j<CTRL_CTX_LEN; j++) {
-							if (SHORT_RNG != r4463_sts.ctrl_bits_ctx[j])
-								break;
-						}
-						if (CTRL_CTX_LEN == j)
-							r4463_sts.bw_ctrl_bits = SHORT_RNG;
-						else  { // in hysteresis region
-							for (j=0; j<CTRL_CTX_LEN; j++) {
-								if (NEUTRAL != r4463_sts.ctrl_bits_ctx[j])
-									break;
-							}
-							if (CTRL_CTX_LEN == j)
-								r4463_sts.bw_ctrl_bits = SHORT_RNG;
-							else  // cond above shall break continuous neutral case...
-							r4463_sts.bw_ctrl_bits = NEUTRAL;
-						}
-						break;
-					case LONG_RNG :
-						for (j=0; j<CTRL_CTX_LEN; j++) {
-							if (LONG_RNG == r4463_sts.ctrl_bits_ctx[j])
-								break; // found a LG req in ctx
-						}
-						if (CTRL_CTX_LEN != j)
-							r4463_sts.bw_ctrl_bits = LONG_RNG;
-						else // close in hysteresis region
-							r4463_sts.bw_ctrl_bits = NEUTRAL;
-						break;
-					default : /*NEUTRAL*/
-						r4463_sts.bw_ctrl_bits = NEUTRAL;
-							if (NEUTRAL == r4463_sts.ctrl_bits_ctx[0] &&
-								NEUTRAL == r4463_sts.ctrl_bits_ctx[1]) {
-								// fall back to long range mode if two neutral seen in a row
-								r4463_sts.bw_ctrl_bits = LONG_RNG;
-								break;
-							}
-						break;
-				}
-				// bump up recv_cnt
-				recv_cnt = recv_cnt + 1;
-			}
-			/********************************************************/
-			uint8_t cks = 0, *pb = (uint8_t*)gp_rdo_tpacket_l;
-			for (int n=0;n<pRadioConfiguration->Radio_PacketLength-1;n++)
-				cks ^= *pb++;  // generate 2's mod checksum
-			cks &= CTRL0_IMSK;  // took high 6 bits
-			/********************************************************/
-			cks ^= r4463_sts.bw_ctrl_bits<<CTRL_BITS; // included bw ctrl bits
-			*pb = (cks | r4463_sts.bw_ctrl_bits);  // insert ctrl byte @ end
-			/********************************************************/
-			if (prev_ctrl_bits != cmd_ctrl_bits && NEUTRAL != cmd_ctrl_bits) {
-					// normal ops mode
-					if (0 != range_mode_configure(SHORT_RNG!=cmd_ctrl_bits)) {
-						// puts("error from range_mode_configure()");
-						goto blink_led; // time out, don't proceed
-					}
-			}
-			/********************************************************/
-			prev_ctrl_bits = cmd_ctrl_bits;
-		#endif // CTRL_DYNAMIC_MOD
-
-		//slot based ctrl
-  	} else { // not receiving anything yet
-		  #ifdef CTRL_DYNAMIC_MOD
-		  unsigned int lapse;
-			tick_curr = *DWT_CYCCNT;
-			if (tick_curr < r4463_sts.tick_prev) {
-			 	lapse+=tick_curr+(0xffffffff-r4463_sts.tick_prev);
-			}
-			else // not wrapped yet
-			 	lapse+=tick_curr -r4463_sts.tick_prev;
-			r4463_sts.tick_prev = tick_curr;
-			if (LONG_RNG!=r4463_sts.bw_ctrl_bits && CTRL_MON_PERIOD <lapse) {
-				r4463_sts.bw_ctrl_bits = NEUTRAL;
-				// no need to force cmd_ctrl_bits updated yet for next run
-				if (CTRL_FAIL_PERIOD <lapse) {
-					r4463_sts.bw_ctrl_bits = LONG_RNG;
-					cmd_ctrl_bits = 	LONG_RNG;  // forced into long range mode
-					if (0 != range_mode_configure(LONG_RNG)) {
-						// puts("error from range_mode_configure()");
-						goto blink_led; // time out, don't proceed
-					}
-				}
-			}
-			#endif //CTRL_DYNAMIC_MOD
-		}// not receiving anything yet
-
-		// update ctrl bits history
-		#ifdef CTRL_DYNAMIC_MOD
-		for (int n=CTRL_CTX_LEN-1; n>0; n--)
-			r4463_sts.ctrl_bits_ctx[n] = r4463_sts.ctrl_bits_ctx[n-1];
-		*r4463_sts.ctrl_bits_ctx = r4463_sts.bw_ctrl_bits;
-		#endif //CTRL_DYNAMIC_MOD
+ #ifdef CTRL_DYNAMIC_MOD
+	process_range_mode(tick_curr, tick_prev);
+ #endif
  	// Bill shall utilize these funtions to pull or push actual
  	// control packets from inbound and outbound while
  	// outbound traffic can be variable length, with
