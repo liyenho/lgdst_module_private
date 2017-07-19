@@ -146,14 +146,20 @@ uint32_t IT9510User_busTx (
       uint8_t*           buffer
 ) {
 	 uint32_t     error = ModulatorError_NO_ERROR;
-	 int32_t 		msg[80]; // access buffer
+	 int32_t 		i, msg[80]; // access buffer
 	 dev_access *pt = (dev_access*)msg;
-	 pt->dcnt = bufferLength;
-	 pt->addr = IT951X_ADDRESS;
-	 memcpy(pt->data, buffer, bufferLength);
-	//IT951X_WRITE:
-		TWI_WRITE(pt->addr,pt->data,pt->dcnt)
-		//break;
+
+	 for (i = 0; i < IT9510User_MAXFRAMESIZE; i++) {
+		 pt->dcnt = bufferLength;
+		 pt->addr = IT951X_ADDRESS;
+		 memcpy(pt->data, buffer, bufferLength);
+		//IT951X_WRITE:
+			TWI_WRITE(pt->addr,pt->data,pt->dcnt)
+			//break;
+		if (ctx_951x.it951x_err_wr == TWI_SUCCESS)
+			break;
+		IT9510User_delay(10);
+	}
     return (error);
 }
 uint32_t IT9510User_busTx2 (
@@ -174,13 +180,19 @@ uint32_t IT9510User_busRx (
       uint8_t*           buffer
 ) {
 	 uint32_t     error = ModulatorError_NO_ERROR;
-	 int32_t 		msg[80]; // access buffer
+	 int32_t 		i, msg[80]; // access buffer
 	 dev_access *pr = (dev_access*)msg;
-	 pr->dcnt = bufferLength;
-	 pr->addr = IT951X_ADDRESS;
-	//IT951X_READ:
-		_TWI_READ_(pr->addr,pr->data,pr->dcnt)
-		//break;
+
+	 for (i = 0; i < IT9510User_MAXFRAMESIZE; i++) {
+		 pr->dcnt = bufferLength;
+		 pr->addr = IT951X_ADDRESS;
+		//IT951X_READ:
+			_TWI_READ_(pr->addr,pr->data,pr->dcnt)
+			//break;
+		if (ctx_951x.it951x_err_rd == TWI_SUCCESS)
+			break;
+		IT9510User_delay(10);
+	}
 	 memcpy(buffer, pr->data, bufferLength);
 	 return (error);
 }
