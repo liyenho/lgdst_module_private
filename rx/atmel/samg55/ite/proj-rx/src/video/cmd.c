@@ -10,7 +10,8 @@
 extern void twi_sms4470_handler(const uint32_t id, const uint32_t index);
  extern /*static*/ twi_packet_t packet_tx;
  extern twi_packet_t packet_rx;
- extern volatile bool i2c_read_done;
+ //extern volatile bool i2c_read_done;
+ extern volatile context_it913x ctx_913x;
 
 static uint8_t Cmd_sequence = 0;
 
@@ -19,14 +20,20 @@ uint32_t Cmd_busTx (
     uint8_t*           buffer
 ) {
     uint32_t     error = Error_NO_ERROR;
-	 int32_t 		msg[80]; // access buffer
+	 int32_t 		i, msg[80]; // access buffer
 	 dev_access *pt = (dev_access*)msg;
-	 pt->dcnt = bufferLength;
-	 pt->addr = IT913X_ADDRESS;
-	 memcpy(pt->data, buffer, bufferLength);
-	//IT951X_WRITE:
-		TWI_WRITE(pt->addr,pt->data,pt->dcnt)
-		//break;
+
+	 for (i = 0; i < User_RETRY_MAX_LIMIT; i++) {
+		 pt->dcnt = bufferLength;
+		 pt->addr = IT913X_ADDRESS;
+		 memcpy(pt->data, buffer, bufferLength);
+		//IT951X_WRITE:
+			TWI_WRITE(pt->addr,pt->data,pt->dcnt)
+			//break;
+		if (ctx_913x.it913x_err_wr == TWI_SUCCESS)
+			break;
+		delay_ms(10);
+	}
     return (error);
 }
 
@@ -36,13 +43,19 @@ uint32_t Cmd_busRx (
     uint8_t*           buffer
 ) {
     uint32_t     error = Error_NO_ERROR;
-	 int32_t 		msg[80]; // access buffer
+	 int32_t 		i, msg[80]; // access buffer
 	 dev_access *pr = (dev_access*)msg;
-	 pr->dcnt = bufferLength;
-	 pr->addr = IT913X_ADDRESS;
-	//IT951X_READ:
-		_TWI_READ_(pr->addr,pr->data,pr->dcnt)
-		//break;
+
+	 for (i = 0; i < User_RETRY_MAX_LIMIT; i++) {
+		 pr->dcnt = bufferLength;
+		 pr->addr = IT913X_ADDRESS;
+		//IT951X_READ:
+			_TWI_READ_(pr->addr,pr->data,pr->dcnt)
+			//break;
+		if (ctx_913x.it913x_err_rd == TWI_SUCCESS)
+			break;
+		delay_ms(10);
+	}
 	 memcpy(buffer, pr->data, bufferLength);
     return (error);
 }

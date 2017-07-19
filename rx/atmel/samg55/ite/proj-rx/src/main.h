@@ -260,13 +260,23 @@ typedef struct {
 #define USB_CPLD_UPGRADE_VAL	0x21  // cpld upgrade cmd
 #define USB_ATMEL_UPGRADE_VAL	0x23	// atmel upgrade cmd
 
+  /** TWI Bus Clock 400kHz */
+  // slow down to see if it improve data integrity, it does, liyenho
+  #define TWI_CLK     /*200000*/ 100000
 /** ite 913x to host irq assignment */
 #define ITE_HOST_INT			PIO_PA26 // not used at all...
+typedef struct {
+	uint32_t it913x_access;
+	bool i2c_done_wr;
+	uint32_t it913x_err_wr;
+	bool i2c_done_rd;
+	uint32_t it913x_err_rd;
+} context_it913x;	// it913x access on usb/i2c bus
+
 #define _TWI_READ_(adr,buf,len) \
 	packet_rx.chip = adr; \
 	packet_rx.buffer = (uint8_t *)buf; \
 	packet_rx.length = len; \
-	i2c_read_done = false; \
 	twi_sms4470_handler(ID_PIOA, ITE_HOST_INT);
  #define BOARD_ID_TWI_SMS4470         ID_TWI4
  #define BOARD_BASE_TWI_SMS4470       TWI4
@@ -274,12 +284,20 @@ typedef struct {
 	packet_tx.chip = adr; \
 	packet_tx.buffer = (uint8_t *)buf; \
 	packet_tx.length = size; \
-	if (twi_master_write(BOARD_BASE_TWI_SMS4470, &packet_tx) != TWI_SUCCESS) { \
+	ctx_913x.i2c_done_wr = false; \
+	if ((ctx_913x.it913x_err_wr= \
+		twi_master_write(BOARD_BASE_TWI_SMS4470, &packet_tx)) != TWI_SUCCESS) { \
 		/*puts("-E-\tTWI master write packet failed.\r");*/ \
-		while (0/*don't lock atmel up*/) { \
-			; /* Capture error */ \
+		while (1/*don't lock atmel up*/) { \
+			/*Configure the options of TWI driver*/ \
+			twi_options_t opt; \
+			opt.master_clk = sysclk_get_cpu_hz(); \
+			opt.speed      = TWI_CLK; \
+           twi_master_init(BOARD_BASE_TWI_SMS4470, &opt); \
+			break; \
 		} \
-	}
+	} \
+	ctx_913x.i2c_done_wr = true;
 #define TWI_READ \
 	err = twi_master_read(BOARD_BASE_TWI_SMS4470, &packet_rx); \
 	if ( err != TWI_SUCCESS ) { \
@@ -311,7 +329,7 @@ typedef struct {
 		             tmp_buff, \
 		             len_prev); \
 	} \
-	err_prev = err; // keep previous err code
+	ctx_913x.it913x_err_rd = err_prev = err; // keep previous err code
 // redefine twi_packet type for callback feature
 typedef void (*cb_task_t) ();
 typedef struct twi_packet_cb {

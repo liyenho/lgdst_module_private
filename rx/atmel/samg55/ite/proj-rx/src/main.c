@@ -149,7 +149,8 @@ volatile uint32_t upgrade_fw_hdr[FW_UPGRADE_HDR_LEN/sizeof(int)]={-1} ;
  // host to fpga/2072 ctrl/sts buffer
 static uint32_t gs_uc_htbuffer[(USB_HOST_MSG_LEN+HOST_BUFFER_SIZE+3)/sizeof(int)];
 uint32_t gs_uc_hrbuffer[(USB_HOST_MSG_LEN+HOST_BUFFER_SIZE+3)/sizeof(int)];
-  volatile bool i2c_read_done = false;
+  //volatile bool i2c_read_done = false;
+  volatile context_it913x ctx_913x={0};
   /*static*/ twi_packet_t packet_tx;
 #ifdef RX_SPI_CHAINING
   twi_packet_t packet_rx;
@@ -386,6 +387,7 @@ void twi_sms4470_handler(const uint32_t id, const uint32_t index);
   void twi_sms4470_handler(const uint32_t id, const uint32_t index)
 	{
 		if ((id == ID_PIOA) && (index == ITE_HOST_INT)){
+			ctx_913x.i2c_done_rd = false;
 			uint32_t err, // error code requried
 								len0 = packet_rx.length;
 			static uint8_t tmp_buff[HOST_BUFFER_SIZE];
@@ -396,7 +398,7 @@ void twi_sms4470_handler(const uint32_t id, const uint32_t index);
 			} else
 #endif
 			{	TWI_READ	}
-			i2c_read_done = true;
+			ctx_913x.i2c_done_rd = true;
 		}
 	}
 /**
@@ -732,18 +734,8 @@ void spi_tx_transfer(void *p_tbuf, uint32_t tsize, void *p_rbuf,
  #endif
 	spi_enable_interrupt(base, spi_ier) ;
 }
-
-static inline void usb_read_buf(void *pb)
-{
-	int read=0, size = I2SC_BUFFER_SIZE;
-	do {
-		iram_size_t b = size-udi_cdc_read_buf(pb, size);
-		pb += b;
-		size -= b;
-		read += b;
-	} while (I2SC_BUFFER_SIZE != read && !system_main_restart);
-}
-	static inline void usb_write_buf1(void *pb, int size0)
+void usb_write_buf1(void *pb, int size0);
+	/*static inline*/ void usb_write_buf1(void *pb, int size0)
 	{
 		int written=0, size = size0;
 		do {
@@ -765,16 +757,7 @@ void usb_read_buf1(void *pb, int size0);
 		read += b;
 	} while (size0 != read);
 }
-static inline void usb_write_buf(void *pb)
-{
-	int written=0, size = I2SC_BUFFER_SIZE;
-	do {
-		iram_size_t b = size-udi_cdc_write_buf(pb, size);
-		pb += b;
-		size -= b;
-		written += b;
-	} while (I2SC_BUFFER_SIZE != written && !system_main_restart);
-}
+
 #if defined(RECV_IT913X) && !defined(RX_SPI_CHAINING)
   /*static*/ void usb_write_buf_cb() {
 	  volatile uint32_t cycle_now, cycle_delta;
@@ -817,7 +800,7 @@ static inline void usb_write_buf(void *pb)
 	cycle_now1 = *DWT_CYCCNT;*/
 	  if (!sms4470_usb_ctx.skip_wr && I2SC_BUFFER_SIZE<=udi_cdc_lvl) {
 //cycle_now = *DWT_CYCCNT;
-			usb_write_buf(sms4470_usb_ctx.usb_buf_wr);
+			usb_write_buf1(sms4470_usb_ctx.usb_buf_wr,I2SC_BUFFER_SIZE);
 //cycle_delta = *DWT_CYCCNT - cycle_now;
 			sms4470_usb_ctx.usb_buf_wr += I2SC_BUFFER_SIZE;
 			if (sms4470_usb_ctx.buf_end<=sms4470_usb_ctx.usb_buf_wr)
@@ -896,9 +879,21 @@ static inline void usb_write_buf(void *pb)
 			return;
 		}
 		dev_access *ps = gs_uc_htbuffer,*ps1 = gs_uc_hrbuffer;
+		 /////////////////
+		//host/client handshake time sensitive processes (YH)
+		if (0!=ctx_913x.it913x_access &&
+			(!ctx_913x.i2c_done_rd || !ctx_913x.i2c_done_wr))
+			return ; // no further action taken
+       if (ps->access == IT913X_READ) {
+	      ctx_913x.it913x_access = IT913X_READ;
+	      ctx_913x.i2c_done_rd = false;  //YH: not-ready response to usb request
+		}
+		else if (ps->access == IT913X_WRITE ) {
+	      ctx_913x.it913x_access = IT913X_WRITE;
+	      ctx_913x.i2c_done_wr = false;  //YH: not-ready response to usb request
+		}
 		// prepare confirm msg by echo whatever received
 		memcpy(gs_uc_hrbuffer, udd_g_ctrlreq.payload, USB_HOST_MSG_LEN-sizeof(ps->data[0]));
-
 		usb_host_msg = true; // enable mainloop process
   }
 #ifdef  RADIO_SI4463
@@ -2016,9 +2011,39 @@ volatile bool main_usb_host_reply()
 		if (!cnf_echo) {
 			udd_set_setup_payload( gs_uc_hrbuffer,
 				USB_HOST_MSG_LEN+(ps->dcnt-1)*sizeof(uint8_t));
+			if(ps->access == IT913X_READ) {
+				if(ctx_913x.i2c_done_rd == false) {
+					((dev_access*)gs_uc_hrbuffer)->dcnt= (uint8_t)-128;
+				}
+				else if (ctx_913x.it913x_err_rd !=TWI_SUCCESS) {
+					((dev_access*)gs_uc_hrbuffer)->dcnt= (uint8_t)-127;
+				}
+	        else if(ctx_913x.it913x_access !=IT913X_READ) {
+	          //error: status request, when read request not yet initiated.
+	          ((dev_access*)gs_uc_hrbuffer)->dcnt=(uint8_t)-126;
+	        }
+				else {
+   	       ctx_913x.it913x_access = 0; // invalidate for next access
+       	  }
+			}
 		} else { //confirmation by echo, 1 data entry is included
 			udd_set_setup_payload( gs_uc_hrbuffer,
 				USB_HOST_MSG_LEN-sizeof(ps->data[0]));
+			if(ps->access == IT913X_WRITE) {
+				if(ctx_913x.i2c_done_wr == false) {
+					((dev_access*)gs_uc_hrbuffer)->dcnt= (uint8_t)-128;
+				}
+				else if (ctx_913x.it913x_err_wr !=TWI_SUCCESS) {
+					((dev_access*)gs_uc_hrbuffer)->dcnt= (uint8_t)-127;
+				}
+				else if(ctx_913x.it913x_access !=IT913X_WRITE) {
+					//error: status request, when write request not yet initiated.
+					((dev_access*)gs_uc_hrbuffer)->dcnt=(uint8_t)-126;
+				}
+				else {
+					ctx_913x.it913x_access = 0; // invalidate for next access
+				}
+			}
 		}
 	/* no need to setup callback in READ case */
 	return (true != spi_tgt_done);

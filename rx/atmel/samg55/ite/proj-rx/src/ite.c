@@ -41,7 +41,7 @@
  extern uint32_t g_ul_wait_10ms;
  extern twi_packet_t packet_tx, packet_rx;
  extern bool systick_enabled;
- extern volatile bool i2c_read_done ;
+ //extern volatile bool i2c_read_done ;
  extern volatile uint32_t sms4470_fw_hdr;
  extern volatile uint32_t *DWT_CYCCNT;
  #ifndef RX_SPI_CHAINING
@@ -72,16 +72,7 @@ unsigned int dbg_usbtransferfail=0;
 extern unsigned char trig500ms;
 extern uint8_t mon_ts47bad_cnt;
 
-static inline void usb_write_buf(void *pb)
-{
-	int written=0, size = I2SC_BUFFER_SIZE;
-	do {
-		iram_size_t b = size-udi_cdc_write_buf(pb, size);
-		pb += b;
-		size -= b;
-		written += b;
-	} while (I2SC_BUFFER_SIZE != written);
-}
+extern void usb_write_buf1(void *pb, int size);
 
 /**********************************************************************************************************
  * \brief Interrupt handler for the RTT.
@@ -272,7 +263,7 @@ found: {
 							memcpy(pbn, pbl1, 188);
 							pbn += 188;
 							if (I2SC_BUFFER_SIZE/188 == ++st_pos) {
-								usb_write_buf(new_video_buffer);
+								usb_write_buf1(new_video_buffer,I2SC_BUFFER_SIZE);
 								pbn = new_video_buffer;
 								st_pos = 0;
 							}
@@ -287,7 +278,7 @@ found: {
 					memcpy(pbn, pbl0, 188);
 					pbn += 188;
 					if (I2SC_BUFFER_SIZE/188 == ++st_pos) {
-						usb_write_buf(new_video_buffer);
+						usb_write_buf1(new_video_buffer,I2SC_BUFFER_SIZE);
 						pbn = new_video_buffer;
 						st_pos = 0;
 					}
@@ -305,7 +296,9 @@ found: {
   									TSLUT_BUFFER_SIZE);
 next:
 #else
-		  usb_write_buf(gs_uc_rbuffer+((unsigned int)spibuff_rdptr*(I2SC_BUFFER_SIZE/4)) );  //burst out a usb transfer
+		  usb_write_buf1(
+		  		gs_uc_rbuffer+((unsigned int)spibuff_rdptr*(I2SC_BUFFER_SIZE/4)),
+		  		I2SC_BUFFER_SIZE );  //burst out a usb transfer
 #ifdef CTRL_RADIO_ENCAP
 		uint32_t *pbt, pid, mde, usr, bsz;
 		  pbt=gs_uc_rbuffer+((unsigned int)spibuff_rdptr*(I2SC_BUFFER_SIZE/4));
