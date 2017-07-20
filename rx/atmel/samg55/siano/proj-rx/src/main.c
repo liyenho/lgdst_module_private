@@ -799,7 +799,7 @@ void usb_write_buf1(void *pb, int size0);
 			pb += b;
 			size -= b;
 			written += b;
-		} while (size0 != written);
+		} while (size0 != written && !system_main_restart);
 	}
 #ifdef SMS_DVBT2_DOWNLOAD
 void usb_read_buf1(void *pb, int size0);
@@ -811,7 +811,7 @@ void usb_read_buf1(void *pb, int size0);
 		pb += b;
 		size -= b;
 		read += b;
-	} while (size0 != read);
+	} while (size0 != read && !system_main_restart);
 }
 
 fordigibest_usb_read_buf1(void* *pbuff, int size0)
