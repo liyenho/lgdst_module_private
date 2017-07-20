@@ -790,18 +790,8 @@ void spi_tx_transfer(void *p_tbuf, uint32_t tsize, void *p_rbuf,
  #endif
 	spi_enable_interrupt(base, spi_ier) ;
 }
-
-static inline void usb_read_buf(void *pb)
-{
-	int read=0, size = I2SC_BUFFER_SIZE;
-	do {
-		iram_size_t b = size-udi_cdc_read_buf(pb, size);
-		pb += b;
-		size -= b;
-		read += b;
-	} while (I2SC_BUFFER_SIZE != read && !system_main_restart);
-}
-	static inline void usb_write_buf1(void *pb, int size0)
+void usb_write_buf1(void *pb, int size0);
+	/*static inline*/ void usb_write_buf1(void *pb, int size0)
 	{
 		int written=0, size = size0;
 		do {
@@ -830,16 +820,7 @@ fordigibest_usb_read_buf1(void* *pbuff, int size0)
 	usb_read_buf1(fw_sms_rbuffer, size0);
 }
 #endif
-static inline void usb_write_buf(void *pb)
-{
-	int written=0, size = I2SC_BUFFER_SIZE;
-	do {
-		iram_size_t b = size-udi_cdc_write_buf(pb, size);
-		pb += b;
-		size -= b;
-		written += b;
-	} while (I2SC_BUFFER_SIZE != written && !system_main_restart);
-}
+
 #if defined(RECV_SMS4470) && !defined(RX_SPI_CHAINING)
   /*static*/ void usb_write_buf_cb() {
 	  volatile uint32_t cycle_now, cycle_delta;
@@ -882,7 +863,7 @@ static inline void usb_write_buf(void *pb)
 	cycle_now1 = *DWT_CYCCNT;*/
 	  if (!sms4470_usb_ctx.skip_wr && I2SC_BUFFER_SIZE<=udi_cdc_lvl) {
 //cycle_now = *DWT_CYCCNT;
-			usb_write_buf(sms4470_usb_ctx.usb_buf_wr);
+			usb_write_buf1(sms4470_usb_ctx.usb_buf_wr,I2SC_BUFFER_SIZE);
 //cycle_delta = *DWT_CYCCNT - cycle_now;
 			sms4470_usb_ctx.usb_buf_wr += I2SC_BUFFER_SIZE;
 			if (sms4470_usb_ctx.buf_end<=sms4470_usb_ctx.usb_buf_wr)

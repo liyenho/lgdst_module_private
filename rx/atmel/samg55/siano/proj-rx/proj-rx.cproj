@@ -665,6 +665,9 @@
     <Compile Include="src\ASF\sam\drivers\i2sc\i2sc.c">
       <SubType>compile</SubType>
     </Compile>
+    <Compile Include="src\cpld.c">
+      <SubType>compile</SubType>
+    </Compile>
     <Compile Include="src\si446x\app\GPS.c">
       <SubType>compile</SubType>
     </Compile>
@@ -711,9 +714,6 @@
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="src\si446x\radio\core\spi.h">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="src\si446x\radio\cpld.c">
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="src\si446x\radio\radio_comm.c">

@@ -58,16 +58,7 @@ unsigned int dbg_usbtransferfail=0;
 extern unsigned char trig500ms;
 extern uint8_t mon_ts47bad_cnt;
 
-static inline void usb_write_buf(void *pb)
-{
-	int written=0, size = I2SC_BUFFER_SIZE;
-	do {
-		iram_size_t b = size-udi_cdc_write_buf(pb, size);
-		pb += b;
-		size -= b;
-		written += b;
-	} while (I2SC_BUFFER_SIZE != written);
-}
+/*static inline*/ extern void usb_write_buf1(void *pb, int size);
 
 /**********************************************************************************************************
  * \brief Interrupt handler for the RTT.
@@ -176,7 +167,9 @@ void RTT_Handler(void)
 		udi_cdc_lvl = udi_cdc_multi_get_free_tx_buffer(0);
 		if(udi_cdc_lvl > I2SC_BUFFER_SIZE)
 		{
-		  usb_write_buf(gs_uc_rbuffer+((unsigned int)spibuff_rdptr*(I2SC_BUFFER_SIZE/4)) );  //burst out a usb transfer
+		  usb_write_buf1(
+		  		gs_uc_rbuffer+((unsigned int)spibuff_rdptr*(I2SC_BUFFER_SIZE/4)),
+		  		I2SC_BUFFER_SIZE );  //burst out a usb transfer
 #ifdef _TST_RDO_CTL_ENCAP_
 		uint32_t *pbt, pid, mde, usr, bsz;
 		  pbt=gs_uc_rbuffer+((unsigned int)spibuff_rdptr*(I2SC_BUFFER_SIZE/4));

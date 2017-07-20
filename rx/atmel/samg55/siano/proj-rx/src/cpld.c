@@ -176,6 +176,9 @@ void Flash_Read(uint32_t len, uint32_t *data) {
 	}
 }
 
+ #ifdef FWM_DNLD_DBG
+   extern void usb_write_buf1(void *pb, int size);
+ #endif
 /* CPLD image upgrade procedures */
  void download_cpld_fw(cpld_flash_map* fdo, uint32_t *upgrade_fw_hdr )
  {
