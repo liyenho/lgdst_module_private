@@ -117,4 +117,25 @@ void cap_bank_calibrate();
  #ifdef CTRL_DYNAMIC_MOD
   void process_range_mode(U8 bMain_IT_Status);
  #endif
+
+  #include <string.h>
+  #include "asf.h"
+  #include <udd.h>
+  #include "main.h"
+
+  extern void si4463_radio_cb();
+  extern uint32_t fifolvlcalc(uint32_t wrptr, uint32_t rdptr, uint32_t fifodepth);
+  extern uint32_t wrptr_inc(uint32_t *wrptr,  uint32_t *rdptr, uint32_t fifodepth, int step);
+  extern uint32_t rdptr_inc(uint32_t *wrptr,  uint32_t *rdptr, uint32_t fifodepth, int step);
+  extern volatile bool ctrl_tdma_lock, ctrl_tdma_enable;
+  extern unsigned char tpacket_grp[RADIO_GRPPKT_LEN],
+  												rpacket_grp[RADIO_GRPPKT_LEN+RADIO_INFO_LEN];
+  extern unsigned char gs_rdo_tpacket_ovflw;
+  extern volatile uint32_t wrptr_rdo_tpacket, wrptr_rdo_rpacket,
+  									rdptr_rdo_tpacket, rdptr_rdo_rpacket;
+  extern unsigned int *gp_rdo_rpacket;
+  extern volatile uint32_t gs_rdo_rpacket[RDO_RPACKET_FIFO_SIZE*RDO_ELEMENT_SIZE];
+
+  // usb control command portal
+  void usb_ctrl_cmd_portal(udd_ctrl_request_t *udd_g_ctrlreq);
 #endif /* RADIO_H_ */
