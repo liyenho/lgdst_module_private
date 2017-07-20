@@ -160,8 +160,6 @@ Pdc *g_p_spim_pdc [1+2]/*fpga/sms, video, radio ctrl/sts, liyenho*/,*g_p_spis_pd
 Pdc *g_p_i2st_pdc, *g_p_i2sr_pdc;
 struct i2s_dev_inst dev_inst_i2s;
 #ifdef RADIO_SI4463
- static uint8_t tune_cap_str[] = {RF_GLOBAL_XO_TUNE_2}; // used by cap val tuning process internally
-
 volatile uint32_t gs_rdo_tpacket[RDO_TPACKET_FIFO_SIZE*RDO_ELEMENT_SIZE] = {0xffffffff};
 volatile uint32_t tpacket_idle[RDO_ELEMENT_SIZE];
 unsigned char tpacket_grp[RADIO_GRPPKT_LEN];
