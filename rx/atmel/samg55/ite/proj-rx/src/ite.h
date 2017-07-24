@@ -1,5 +1,5 @@
-#ifndef _SMS_H_
-#define _SMS_H_ // detailed sms4470 header
+#ifndef _ITE_H_
+#define _ITE_H_ // detailed it9137 header
 #ifdef CONF_BOARD_USB_TX
 #include "main.h"
 #define LO_Frequency 							/*1583000*/ 1686000
@@ -25,4 +25,4 @@
 		uint32_t rsize, uint32_t ch);
 	extern void twi_sms4470_handler(const uint32_t id, const uint32_t index);
 #endif //CONF_BOARD_USB_TX
-#endif // _SMS_H_
+#endif // _ITE_H_
