@@ -1551,6 +1551,26 @@ system_restart:  // system restart entry, liyenho
 		if (system_main_restart ) goto system_restart;
 		if (system_upgrade)
 			upgrade_sys_fw(system_upgrade);
+		  // ctrl RX Processing -----------------------------------------------
+		if(si4463_radio_started)
+		{
+	  #ifdef TEMPERATURE_MEASURE
+				static int once = false;
+				if (!once) {
+					vRadio_StartTx(pRadioConfiguration->Radio_ChannelNumber); // continued transmit & stop listening, liyenho
+					once = 1;
+				}
+	  #endif
+	  		cap_bank_calibrate();
+	#ifdef CTRL_DYNAMIC_MOD
+			si446x_get_int_status(0xff, 0xff, 0xff);
+			if (Si446xCmd.GET_INT_STATUS.PH_PEND & SI446X_CMD_GET_INT_STATUS_REP_PH_PEND_PACKET_SENT_PEND_BIT)
+				bMain_IT_Status = SI446X_CMD_GET_INT_STATUS_REP_PH_PEND_PACKET_SENT_PEND_BIT;
+			else if(Si446xCmd.GET_INT_STATUS.PH_PEND & SI446X_CMD_GET_INT_STATUS_REP_PH_PEND_PACKET_RX_PEND_BIT)
+				bMain_IT_Status = SI446X_CMD_GET_INT_STATUS_REP_PH_PEND_PACKET_RX_PEND_BIT;
+	  		process_range_mode(bMain_IT_Status);
+	#endif
+		}//if(si4463_radio_started)
 		if (!stream_flag) goto _reg_acs; // stop TS stream if flag isn't true, liyenho
 
 #ifdef RX_SPI_CHAINING
@@ -1591,27 +1611,6 @@ system_restart:  // system restart entry, liyenho
 
 	  if(ctrl_sndflag ==1)  {
 		ctrl_ledstate = 0;  }
-
-	  // ctrl RX Processing -----------------------------------------------
-	if(si4463_radio_started)
-	{
-  #ifdef TEMPERATURE_MEASURE
-			static int once = false;
-			if (!once) {
-				vRadio_StartTx(pRadioConfiguration->Radio_ChannelNumber); // continued transmit & stop listening, liyenho
-				once = 1;
-			}
-  #endif
-  		cap_bank_calibrate();
-#ifdef CTRL_DYNAMIC_MOD
-		si446x_get_int_status(0xff, 0xff, 0xff);
-		if (Si446xCmd.GET_INT_STATUS.PH_PEND & SI446X_CMD_GET_INT_STATUS_REP_PH_PEND_PACKET_SENT_PEND_BIT)
-			bMain_IT_Status = SI446X_CMD_GET_INT_STATUS_REP_PH_PEND_PACKET_SENT_PEND_BIT;
-		else if(Si446xCmd.GET_INT_STATUS.PH_PEND & SI446X_CMD_GET_INT_STATUS_REP_PH_PEND_PACKET_RX_PEND_BIT)
-			bMain_IT_Status = SI446X_CMD_GET_INT_STATUS_REP_PH_PEND_PACKET_RX_PEND_BIT;
-  		process_range_mode(bMain_IT_Status);
-#endif
-	}//if(si4463_radio_started)
 #endif //RX_SPI_CHAINING
 #ifdef TIME_ANT_SW
 	extern uint32_t startup_video_tm,

@@ -1620,20 +1620,6 @@ bypass:
 			start_video_subsystem();
 			start_video_flag = false;
 		}
-		if (!stream_flag) goto _reg_acs; // stop TS stream if flag isn't true, liyenho
-#ifdef TIME_ANT_SW
-		else /*if (stream_flag)*/ {
-			tick_curr_antv = *DWT_CYCCNT;
-			tick_del_antv= timedelta(timedelta_reset,
-																	tick_curr_antv,
-																	tick_prev_antv);
-			// toggle every three seconds
-			if (3*120000000<tick_del_antv)	{
-				vid_ant_switch = true; // activate vid ant sw
-				tick_prev_antv = tick_curr_antv;
-			}
-		}
-#endif
 #ifdef RADIO_SI4463
   #ifdef TEMPERATURE_MEASURE
     static int once = false;
@@ -1676,6 +1662,20 @@ bypass:
  	ctrl_buffer_send_ur(rpacket_grp); // send constant 30 bytes to host
   	ctrl_buffer_recv_ur(tpacket_grp);  // receive variable bytes from host
  #endif
+#endif
+		if (!stream_flag) goto _reg_acs; // stop TS stream if flag isn't true, liyenho
+#ifdef TIME_ANT_SW
+		else /*if (stream_flag)*/ {
+			tick_curr_antv = *DWT_CYCCNT;
+			tick_del_antv= timedelta(timedelta_reset,
+																	tick_curr_antv,
+																	tick_prev_antv);
+			// toggle every three seconds
+			if (3*120000000<tick_del_antv)	{
+				vid_ant_switch = true; // activate vid ant sw
+				tick_prev_antv = tick_curr_antv;
+			}
+		}
 #endif
 		// start usb rx line
 #ifndef CTRL_RADIO_ENCAP
