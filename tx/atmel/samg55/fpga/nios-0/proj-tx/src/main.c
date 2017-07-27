@@ -1681,7 +1681,6 @@ bypass:
 		if (system_main_restart ) goto system_restart;
 	if (system_upgrade)
 		upgrade_sys_fw(system_upgrade);
-		if (!stream_flag) goto _reg_acs; // stop TS stream if flag isn't true, liyenho
 #ifdef RADIO_SI4463
   #ifdef TEMPERATURE_MEASURE
     static int once = false;
@@ -1715,6 +1714,7 @@ bypass:
 	process_range_mode(tick_curr, tick_prev);
  #endif
 #endif
+		if (!stream_flag) goto _reg_acs; // stop TS stream if flag isn't true, liyenho
 		// start usb rx line
 		pusb = (1 & usbfrm) ?((uint8_t*)gs_uc_tbuffer)+I2SC_BUFFER_SIZE : gs_uc_tbuffer;
   #ifdef MEDIA_ON_FLASH
