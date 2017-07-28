@@ -52,10 +52,6 @@ volatile uint32_t *DEMCR = (uint32_t *)0xE000EDFC;
   volatile uint8_t spi_radio_done = false;
   volatile uint8_t spi_dma_mode = false;
 #endif
-#ifdef CONFIG_ADI_6612
-	#define CPLD_6612_TRIG		PIO_PA15
-  volatile uint32_t num_6612_regs = 0;
-#endif
   volatile uint32_t fc_siano_tuned = 482000000;
 static volatile bool main_b_cdc_enable = false;
   /** The address for TWI IT951X */
