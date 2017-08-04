@@ -136,7 +136,8 @@ volatile uint32_t upgrade_fw_hdr[FW_UPGRADE_HDR_LEN/sizeof(int)]={-1} ;
   extern volatile bool usb_tgt_active ;
 #endif
  // host to fpga/6612 ctrl/sts buffer
-/*static*/ uint32_t gs_uc_htbuffer[(USB_HOST_MSG_LEN+HOST_BUFFER_SIZE+3)/sizeof(int)];
+/*static*/ uint32_t gs_uc_htbuffer[(USB_HOST_MSG_LEN+HOST_BUFFER_SIZE+3)/sizeof(int)],
+										gs_uc_htbuffer_tm[(USB_HOST_MSG_LEN+HOST_BUFFER_SIZE+3)/sizeof(int)];
 /*static*/ uint32_t gs_uc_hrbuffer[(USB_HOST_MSG_LEN+HOST_BUFFER_SIZE+3)/sizeof(int)];
   //volatile bool i2c_read_done = false;
   volatile context_it951x ctx_951x={0};
@@ -1916,7 +1917,14 @@ payload_next:
 	if (USB_ITE_FW_VAL == udd_g_ctrlreq.req.wValue
 		&& ITE_FW_HDR_LEN != udd_g_ctrlreq.req.wLength)
 		return false ;
-	udd_set_setup_payload( gs_uc_htbuffer, udd_g_ctrlreq.req.wLength);
+	if (USB_HOST_MSG_TX_VAL == udd_g_ctrlreq.req.wValue &&
+			0!=ctx_951x.it951x_access &&	(!ctx_951x.i2c_done_rd || !ctx_951x.i2c_done_wr))
+		{
+			udd_set_setup_payload( gs_uc_htbuffer_tm, udd_g_ctrlreq.req.wLength);
+			return; // don't interfere with cur task
+		}
+	else
+		udd_set_setup_payload( gs_uc_htbuffer, udd_g_ctrlreq.req.wLength);
 	udd_g_ctrlreq.callback = host_usb_cb;
 	return true;
 }
