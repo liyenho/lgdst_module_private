@@ -1951,14 +1951,14 @@ volatile bool main_usb_host_reply()
 				USB_HOST_MSG_LEN+(ps->dcnt-1)*sizeof(uint8_t));
 			if(ps->access == IT951X_READ) {
 				if(ctx_951x.i2c_done_rd == false) {
-					((dev_access*)gs_uc_hrbuffer)->dcnt= (uint8_t)-128;
+					((dev_access*)gs_uc_hrbuffer)->access= (uint8_t)-128;
 				}
 				else if (ctx_951x.it951x_err_rd !=TWI_SUCCESS) {
-					((dev_access*)gs_uc_hrbuffer)->dcnt= (uint8_t)-127;
+					((dev_access*)gs_uc_hrbuffer)->access= (uint8_t)-127;
 				}
 	        else if(ctx_951x.it951x_access !=IT951X_READ) {
 	          //error: status request, when read request not yet initiated.
-	          ((dev_access*)gs_uc_hrbuffer)->dcnt=(uint8_t)-126;
+	          ((dev_access*)gs_uc_hrbuffer)->access=(uint8_t)-126;
 	        }
 				else {
    	       ctx_951x.it951x_access = 0; // invalidate for next access
@@ -1969,14 +1969,14 @@ volatile bool main_usb_host_reply()
 				USB_HOST_MSG_LEN-sizeof(ps->data[0]));
 			if(ps->access == IT951X_WRITE) {
 				if(ctx_951x.i2c_done_wr == false) {
-					((dev_access*)gs_uc_hrbuffer)->dcnt= (uint8_t)-128;
+					((dev_access*)gs_uc_hrbuffer)->access= (uint8_t)-128;
 				}
 				else if (ctx_951x.it951x_err_wr !=TWI_SUCCESS) {
-					((dev_access*)gs_uc_hrbuffer)->dcnt= (uint8_t)-127;
+					((dev_access*)gs_uc_hrbuffer)->access= (uint8_t)-127;
 				}
 				else if(ctx_951x.it951x_access !=IT951X_WRITE) {
 					//error: status request, when write request not yet initiated.
-					((dev_access*)gs_uc_hrbuffer)->dcnt=(uint8_t)-126;
+					((dev_access*)gs_uc_hrbuffer)->access=(uint8_t)-126;
 				}
 				else {
 					ctx_951x.it951x_access = 0; // invalidate for next access
