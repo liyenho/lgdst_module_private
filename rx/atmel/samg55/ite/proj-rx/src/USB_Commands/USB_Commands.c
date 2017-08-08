@@ -14,6 +14,147 @@
 #include "main.h"
 #include "radio.h"
 
+#ifdef  RADIO_SI4463
+#ifdef CONFIG_ON_FLASH
+ extern	uint32_t ul_page_addr_ctune, // 1st atmel reg on flash
+									// temperature @ current tuning @ 2nd atmel reg on flash
+									ul_page_addr_mtemp,
+									ul_page_addr_bootapp;
+#endif
+ extern volatile uint8_t spi_dma_mode;
+extern void recalibrate_capval (void* ul_page_addr_mtemp, uint8_t median);
+/*static*/ void si4463_radio_cb() {
+	if (udd_g_ctrlreq.payload_size < udd_g_ctrlreq.req.wLength)
+	return; // invalid call
+	else if (RADIO_STARTUP_IDX == udd_g_ctrlreq.req.wIndex) {
+		spi_dma_mode = false;
+		/* init radio stats obj */
+		{
+			for (int j=0; j<CTRL_CTX_LEN; j++) {
+				r4463_sts.ctrl_bits_ctx[j] = LONG_RNG;
+			}
+			r4463_sts.bw_ctrl_bits = LONG_RNG;
+			r4463_sts.errPerAcc =0;
+			r4463_sts.loop_cnt= 0;
+		}
+		vRadio_Init();
+	#ifdef CONFIG_ON_FLASH
+		uint8_t median = *(uint8_t*)ul_page_addr_ctune;
+		if (0xff != median)  // adjust cap bank value per stored const
+			recalibrate_capval((void*)ul_page_addr_mtemp, median);
+	#endif
+		{
+			  for(int i=0;i<2*RDO_ELEMENT_SIZE;i++)
+			  gs_rdo_tpacket[i]=0xc5c5c5c5;
+		}
+#ifndef RX_SPI_CHAINING
+		pio_set(PIOB, PIO_PB9); // enable TS gate
+#endif
+		si4463_radio_started = true;
+		ctrl_tdma_enable = true;
+	}
+	else if (RADIO_CHSEL_IDX == udd_g_ctrlreq.req.wIndex) {
+		if (0 != ctrl_band_select(udd_g_ctrlreq.req.wLength, (U8*)gs_uc_hrbuffer))
+			return ;  // cmd error or time out...
+	}
+	else if (RADIO_CTUNE_IDX == udd_g_ctrlreq.req.wIndex) {
+		uint8_t ctune = *(U8*)gs_uc_hrbuffer;
+		si446x_set_property1( 0x0, 0x1, 0x0, ctune ); //si446x_set_property shall crash...
+	}
+	else if (RADIO_DATA_TX_IDX == udd_g_ctrlreq.req.wIndex) {
+		// the content was transfered to gp_rdo_tpacket by main_vender_specific();
+		// The radio send is driven by radio receive, so no actions needed here
+		unsigned int wrptr_tmp1 = wrptr_rdo_tpacket;
+		unsigned int wrptr_tmp2;
+		unsigned int ovflag1,ovflag2;
+		ovflag1 = wrptr_inc(&wrptr_tmp1,&rdptr_rdo_tpacket,RDO_TPACKET_FIFO_SIZE,1);
+		wrptr_tmp2=wrptr_tmp1;
+		ovflag2 = wrptr_inc(&wrptr_tmp2,&rdptr_rdo_tpacket,RDO_TPACKET_FIFO_SIZE,1);
+		if(ovflag1 || ovflag2){
+		;}
+		else{
+		gp_rdo_tpacket = gs_rdo_tpacket + (RDO_ELEMENT_SIZE*wrptr_tmp1);
+		memcpy(gp_rdo_tpacket,tpacket_grp,/*RADIO_PKT_LEN*/RADIO_GRPPKT_LEN/2); // fixed
+		((uint8_t *)gp_rdo_tpacket)[RADIO_GRPPKT_LEN/2/*stepped on Rate Control Status byte*/]=0x80; //set grp header flag
+		gp_rdo_tpacket = gs_rdo_tpacket + (RDO_ELEMENT_SIZE*wrptr_tmp2);
+		memcpy(gp_rdo_tpacket,tpacket_grp+(RADIO_GRPPKT_LEN/2),/*RADIO_PKT_LEN*/RADIO_GRPPKT_LEN/2);// fixed
+		((uint8_t *)gp_rdo_tpacket)[RADIO_GRPPKT_LEN/2/*stepped on Rate Control Status byte*/]=0x00; //set grp payload flag
+		wrptr_rdo_tpacket = wrptr_tmp2;
+		}
+	}
+	else if (RADIO_PAIRID_IDX == udd_g_ctrlreq.req.wIndex) {
+		uint8_t* pv = (U8*)gs_uc_hrbuffer;
+		uint8_t idleflag=1, pairingidflag=1, valb;
+		for (int j=0; j<HOP_ID_LEN; j++) {
+		  valb= *(pv+j);
+		  if(valb!=0) idleflag=0;
+		  if((j<HOP_ID_LEN-1)&(valb!=0)) pairingidflag=0;
+		  if((j==HOP_ID_LEN-1)&(valb!=1)) pairingidflag=0;
+			*(hop_id+j) = *(pv+j);
+		}
+		if(idleflag) hop_state = IDLE;
+		else if(pairingidflag) hop_state = PAIRING ;
+		else hop_state = PAIRED ;
+
+		if(hop_state== IDLE){
+			ctrl_tdma_enable = false;
+			ctrl_tdma_lock = false;
+		}
+		else if (hop_state == PAIRED) {
+				int id=0, bit = 0;
+				id |= *(hop_id+0) & (1<<bit); bit+=1 ;
+				id |= *(hop_id+2) & (1<<bit); bit+=1 ;
+				id |= *(hop_id+4) & (1<<bit); bit+=1 ;
+				id |= *(hop_id+5) & (1<<bit); bit+=1 ;
+				id |= *(hop_id+7) & (1<<bit); bit+=1 ;
+				id |= *(hop_id+9) & (1<<bit); bit+=1 ;
+				// calculated hop id from PAIR ID mode
+#if false
+				fhop_offset = (CHTBL_SIZE>id) ? id : id-CHTBL_SIZE ;
+				fhop_base=0; //TBD for 50ch hop case
+#else // accommodate further frequency shift algorithm too, liyenho
+				int fshf=0;
+				bit = 0;
+				fshf |= *(hop_id+1) & (1<<bit); bit+=1 ;
+				fshf |= *(hop_id+3) & (1<<bit); bit+=1 ;
+				fshf |= *(hop_id+6) & (1<<bit); bit+=1 ;
+				fshf |= *(hop_id+8) & (1<<bit); bit+=1 ;
+				fhop_offset = (CHTBL_SIZE>id) ? id : id-CHTBL_SIZE ;
+				fhop_base = (NUM_FREQ_SHIFT>fshf) ? fshf : fshf-NUM_FREQ_SHIFT ;
+#endif
+				if(HOP_2CH_ENABLE) {
+				  int i;
+				  for(i=0;i<10;i++)
+				    fhop_base= fhop_base + (*(hop_id+i));
+				  fhop_base =( 1+(  (fhop_base & 0x0f)+((fhop_base>>4)&0x0f)&0x0f  ) )*2;
+				            //add all bytes, then, add the two 4bitNibbles ---> range (1-16)*2
+				  fhop_offset = WRAP_OFFSET(fhop_base+HOP_2CH_OFFSET0);
+				}
+				ctrl_tdma_enable = true;
+				ctrl_tdma_lock = true; // tdd activity assumed to be active
+		}
+		else //pairing
+		{
+			fhop_base = 0;
+			fhop_offset = HOP_2CH_ENABLE?WRAP_OFFSET(HOP_2CH_OFFSET0):0;
+			ctrl_tdma_enable = true;
+		}
+		// configure the channel for listening
+		//   NO NEED: since RX is master, and will set the channel when prior to sending (see systick)
+	}
+	else if (RADIO_HOPLESS_IDX == udd_g_ctrlreq.req.wIndex) {
+			memcpy(&fhopless, // set hopless section from user
+								udd_g_ctrlreq.payload,
+								sizeof(fhopless));
+	}
+	else if (BASE_GPS_IDX == udd_g_ctrlreq.req.wIndex){
+		//update base GPS struct
+		BaseLocation.latitude = Degrees_To_Radians(*(float *)gs_uc_hrbuffer);
+		BaseLocation.longitude = Degrees_To_Radians(*((float *)gs_uc_hrbuffer+1));
+	}
+}
+#endif
+
 extern volatile capv_tune_t si4463_factory_tune;
 extern volatile ctrl_radio_stats r4463_sts;
 
