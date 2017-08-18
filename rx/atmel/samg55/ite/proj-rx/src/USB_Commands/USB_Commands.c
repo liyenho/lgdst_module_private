@@ -13,6 +13,7 @@
 #include "USB_Commands.h"
 #include "main.h"
 #include "radio.h"
+#include "GPS.h"
 
 #ifdef  RADIO_SI4463
 #ifdef CONFIG_ON_FLASH
@@ -22,6 +23,14 @@
 									ul_page_addr_bootapp;
 #endif
  extern volatile uint8_t spi_dma_mode;
+ extern int fhop_base, fhopless;
+ extern int fhop_idx, fhop_offset;
+ extern unsigned int *gp_rdo_tpacket ;
+ extern volatile uint32_t gs_rdo_tpacket[RDO_TPACKET_FIFO_SIZE*RDO_ELEMENT_SIZE];
+ extern uint8_t hop_id[HOP_ID_LEN]; 
+ extern enum pair_mode hop_state;
+ extern volatile ctrl_radio_stats  r4463_sts;
+ extern volatile bool si4463_radio_started;
 extern void recalibrate_capval (void* ul_page_addr_mtemp, uint8_t median);
 /*static*/ void si4463_radio_cb() {
 	if (udd_g_ctrlreq.payload_size < udd_g_ctrlreq.req.wLength)

@@ -88,8 +88,8 @@ extern volatile bool udi_cdc_data_running; // from udi_cdc.c, liyenho
 	/*static*/ int timedelta(bool reset, unsigned int bignum, unsigned int smallnum);
 	static bool fhop_dir, timedelta_reset ; //to handle system restart
 	/*static*/ uint8_t hop_id[HOP_ID_LEN]; // 10 byte hop id from host
-	static int fhop_idx= 0, fhop_offset = HOP_2CH_ENABLE?WRAP_OFFSET(HOP_2CH_OFFSET0):0; //to produce frequency hopping sequence
-	static int fhop_base=0, fhopless= 0/*can be 1, 2 or 3*/;
+	/*static*/ int fhop_idx= 0, fhop_offset = HOP_2CH_ENABLE?WRAP_OFFSET(HOP_2CH_OFFSET0):0; //to produce frequency hopping sequence
+	/*static*/ int fhop_base=0, fhopless= 0/*can be 1, 2 or 3*/;
   /*static*/ enum pair_mode hop_state;
   	volatile unsigned char ynsdbyte ; //Take care in Rate Control Section!!! liyenho
 #endif
