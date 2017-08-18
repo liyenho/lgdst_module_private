@@ -1402,6 +1402,7 @@ bypass:
 		vRadio_Init();
 	#ifdef CONFIG_ON_FLASH
 		uint8_t median = *(uint8_t*)ul_page_addr_ctune;
+extern void recalibrate_capval (void* ul_page_addr_mtemp, uint8_t median);
 		if (0xff != median)  // adjust cap bank value per stored const
 			recalibrate_capval((void*)ul_page_addr_mtemp, median);
 	#endif

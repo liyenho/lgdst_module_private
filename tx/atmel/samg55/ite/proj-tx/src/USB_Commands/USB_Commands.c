@@ -27,7 +27,17 @@
 #endif
  extern volatile uint8_t spi_dma_mode;
  extern volatile bool si4463_radio_started;
+ extern int fhop_base, fhopless;
+ extern int  fhop_offset;
+ extern unsigned int *gp_rdo_tpacket;
+ extern volatile uint32_t gs_rdo_tpacket[RDO_TPACKET_FIFO_SIZE*RDO_ELEMENT_SIZE];
+ extern uint8_t hop_id[HOP_ID_LEN];
+ extern enum pair_mode hop_state;
+ extern volatile ctrl_radio_stats  r4463_sts;
+ extern unsigned char tpacket_grp[RADIO_GRPPKT_LEN];
 extern void recalibrate_capval (void* ul_page_addr_mtemp, uint8_t median);
+extern void ctrl_hop_global_update(bool listen);
+extern int hop_chn_sel(int offset);
 /*****************************************************************************/
  /*static*/ void si4463_radio_cb() {
 	 if (udd_g_ctrlreq.payload_size < udd_g_ctrlreq.req.wLength)
