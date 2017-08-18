@@ -304,12 +304,15 @@ next:
 		  pbt=gs_uc_rbuffer+((unsigned int)spibuff_rdptr*(I2SC_BUFFER_SIZE/4));
 		uint8_t *pbi= ((uint8_t*)pbt)+/*sizeof(ts_rdo_hdr)*/7;
 		for (i=0; i<I2SC_BUFFER_SIZE/188; i++) {
+			if (*(pbt+0) & 0x00000080) // TS error indicator
+				goto usr_next; // abandon this packet
 			pid = *(pbt+0) & 0xff00001f;
 			mde = *(pbt+0) & 0x00ff0000;
 			usr = *(pbt+1) & 0x000000ff;
 			if (PID_CTL ==pid && MDE_CTL ==mde && USR_CTL ==usr) {
 				// radio control packet found
 				bsz = (*(pbt+1) & 0xff000000)>>24;
+				if (1>bsz) goto usr_next;  // invalid packet or user's joke
 				uint16_t word, *pw= (uint16_t*)(pbi+1);
 				*pbr++ = *(pbi-1); // odd position
 				for (ii=0; ii<(bsz-1)/2; ii++) {
@@ -323,6 +326,7 @@ next:
 				if ((pb_rdo_ctrl_e-188)<pbr)
 					pbr =pb_rdo_ctrl ;
 			}
+usr_next:
 			pbt += 188/4;
 			pbi += 188;
 		}
