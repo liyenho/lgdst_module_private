@@ -213,6 +213,7 @@ void RTT_Handler(void)
 		{
 #ifdef VIDEO_DUAL_BUFFER
 			uint32_t *pb, ofst=0, tcnt, cc1, cc2;
+			uint8_t tei ;
 			pb=gs_uc_rbuffer+((unsigned int)spibuff_rdptr*(I2SC_BUFFER_SIZE/4));
 			if (-1 == stream) {
 				cc = *(pb+0/4) & 0xff00001f ;
@@ -220,6 +221,12 @@ void RTT_Handler(void)
 				cc2 = *(pb+376/4) & 0xff00001f ;
 				// only process packets on video pid...
 				if (PID_VID ==cc && PID_VID ==cc1 && PID_VID ==cc2) {
+					uint8_t tei1, tei2;
+					tei = *(pb+0/4) & 0x00000080 ;
+					tei1 = *(pb+188/4) & 0x00000080 ;
+					tei2 = *(pb+376/4) & 0x00000080 ;
+					if (tei || tei1 || tei2)
+						goto next;  // don't pick up erratic packets
 					cc = *(pb+0/4) & 0x000f0000 ;
 					cc1 = *(pb+188/4) & 0x000f0000 ;
 					cc2 = *(pb+376/4) & 0x000f0000 ;
@@ -259,7 +266,8 @@ found: {
 					for (i=0; i<TSLUT_BUFFER_SIZE/ /*(188*2)*/188; i++) {
 						uint32_t cc11 = *(pbl1) & 0x000f0000,
 											pid1 = *(pbl1) & 0xff00001f;
-						if ((PID_VID ==pid1) && (cc11 == cc2)) {
+						tei = *(pbl1) & 0x00000080; // don't pick up erratic packet
+						if ((PID_VID ==pid1) && (cc11 == cc2) && !tei) {
 							memcpy(pbn, pbl1, 188);
 							pbn += 188;
 							if (I2SC_BUFFER_SIZE/188 == ++st_pos) {
