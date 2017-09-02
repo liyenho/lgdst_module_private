@@ -406,6 +406,9 @@ void twi_sms4470_handler(const uint32_t id, const uint32_t index);
 /**
  * \brief Initialize TWI as master.
  */
+#ifndef RX_SPI_CHAINING
+  void usb_write_buf_cb();
+#endif
 static void twi_master_initialize(uint32_t speed)
 {
 	/* Enable the peripheral and set TWI mode. */
@@ -822,6 +825,8 @@ fordigibest_usb_read_buf1(void* *pbuff, int size0)
 #endif
 
 #if defined(RECV_SMS4470) && !defined(RX_SPI_CHAINING)
+  volatile uint32_t cycle_cnt = 0; // global cpu cycle counter
+  volatile uint32_t cycle_delta_0,  cycle_delta_1;
   /*static*/ void usb_write_buf_cb() {
 	  volatile uint32_t cycle_now, cycle_delta;
 	  volatile static uint32_t cycle_now1, cycle_max=0, cycle_min=0x7fffffff;
@@ -2044,7 +2049,7 @@ system_restart:  // system restart entry, liyenho
 		i2c_read_cb_on = true;  // turn on i2c cb ext, liyenho
 		first_in = false ;
 	}
-	SMS4470_check_signal(&sms_dvbt_lock); // apply callback ext, liyenho
+	SMS4470_check_signal_lh(&sms_dvbt_lock); // apply callback ext, liyenho
 		usbfrm = usbfrm + 1;
 #endif //SPI_CHAINING
 _reg_acs:

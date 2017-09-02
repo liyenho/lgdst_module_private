@@ -316,7 +316,8 @@ uint32_t twi_master_read(Twi *p_twi, twi_packet_t *p_packet)
 
 	return TWI_SUCCESS;
 }
-#ifdef CONF_BOARD_USB_TX
+#include "main.h"
+#ifndef RX_SPI_CHAINING
  #include <assert.h> // declr for cb ext, liyenho
  uint32_t twi_master_cb_read(Twi *p_twi, twi_packet_cb_t *p_packet) ;
  uint32_t twi_master_cb_read(Twi *p_twi, twi_packet_cb_t *p_packet)
@@ -359,14 +360,14 @@ uint32_t twi_master_read(Twi *p_twi, twi_packet_t *p_packet)
 		status = p_twi->TWI_SR;
 		if (status & TWI_SR_NACK) {
 			p_packet->callback(); // invoke callback in case of error
-			intv_cnt_cb = (0==--intv_cnt_cb):p_packet->iters_cb:intv_cnt_cb;
+			intv_cnt_cb = (0==--intv_cnt_cb)?p_packet->iters_cb:intv_cnt_cb;
 			return TWI_RECEIVE_NACK;
 		}
 
 		if (!timeout--) {
 			p_packet->length -= cnt; // crucial info from timeout, liyenho
 			p_packet->callback(); // invoke callback in case of error
-			intv_cnt_cb = (0==--intv_cnt_cb):p_packet->iters_cb:intv_cnt_cb;
+			intv_cnt_cb = (0==--intv_cnt_cb)?p_packet->iters_cb:intv_cnt_cb;
 			return TWI_ERROR_TIMEOUT;
 		}
 
