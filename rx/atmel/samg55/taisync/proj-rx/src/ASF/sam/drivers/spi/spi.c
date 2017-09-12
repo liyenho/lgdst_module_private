@@ -244,7 +244,7 @@ spi_status_t spi_read(Spi *p_spi, uint16_t *us_data, uint8_t *p_pcs)
 	}
 
 	p_spi->SPI_TDR = SPI_TDR_TD(0xffff);  // tdr must be empty send dummy data, liyenho
-	delay_cycles(180);  // add 1.5 usec delay, what a fuck hw bug!@#$%^
+	delay_cycles(180);  // add 1.5 usec delay, what a hack hw bug!@#$%^
 	reg_value = p_spi->SPI_RDR;
 	if (spi_get_peripheral_select_mode(p_spi)) {
 		*p_pcs = (uint8_t) ((reg_value & SPI_RDR_PCS_Msk) >> SPI_RDR_PCS_Pos);
@@ -267,7 +267,7 @@ spi_status_t spi_read_byte(Spi *p_spi, uint8_t *us_data, uint8_t *p_pcs)
 	}
 
 	p_spi->SPI_TDR = SPI_TDR_TD(0xffff);  // tdr must be empty, send dummy data, liyenho
-	delay_cycles(180);  // add 1.5 usec delay, what a fuck hw bug!@#$%^
+	delay_cycles(180);  // add 1.5 usec delay, what a hack hw bug!@#$%^
 	reg_value = p_spi->SPI_RDR;
 	if (spi_get_peripheral_select_mode(p_spi)) {
 		*p_pcs = (uint8_t) ((reg_value & SPI_RDR_PCS_Msk) >> SPI_RDR_PCS_Pos);
