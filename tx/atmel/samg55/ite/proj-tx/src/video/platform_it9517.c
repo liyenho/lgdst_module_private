@@ -61,6 +61,9 @@ uint32_t it9517_loadIQ_calibration_table (const char*file_name)
 	return error;
 }
 #endif
+// pio configure for LA trigger
+#include <asf.h>  
+#include <delay.h>
 //id_bus=Bus_I2C
 //stream_type= SERIAL_TS_INPUT
 uint32_t it9517_initialize (uint8_t id_bus,TsInterface stream_type)
@@ -74,7 +77,7 @@ uint32_t it9517_initialize (uint8_t id_bus,TsInterface stream_type)
 	IT9510_reset(NULL); // reset ite before init? liyenho
 	Bus_id  =id_bus;
 	tsin_streamType = stream_type;
-
+	pio_configure(PIOA, PIO_OUTPUT_0, PIO_PA31, 0); // LA trigger pin, liyenho
 	error = IT9510_initialize (&eagle, tsin_streamType, Bus_id, IT9510User_IIC_ADDRESS);
 	if (error) goto exit;
 
@@ -300,6 +303,9 @@ uint32_t it9517_enable_transmission_mode(uint8_t enable)
 	error = IT9510_setTxModeEnable(&eagle, enable);
 	if (error){
 		//printf("IT9510 setTxModeEnable failed.\n");
+		pio_set(PIOA, PIO_PA31);
+		delay_ms(1);  // trigger LA to capture with positive going pulse of 1 ms width
+		pio_clear(PIOA, PIO_PA31);
 		goto exit;
 	}else{
 		if(enable)
