@@ -1300,16 +1300,6 @@ bypass:
 		fhop_in_search = true;
 		fhop_flag = false ;
 	}
-	if (ctrl_tdma_lock && (hop_watchdog_intv>TDMA_UNLOCK_DELAY_MS)){ //hopping not completely synced
-		//hop forward in attempt to re-establish lock
-		ctrl_hop_global_update(false);
-		ctrl_hop_global_update(true);
-
-		ctrl_tdma_lock = false;
-		fhop_in_search = true;
-		fhop_flag = false;
-		hop_watchdog_reset_cnt++;
-	}
 	//static bool control_channel_scan_complete = false;
 	 //if (!control_channel_scan_complete){
 		 //control_channel_scan_complete = Channel_Scan();
