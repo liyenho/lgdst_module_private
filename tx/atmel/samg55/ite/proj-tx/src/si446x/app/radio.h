@@ -26,7 +26,7 @@ extern const char temp_cap_table[TCTBL_SIZE] ; // lookup table for temp/cap comp
  *****************************************************************************/
 typedef struct
 {
-#if false  // for debug
+#if false
     U8   *Radio_ConfigurationArray;
 #endif
     U8   Radio_ChannelNumber;
@@ -36,7 +36,7 @@ typedef struct
     U32  Radio_Delay_Cnt_After_Reset;
 #if true
     U8   Radio_ConfigurationArray[RADIO_MAX_CONFIG_LENGTH];
-#else // for debug
+#else
 	U8   Radio_CustomPayload[RADIO_MAX_PACKET_LENGTH];
 #endif
 } tRadioConfiguration;

@@ -255,10 +255,7 @@ uint32_t twi_master_read(Twi *p_twi, twi_packet_t *p_packet)
 {
 	uint32_t status;
 	uint32_t cnt = p_packet->length;
-if (5>=cnt) {
-	cnt += 1;	// for debug, liyenho
-	cnt -=1;
-}
+
 	uint8_t *buffer = p_packet->buffer;
 	uint8_t stop_sent = 0;
 	uint32_t timeout = TWI_TIMEOUT;;
