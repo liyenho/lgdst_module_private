@@ -497,8 +497,10 @@ int start_video_subsystem(void)
 	error=it9517_set_channel_modulation( channel_Modulation,2);
 	if(error){ error=1; goto exit;}
 #if /*true*/false   // dynamic video channel selection
-	if (it9517_video_channel_select())
+	static bool boot_state = false;
+	if (boot_state && it9517_video_channel_select())
 		{ error=5; goto exit ; }
+	else boot_state = true; // bypass vchan select ops during first boot
 #else
 	error=it9517_acquire_channel(/*809000*//*720000*/706000,6000);
 	if(error){ error=2; goto exit;}

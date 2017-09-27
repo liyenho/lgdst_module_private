@@ -672,7 +672,7 @@ retry_vch_rec:
 	i = 0;
 	while ((!system_main_restart) &&
 				(RADIO_GRPPKT_LEN != i)) {
-		delay_ms(48/3);
+		delay_ms(48/3);	// current total TDMA window to be 48 ms, it may vary for european std, liyenho
 		while(!system_main_restart) {
 #if RECEIVE_MAVLINK
 			Process_MavLink_Raw_Radio_Data();
@@ -681,7 +681,12 @@ retry_vch_rec:
 				memcpy(rpacket_grp, ((MavLinkPacket*)pkt)->data, RADIO_GRPPKT_LEN);
 				break;
 			}
+#else
+			if (Get_Control_Packet(rpacket_grp))
+				break;
+#endif
 			else if (100 < timeout++) {
+				timeout = 0;
 	extern uint32_t no_recive_cnt;
 	extern volatile bool ctrl_tdma_lock,
 												fhop_in_search,
@@ -690,16 +695,9 @@ retry_vch_rec:
 				ctrl_tdma_lock = false;
 				fhop_in_search = true;
 				fhop_flag = false ;
-				timeout = 0;
 			}
-#else
-			if (Get_Control_Packet(rpacket_grp))
-				break;
-			else  // wait a while then re-check
-				delay_ms(30);
-#endif
 		}
-		for(i=0;i<RADIO_GRPPKT_LEN;i++) { // RADIO_USR_RX_LEN==RADIO_USR_TX_LEN! liyenho
+		for(i=0;i<RADIO_GRPPKT_LEN;i++) { // RADIO_USR_RX_LEN==RADIO_USR_TX_LEN
 			if ( RADIO_GRPPKT_LEN/2 != i &&
 				RADIO_GRPPKT_LEN-i-1 != rpacket_grp[i])
 				break; // signature of vid ch sel packet
