@@ -146,7 +146,7 @@ bool Queue_MavLink(MavLink_FIFO_Buffer *fifo, uint8_t *pkt){
 		//buffer is full
 		fifo->overflow_cnt++;
 		fifo->lock_obj = false;
-		//return false;  // go ahead to overrun, it should be fine, liyenho
+		return false;
 	}
 	//ok to add to buffer
 	memcpy((MavLinkPacket*)(fifo->buffer)+wrtptr_tmp, pkt, // reduce memcpy overhead
