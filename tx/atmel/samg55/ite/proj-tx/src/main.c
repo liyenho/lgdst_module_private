@@ -1231,16 +1231,6 @@ bypass:
 		fhop_in_search = true;
 		fhop_flag = false ;
 	}
-#ifdef CTRL_RADIO_ENCAP
- // removed to conserve data bandwidth on video chan, it may have to provide other services,
-	/*if (idle_msg_queue_intv> MilliSec_To_Tick(1000)){
-		//attempt to send idle message every 1 sec
-		//if Si4463 is used to send radio packets, this is handled automatically
-		Queue_Control_Idle_Packet();
-		idle_msg_queue_intv = 0;
-	}
-*/
-#endif  //CTRL_RADIO_ENCAP
  #ifdef CTRL_DYNAMIC_MOD
 	process_range_mode(tick_curr, tick_prev);
  #endif
