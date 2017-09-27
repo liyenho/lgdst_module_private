@@ -456,7 +456,6 @@ skip:
 int init_video_subsystem(void)
 {
 	uint16_t bandwidth = 6000;
-int test = 12345678; // for debug, liyenho
 	uint16_t sawBandwidth = 8000;
 	uint32_t error = ModulatorError_NO_ERROR;
 

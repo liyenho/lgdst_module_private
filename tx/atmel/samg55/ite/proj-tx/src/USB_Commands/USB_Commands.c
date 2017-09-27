@@ -128,7 +128,7 @@ void usb_ctrl_cmd_portal(udd_ctrl_request_t *udd_g_ctrlreq) {
 			   //overflow condition
 			   gs_rdo_tpacket_ovflw++;
 		    }
-		    else{  // hardcoded again;-( I had to accommodate with such fixed packet length assumption vs user packet length, liyenho
+		    else{  // hardcoded again;-( I had to accommodate with such fixed packet length assumption vs user packet length
 			   udd_set_setup_payload( tpacket_grp, RADIO_GRPPKT_LEN); //stores payload in holding buffer
 		    }
 		    udd_g_ctrlreq->callback = si4463_radio_cb; // radio callback
@@ -194,14 +194,12 @@ void usb_ctrl_cmd_portal(udd_ctrl_request_t *udd_g_ctrlreq) {
 					memcpy(rpacket_grp,partial_packet,15);
 					//copy second half of message to output buffer
 					memcpy(rpacket_grp+15,msg_header+1,15);
-					//for debug info
+					//contain debug info
 					usrvalid_flag = 5;
 					//reset first half of message flag
 					first_half_received = false;
 				}else{
 					//received second half, but first half was dropped
-					//memset(rpacket_grp, 0xd2, RADIO_GRPPKT_LEN);
-					//usrvalid_flag = 0x15;
 					memset(rpacket_grp, 0xee, RADIO_GRPPKT_LEN);
 					usrvalid_flag = 0;
 					first_half_received = false;
@@ -216,7 +214,6 @@ void usb_ctrl_cmd_portal(udd_ctrl_request_t *udd_g_ctrlreq) {
 				//message contains base station GPS info
 				//can be received either with or without FEC
 				Extract_Base_GPS_from_Control_Message(msg_header);
-				//memcpy(rpacket_grp, msg_header,RADIO_GRPPKT_LEN); //for debug
 				memset(rpacket_grp, 0xee, RADIO_GRPPKT_LEN);
 				usrvalid_flag = 0x00;
 			}

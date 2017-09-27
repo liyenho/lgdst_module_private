@@ -19,20 +19,20 @@ void Packet_Received_Routine();
 	extern uint32_t ul_page_addr_ctune, ul_page_addr_mtemp;
 	extern uint8_t tune_cap_str[];
 	// time instrumentation
-    extern volatile uint32_t *DWT_CYCCNT; 
+    extern volatile uint32_t *DWT_CYCCNT;
 	extern volatile uint32_t rpacket_idle[RDO_ELEMENT_SIZE];
   extern uint32_t rpacket_ov[RDO_ELEMENT_SIZE];
 	extern unsigned char gs_rdo_rpacket_ovflw;
 	extern volatile uint32_t wrptr_rdo_rpacket, rdptr_rdo_rpacket;
 	extern volatile unsigned char bMain_IT_Status, bMain_IT_Status_m; // as global ctrl radio intr flag...
-	extern volatile bool ctrl_tdma_enable; 
+	extern volatile bool ctrl_tdma_enable;
 	extern volatile int vid_ant_switch;
 	 extern volatile capv_tune_t si4463_factory_tune;
 	  extern bool timedelta_reset_rx ;
 	  extern volatile bool ctrl_tdma_lock;
 		extern volatile bool fhop_in_search, fhop_flag;
 	  extern unsigned int tdma_sndthr;
-	  
+
     extern unsigned int radio_mon_rxerr;
 		extern unsigned int rxnorec_intv;  // not a count but interval
 		extern unsigned char radio_mon_rcvjitter;
@@ -124,13 +124,13 @@ void recalibrate_capval (void* ul_page_addr_mtemp, uint8_t median) {
 
 void Packet_Received_Routine(void){
 	//Just received data from radio
-			//vRadio_StartRX_variableLength(pRadioConfiguration->Radio_ChannelNumber);	
+			//vRadio_StartRX_variableLength(pRadioConfiguration->Radio_ChannelNumber);
 			if (USE_915MHZ){
 				vRadio_StartRX(control_channel, RADIO_PKT_LEN);
 			}else{
 				vRadio_StartRX(control_channel,RADIO_LONG_PKT_LEN);
 			}
-			
+
 			rxnorec_intv=0;  //reset rx no receive flag
 			//check timing
 			if (!si4463_factory_tune.calib_gated) {
@@ -147,7 +147,7 @@ void Packet_Received_Routine(void){
 				if(drx_lc < (TDMA_TX_PERIOD*2/3)){
 					//end of asymm tx transmission (TODO: hardcoded for ASYMM_RATION=2
 					hop_watchdog_intv = 0;  //reset the hopping watchdog
-					
+
 					tsrxos_prev=tsrxos;
 					tsrxos++;
 					if(tsrxos>4) {
@@ -165,7 +165,7 @@ void Packet_Received_Routine(void){
 					static int drmin=40000000, drmax=0;
 					static int drmm_cnt=0;
 					drmm_cnt++;
-					
+
 					if(drmm_cnt==80){
 						drmm_cnt=0;     //atmel breakpoint setup
 						//observe: 4.1ms jitter
@@ -200,19 +200,9 @@ void Packet_Received_Routine(void){
 					}
 				}// asymm tx end processing
 				radio_mon_rxcnt++;
-				
+
 			}
 			else { // in cap value tuning phase
 				si4463_factory_tune.calib_det_rx = si4463_factory_tune.calib_det_rx + 1;
 			}
-			/************************************************************/
-			
-			/************************************************************/
-			/* FIX_ME ...
-		 			Hi Bill, can you please help to fill in this section when
-		 			Tx receive pseudo control command for antenna switch?
-		 			simply turn on the flag below, thank you very much
-					vid_ant_switch = true;
-			*/
-	
 }

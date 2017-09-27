@@ -180,84 +180,11 @@ bool TX_Active = false;
 
 static void Blink_LED(void);
 
-#define ALL_INTERRUPT_MASK  0xffffffff
-Pdc *g_p_pdc_UART;
-uint8_t uart_buffer1[1000] ={0};
-uint8_t uart_buffer2[1000] ={0};
-pdc_packet_t g_p_uart_pdc_packet;
-pdc_packet_t g_p_uart_pdc_packet2;
-
-void Configure_UART_DMA(void){
-		sam_usart_opt_t usart_console_settings = {
-			0,
-			US_MR_CHRL_8_BIT,
-			US_MR_PAR_NO,
-			US_MR_NBSTOP_1_BIT,
-			US_MR_CHMODE_NORMAL,
-			/* This field is only used in IrDA mode. */
-			0
-		};
-
-		usart_console_settings.baudrate = CONF_UART_BAUDRATE;
-
-		#if (SAMG55)
-		/* Enable the peripheral and set USART mode. */
-		flexcom_enable(BOARD_FLEXCOM);
-		flexcom_set_opmode(BOARD_FLEXCOM, FLEXCOM_USART);
-		#else
-		/* Enable the peripheral clock in the PMC. */
-		sysclk_enable_peripheral_clock(BOARD_ID_USART);
-		#endif
-
-		/* Configure USART in SYNC. master or slave mode. */
-		/*if (ul_ismaster) {
-			usart_init_sync_master(USART_BASE, &usart_console_settings, sysclk_get_cpu_hz());
-		} else {
-			usart_init_sync_slave(USART_BASE, &usart_console_settings);
-		}*/
-
-		stdio_serial_init(CONF_UART, &usart_console_settings);
-
-		/* Disable all the interrupts. */
-		usart_disable_interrupt(USART_BASE, ALL_INTERRUPT_MASK);
-
-		usart_init_rs232(USART_BASE, &usart_console_settings,
-			sysclk_get_peripheral_bus_hz(USART_BASE));
-
-		/* Enable TX & RX function. */
-		usart_enable_tx(USART_BASE);
-		usart_enable_rx(USART_BASE);
-
-		/* Configure and enable interrupt of USART. */
-		NVIC_SetPriority(USART_INT_IRQn, 0);
-
-		NVIC_EnableIRQ(USART_INT_IRQn);
-
-		usart_enable_interrupt(USART_BASE, US_IER_RXRDY /*| US_IER_TXRDY*/);
-		/* Get board USART PDC base address and enable receiver and transmitter. */
-		g_p_pdc_UART = usart_get_pdc_base(USART_BASE);
-
-		g_p_uart_pdc_packet.ul_size= UART_BUFFER_SIZE;
-		g_p_uart_pdc_packet.ul_addr = uart_buffer1;
-
-		g_p_uart_pdc_packet2.ul_size= UART_BUFFER_SIZE;
-		g_p_uart_pdc_packet2.ul_addr = uart_buffer2;
-
-		pdc_rx_init(g_p_pdc_UART, &g_p_uart_pdc_packet, &g_p_uart_pdc_packet2);
-
-		pdc_enable_transfer(g_p_pdc_UART, PERIPH_PTCR_RXTEN | PERIPH_PTCR_TXTEN);
-
-}
-
 /**
  *  \brief Configure the Console UART.
  */
-
-
 static void configure_console(void)
 {
-	Configure_UART_DMA();
-	return;
 	const usart_serial_options_t uart_serial_options = {
 		.baudrate = CONF_UART_BAUDRATE,
 #ifdef CONF_UART_CHAR_LENGTH
@@ -273,9 +200,6 @@ static void configure_console(void)
 	sysclk_enable_peripheral_clock(CONSOLE_UART_ID);
 	stdio_serial_init(CONF_UART, &uart_serial_options);
 }
-
-
-
 
 /**
  * \brief Set SPI slave transfer.
@@ -680,20 +604,26 @@ void SysTick_Handler(void)
 			if(cdelta <0) {
 				/*******************************************/
 				/*******************************************/
+	#ifndef CTRL_RADIO_ENCAP // conserve data bandwidth on video chan, it may have to provide other services, liyenho
+		#if SEND_MAVLINK
+				if (fifolvlcalc(outgoing_messages.write_pointer,outgoing_messages.read_pointer, MavLinkBufferSize) <1){
+					Queue_Idle_Mavlink();
+				}
+		#else
 				if(fifolvlcalc(wrptr_rdo_tpacket, rdptr_rdo_tpacket, RDO_TPACKET_FIFO_SIZE)<1)
 				{ //idle packet case
 					//add idle packet to the output queue
 					Queue_Control_Idle_Packet();
 				}
-
+		#endif
+	#endif
 				//setup for radio send
-				// 	rdptr_inc(&wrptr_rdo_tpacket, &rdptr_rdo_tpacket, RDO_TPACKET_FIFO_SIZE, 1);
 				gp_rdo_tpacket_l = gs_rdo_tpacket + (RDO_ELEMENT_SIZE*rdptr_rdo_tpacket);
 				snd_asymm_cnt = ASYMM_RATIO-1;
 
 				if((ctrl_tdma_rxactive==false)&& (hop_state != IDLE))
 				{//bypass if main loop receive active (flywheel collision happened)
-					// frequency hopping in the action, rec freq is superseded by this frequency too, liyenho
+					// frequency hopping in the action, rec freq is superseded by this frequency too
 						ctrl_hop_global_update(true);
 				}else{
 					radio_mon_txfailcnt++;
@@ -975,21 +905,21 @@ int main(void)
 #endif
 	/* Configure SPI interrupts for slave? only. */
 #if true  //for video now
-	NVIC_DisableIRQ(SPI_IRQn);  // spi5 peripheral instance = 21, liyenho
+	NVIC_DisableIRQ(SPI_IRQn);  // spi5 peripheral instance = 21,
 	NVIC_ClearPendingIRQ(SPI_IRQn);
 	NVIC_SetPriority(SPI_IRQn, /*0*/2);
 	NVIC_EnableIRQ(SPI_IRQn);
 #endif
-	NVIC_DisableIRQ(SPI0_IRQn);  // spi0 peripheral instance = 8, liyenho
+	NVIC_DisableIRQ(SPI0_IRQn);  // spi0 peripheral instance = 8,
 	NVIC_ClearPendingIRQ(SPI0_IRQn);
 	NVIC_SetPriority(SPI0_IRQn, /*0*/1);
 	NVIC_EnableIRQ(SPI0_IRQn);
  #ifdef RADIO_SI4463
-	NVIC_DisableIRQ(PIOA_IRQn);  // pioa radio instance = 11, liyenho
+	NVIC_DisableIRQ(PIOA_IRQn);  // pioa radio instance = 11,
 	NVIC_ClearPendingIRQ(PIOA_IRQn);
 	NVIC_SetPriority(PIOA_IRQn, /*0*/1);
 	NVIC_EnableIRQ(PIOA_IRQn);
-	NVIC_DisableIRQ(SPI2_IRQn);  // spi2 peripheral instance = 8, liyenho
+	NVIC_DisableIRQ(SPI2_IRQn);  // spi2 peripheral instance = 8,
 	NVIC_ClearPendingIRQ(SPI2_IRQn);
 	NVIC_SetPriority(SPI2_IRQn, /*0*/1);
 	NVIC_EnableIRQ(SPI2_IRQn);
@@ -1001,15 +931,15 @@ int main(void)
 		}
 	}
 	pmc_enable_periph_clk(ID_PIOA);
-  pio_set_output(PIOA, PIO_PA0, LOW, DISABLE, ENABLE);  // turn fpga into config mode, liyenho
-	//pio_set_output(PIOA, PIO_PA19, HIGH, DISABLE, ENABLE); // hold fpga reset (no reset), liyenho
+  pio_set_output(PIOA, PIO_PA0, LOW, DISABLE, ENABLE);  // turn fpga into config mode,
+	//pio_set_output(PIOA, PIO_PA19, HIGH, DISABLE, ENABLE); // hold fpga reset (no reset),
  #ifndef RADIO_SI4463
 	pio_set_output(PIOA, RED_LED, HIGH, DISABLE, ENABLE);
  #else //RADIO_SI4463
 	pio_set_output(PIOB, RED_LED, HIGH, DISABLE, ENABLE);
 	pio_set_output(PIOB, GREEN_LED, HIGH, DISABLE, ENABLE);
  #endif
-	twi_master_initialize(TWI_CLK); // communicate with it951x, liyenho
+	twi_master_initialize(TWI_CLK); // communicate with it951x,
 	spi_master_initialize(0, SPI0_MASTER_BASE, BOARD_FLEXCOM_SPI0);// 2072 ctrl pipe
   #ifdef RADIO_SI4463
 	spi_master_initialize(2, SPI2_MASTER_BASE, BOARD_FLEXCOM_SPI2);// radio data pipe
@@ -1031,7 +961,7 @@ int main(void)
 				sizeof(backup)-NUM_OF_FPGA_REGS-1 -4 -4)
 		}
 #endif
-system_restart:  // system restart entry, liyenho
+system_restart:  // system restart entry,
 	system_main_restart = false;
 #ifdef  RADIO_SI4463
   si4463_radio_started = false;
@@ -1040,7 +970,7 @@ system_restart:  // system restart entry, liyenho
 	timedelta_reset = timedelta_reset_rx = true;
 	fhop_in_search = true;
 	fhop_flag = false ;
-	// start up with constant offset, we'll modify to adopt pairing reset later, liyenho
+	// start up with constant offset, we'll modify to adopt pairing reset later,
 	fhop_base = 0;
     fhop_offset = HOP_2CH_ENABLE?WRAP_OFFSET(HOP_2CH_OFFSET0):fhop_base;
 	fhop_dir = true;  // hop forward when startup
@@ -1061,7 +991,7 @@ system_restart:  // system restart entry, liyenho
 	pio_set_output(PIOA, PIO_PA24, LOW, DISABLE, ENABLE);
  #endif
 #ifndef MEDIA_ON_FLASH
- 	while (!udi_cdc_data_running) ; // wait for cdc data intf ready, liyenho
+ 	while (!udi_cdc_data_running) ; // wait for cdc data intf ready,
 #endif
 
 #ifdef MEDIA_ON_FLASH
@@ -1069,7 +999,7 @@ system_restart:  // system restart entry, liyenho
 		int w = *(uint32_t*)(~0x3&page_addr_bypass);
 		int s = (page_addr_bypass & 0x3) * 8;
 		if (true!= (0xff & (w >>=  s))) {
-			while (!udi_cdc_data_running) ; // wait for cdc data intf ready, liyenho
+			while (!udi_cdc_data_running) ; // wait for cdc data intf ready,
 		}
  #endif
 #endif
@@ -1180,7 +1110,7 @@ bypass:
   	pio_set_output(PIOA, PIO_PA26, HIGH, DISABLE, ENABLE); // rf2072 out of reset
   	pio_set_output(PIOA, CPLD_2072_TRIG, HIGH, DISABLE, ENABLE); // extra trigger line for 2072 access with cpld
  #endif
-	init_4463();  // be sure to place this function before next line! liyenho
+	init_4463();  // be sure to place this function before next line!
 	rdptr_rdo_tpacket=0;
 	wrptr_rdo_tpacket=0;
 	rdptr_rdo_rpacket=0;
@@ -1213,8 +1143,9 @@ bypass:
 		upgrade_sys_fw(system_upgrade);
 #if USE_UART
 	/* Initialize the console UART. */
-		configure_console(); // used for generic system messages logging, liyenho
-	COMPILER_WORD_ALIGNED
+	//configure_console(); // used for generic system messages logging,
+	Configure_UART_DMA(); // using uart dma mode, no other configs required,
+	/*COMPILER_WORD_ALIGNED
 	static usb_cdc_line_coding_t uart_coding; // used for si446x radio dev, liyenho
 	  uart_coding.dwDTERate = CPU_TO_LE32(UDI_CDC_DEFAULT_RATE);
 	  uart_coding.bCharFormat = UDI_CDC_DEFAULT_STOPBITS;
@@ -1222,7 +1153,7 @@ bypass:
 	  uart_coding.bDataBits = UDI_CDC_DEFAULT_DATABITS;
 	// re-config/open for si4463 ctrl with uart port, liyenho
 		uart_config(0, &uart_coding);
-		uart_open(0);
+		uart_open(0);*/
 #endif
 #ifdef RADIO_SI4463
 	r4463_sts.tick_prev = tick_prev = *DWT_CYCCNT;
@@ -1246,7 +1177,7 @@ bypass:
 		init_video_flag = true;
 	}
 	#else
-	main_loop_on = true;  // enter run time stage, liyenho
+	main_loop_on = true;  // enter run time stage,
 	#endif
 	// The main loop manages only the power mode
 	// because the USB management is done by interrupt
@@ -1268,7 +1199,7 @@ bypass:
   #ifdef TEMPERATURE_MEASURE
     static int once = false;
 		if (!once) {
-			vRadio_StartTx_No_Data(pRadioConfiguration->Radio_ChannelNumber); // continued transmit & stop listening, liyenho
+			vRadio_StartTx_No_Data(pRadioConfiguration->Radio_ChannelNumber); // continued transmit & stop listening
 			once = 1;
 		}
   #endif
@@ -1283,7 +1214,7 @@ bypass:
 	else {
 	 	rxnorec_intv += tick_curr -tick_prev;
 		hop_watchdog_intv += tick_curr -tick_prev;
-		idle_msg_queue_intv +=tick_curr- tick_prev; // corrected from same condition above, liyenho
+		idle_msg_queue_intv +=tick_curr- tick_prev; // corrected from same condition above
 	}
 
 	tick_prev = tick_curr;
@@ -1300,18 +1231,15 @@ bypass:
 		fhop_in_search = true;
 		fhop_flag = false ;
 	}
-	//static bool control_channel_scan_complete = false;
-	 //if (!control_channel_scan_complete){
-		 //control_channel_scan_complete = Channel_Scan();
-	 //}
-
 #ifdef CTRL_RADIO_ENCAP
-	if (idle_msg_queue_intv> MilliSec_To_Tick(1000)){
+ // removed to conserve data bandwidth on video chan, it may have to provide other services,
+	/*if (idle_msg_queue_intv> MilliSec_To_Tick(1000)){
 		//attempt to send idle message every 1 sec
 		//if Si4463 is used to send radio packets, this is handled automatically
 		Queue_Control_Idle_Packet();
 		idle_msg_queue_intv = 0;
 	}
+*/
 #endif  //CTRL_RADIO_ENCAP
  #ifdef CTRL_DYNAMIC_MOD
 	process_range_mode(tick_curr, tick_prev);
@@ -1322,15 +1250,14 @@ bypass:
 	Process_MavLink_Raw_Radio_Data();
 
 	//if a MavLink packet is waiting, send to host
-	MavLinkPacket pkt;
-	if (Get_MavLink(&incoming_messages,&pkt)){
+	uint8_t pkt[MAX_MAVLINK_SIZE];
+	if (Get_MavLink(&incoming_messages, pkt)){
 		//ToDo: add support for handling other types of messages
 		//e.g. messages that contain instructions for Atmel
-		uart_send_Mavlink(pkt);
-		memset(&pkt, 0x0, sizeof(pkt));
+		uart_send_Mavlink(pkt); //for efficiency
 	}
 #endif
-		if (!stream_flag) goto _reg_acs; // stop TS stream if flag isn't true, liyenho
+		if (!stream_flag) goto _reg_acs; // stop TS stream if flag isn't true
 #ifdef TIME_ANT_SW
 		else /*if (stream_flag)*/ {
 			tick_curr_antv = *DWT_CYCCNT;
@@ -1435,9 +1362,9 @@ bypass:
 					gs_uc_rbuffer/*don't care*/, 188, 1/*video*/);
 				memcpy(ptb, pusb, 188);
 				ptb += 188/4;
-				while (usb_data_done) ; // usb pipe overflow, liyenho
+				while (usb_data_done) ; // usb pipe overflow
 				usb_data_done = true;
-				pusb += 188;  // accommodate cpld to generate ts_syn/ts_valid, liyenho
+				pusb += 188;  // accommodate cpld to generate ts_syn/ts_valid
 			}
 			//ptw = pre_tbuffer;  // wrap write ptr at end, it has been done...
 			first_blk_vid = false;
@@ -1448,7 +1375,7 @@ bypass:
   		for (n=0; n<I2SC_BUFFER_SIZE/188; n++) {
 			spi_tx_transfer(pusb, 188,
 				gs_uc_rbuffer/*don't care*/, 188, 1/*video*/);
-			while (usb_data_done) ; // usb pipe overflow, liyenho
+			while (usb_data_done) ; // usb pipe overflow,
 			usb_data_done = true;
 #ifdef VIDEO_DUAL_BUFFER
 	/*apply write/read pointer update scheme in case we later use different size of TS pre-buffer other than 10*188*/
@@ -1459,13 +1386,13 @@ bypass:
 			spi_tx_transfer(ptr, 188,
 				gs_uc_rbuffer/*don't care*/, 188, 1/*video*/);
 			_PTR_UPD_(ptr, 188/4, pte, pre_tbuffer);
-			while (usb_data_done) ; // usb pipe overflow, liyenho
+			while (usb_data_done) ; // usb pipe overflow,
 			memcpy(ptw, pusb, 188);
 			_PTR_UPD_(ptw, 188/4, pte, pre_tbuffer);
 	#undef _PTR_UPD_
 			usb_data_done = true;
 #endif
-			pusb += 188;  // accommodate cpld to generate ts_syn/ts_valid, liyenho
+			pusb += 188;  // accommodate cpld to generate ts_syn/ts_valid,
 		}
 		startup_video_tm = *DWT_CYCCNT;
 		if (vid_ant_switch)
@@ -1491,7 +1418,7 @@ fill_in_ctrl_pkts:
    #else
 		spi_tx_transfer(pusb, I2SC_BUFFER_SIZE,
 			pusb1, I2SC_BUFFER_SIZE, 1/*video*/);
-		while (usb_data_done) ; // usb pipe overflow, liyenho
+		while (usb_data_done) ; // usb pipe overflow,
 		usb_data_done = true;
    #endif
   #endif
@@ -1511,7 +1438,7 @@ next:
 	if (ts_filled)
 		usbfrm = usbfrm + 1;
 _reg_acs:
-  		if (usb_host_msg && !system_main_restart) {	// host ctrl/sts link with fpga/sms process, liyenho
+  		if (usb_host_msg && !system_main_restart) {	// host ctrl/sts link with fpga/sms process,
 			usb_host_msg = false;
 //#define TEST_FLASH
  #ifdef TEST_FLASH
@@ -1562,7 +1489,7 @@ _reg_acs:
 							download_ite_fw(pt->dcnt, pt->addr, pt->data );
 							break;
 				case TS_VID_ACTIVE:
-								// now allow video spi to be active, liyenho
+								// now allow video spi to be active,
 								stream_flag = true;
 							break;
 				default: /* host msg in error */
@@ -1599,7 +1526,7 @@ void main_resume_action(void)
 	//ui_wakeup();
 }
 
-volatile bool main_usb_host_msg(void) // Attach this api to usb rx isr service, liyenho
+volatile bool main_usb_host_msg(void) // Attach this api to usb rx isr service,
 {
 	if (USB_HOST_MSG_TX_VAL != udd_g_ctrlreq.req.wValue) {
 		if (USB_ATMEL_UPGRADE_VAL != udd_g_ctrlreq.req.wValue
@@ -1643,7 +1570,7 @@ volatile bool main_usb_host_reply(void)
 	}
 		volatile dev_access *ps = (ctx_951x.i2c_overrun)?gs_uc_htbuffer_tm:gs_uc_hrbuffer1;
 	if (USB_HOST_MSG_LEN-sizeof(ps->data[0]) == udd_g_ctrlreq.req.wLength)
-		// (0==ps->dcnt) meant confirmation of write cmd, liyenho
+		// (0==ps->dcnt) meant confirmation of write cmd,
 		cnf_echo = 1;
 		// must setup packet size
 		if (!cnf_echo) {
@@ -1705,7 +1632,7 @@ bool main_usb_load_media() {
 		return false ;
 	if (USB_LOADM_LEN > udd_g_ctrlreq.req.wLength)
 		return false ;
-	// must setup max packet size! liyenho
+	// must setup max packet size!
 	udd_set_setup_payload( gs_uc_tbuffer, USB_LOADM_LEN);
 	udd_g_ctrlreq.callback = host_usb_mda_flash_cb;
  	return true;
@@ -1893,8 +1820,7 @@ void main_loop_restart() {
 }
 
 int timedelta(bool reset, unsigned int bignum, unsigned int smallnum)
-{ // what the hack on old codes doing??? liyenho
-	static int64_t bprev, sprev;
+{ static int64_t bprev, sprev;
 	int64_t bl, sl, delta;
 	if (reset) {
 		bprev = sprev = 0L; // chances to collide with 0 are less than twice hit by lightning in a day
@@ -1902,14 +1828,12 @@ int timedelta(bool reset, unsigned int bignum, unsigned int smallnum)
 #define EXTEND64(o, i, i0) o = (i < i0) ? 0x100000000+i : i;
 	EXTEND64(bl, bignum, bprev)
 	EXTEND64(sl, smallnum, sprev)
-	delta = bl - sl;	// delta shall be of 32 bit range, liyenho
+	delta = bl - sl;	// delta shall be of 32 bit range,
 #undef EXTEND64
 	bprev = bignum;
 	sprev = smallnum;
 	return (int)delta ;
 }
-
-
 
 static void Blink_LED(void){
 

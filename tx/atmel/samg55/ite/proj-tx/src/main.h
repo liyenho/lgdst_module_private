@@ -14,7 +14,7 @@
 #include <compiler.h>  // for U8/16/32 definition, liyenho
 #include "usb_protocol_cdc.h"
 
-#define USE_UART									/*1*/ 1
+#define USE_UART									/*0*/ 1
 #define CTRL_RADIO_ENCAP  // ctrl radio data packet in video TS
 //#define DEBUG_ANT_SWITCH	//landing gear based antaena select
 #define  DEBUG_RADIOSTATUS //insert status data into 188 control payload

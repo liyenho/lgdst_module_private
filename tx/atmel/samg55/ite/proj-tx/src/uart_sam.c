@@ -116,22 +116,86 @@ static usart_packet_tx usart_queue_sent[USART_PKT_QUEUE_LEN];
 
 
 /** PDC data packet. */
+#define ALL_INTERRUPT_MASK  0xffffffff
+Pdc *g_p_pdc_UART;
+uint8_t uart_buffer1[1000] ={0};
+uint8_t uart_buffer2[1000] ={0};
+pdc_packet_t g_p_uart_pdc_packet;
+pdc_packet_t g_p_uart_pdc_packet2;
+
+void Configure_UART_DMA(void){
+		sam_usart_opt_t usart_console_settings = {
+			0,
+			US_MR_CHRL_8_BIT,
+			US_MR_PAR_NO,
+			US_MR_NBSTOP_1_BIT,
+			US_MR_CHMODE_NORMAL,
+			/* This field is only used in IrDA mode. */
+			0
+		};
+
+		usart_console_settings.baudrate = CONF_UART_BAUDRATE;
+
+		#if (SAMG55)
+		/* Enable the peripheral and set USART mode. */
+		flexcom_enable(BOARD_FLEXCOM);
+		flexcom_set_opmode(BOARD_FLEXCOM, FLEXCOM_USART);
+		#else
+		/* Enable the peripheral clock in the PMC. */
+		sysclk_enable_peripheral_clock(BOARD_ID_USART);
+		#endif
+
+		/* Configure USART in SYNC. master or slave mode. */
+		/*if (ul_ismaster) {
+			usart_init_sync_master(USART_BASE, &usart_console_settings, sysclk_get_cpu_hz());
+		} else {
+			usart_init_sync_slave(USART_BASE, &usart_console_settings);
+		}*/
+
+		stdio_serial_init(CONF_UART, &usart_console_settings);
+
+		/* Disable all the interrupts. */
+		usart_disable_interrupt(USART_BASE, ALL_INTERRUPT_MASK);
+
+		usart_init_rs232(USART_BASE, &usart_console_settings,
+			sysclk_get_peripheral_bus_hz(USART_BASE));
+
+		/* Enable TX & RX function. */
+		usart_enable_tx(USART_BASE);
+		usart_enable_rx(USART_BASE);
+
+		/* Configure and enable interrupt of USART. */
+		NVIC_SetPriority(USART_INT_IRQn, 0);
+
+		NVIC_EnableIRQ(USART_INT_IRQn);
+
+		usart_enable_interrupt(USART_BASE, US_IER_RXRDY /*| US_IER_TXRDY*/);
+		/* Get board USART PDC base address and enable receiver and transmitter. */
+		g_p_pdc_UART = usart_get_pdc_base(USART_BASE);
+
+		g_p_uart_pdc_packet.ul_size= UART_BUFFER_SIZE;
+		g_p_uart_pdc_packet.ul_addr = uart_buffer1;
+
+		g_p_uart_pdc_packet2.ul_size= UART_BUFFER_SIZE;
+		g_p_uart_pdc_packet2.ul_addr = uart_buffer2;
+																		//no need of 2nd chain buffer, we can still lose data if improperly done, liyenho
+		pdc_rx_init(g_p_pdc_UART, &g_p_uart_pdc_packet, NULL);
+
+		pdc_enable_transfer(g_p_pdc_UART, PERIPH_PTCR_RXTEN | PERIPH_PTCR_TXTEN);
+
+}
+
 pdc_packet_t g_st_packet;
-extern Pdc *g_p_pdc_UART;
-extern uint8_t uart_buffer1[1000];
-extern uint8_t uart_buffer2[1000];
-extern pdc_packet_t g_p_uart_pdc_packet;
-extern pdc_packet_t g_p_uart_pdc_packet2;
 pdc_packet_t *next_location = &g_p_uart_pdc_packet;
 
 uint32_t other_irq_cnt=0;
 uint32_t uart_overrun_cnt =0;
 
-ISR(USART_HANDLER)  // we need this ISR to pump status data to usb cdc comm, liyenho
+ISR(USART_HANDLER)  // we need this ISR to pump status data to usb cdc comm,
 {
 	uint32_t sr = usart_get_status(USART_BASE);
-	// disable TXRDY to avoid usb cdc rx get interferred, liyenho
-	
+	// disable TXRDY to avoid usb cdc rx get interferred,
+
 
 	if ((sr & US_CSR_OVRE) == US_CSR_OVRE){
 		uart_overrun_cnt++;
@@ -139,32 +203,31 @@ ISR(USART_HANDLER)  // we need this ISR to pump status data to usb cdc comm, liy
 
 	if ((sr & US_CSR_ENDRX)== US_CSR_ENDRX){
 		static MavLinkPacket pkt;
-		static bool buffer1_full = true;
-		
-		uint8_t * buffer_to_read = buffer1_full?uart_buffer1:uart_buffer2;
+		static bool buffer1_full = false; //updated the order, liyenho
 
 		if (buffer1_full){
 			next_location = &g_p_uart_pdc_packet;
 		}else{
 			next_location = &g_p_uart_pdc_packet2;
 		}
-		
+		// re-order the cmd sequence below to avoid data loss on uart/dma, liyenho
+		pdc_rx_init(g_p_pdc_UART, NULL, next_location);
+
+		uint8_t * buffer_to_read = buffer1_full?uart_buffer1:uart_buffer2;
+
 		Queue_MavLink_Raw_Data(&outgoing_MavLink_Data, UART_BUFFER_SIZE, buffer_to_read);
 
-		memset(buffer_to_read, 0x00, UART_BUFFER_SIZE);
-		pdc_rx_init(g_p_pdc_UART, NULL, next_location);
-	
 		buffer1_full = (!buffer1_full);
 							}
 	else{
 		//other interrupt
 		other_irq_cnt++;
 							}
-	
+
 	if (sr & US_CSR_RXRDY) {
 		// Data received
-		
-		
+
+
 						}
 
 }
@@ -174,7 +237,7 @@ void ctrl_buffer_send_ur(void* pctl) {
 #ifdef DBG_UART_SND
 	return ; // for debug uart recv on atmel
 #endif
-	if (!uart_port_start) return; // host isn't up yet, liyenho
+	if (!uart_port_start) return; // host isn't up yet
 	irqflags_t flags;
 	if (gl_usart_comm_ctx.queue_end_rx-1>gl_usart_comm_ctx.queue_ptr_rd) {
 		uint8_t *pr = (uint8_t*)(gl_usart_comm_ctx.queue_ptr_rd+1);
@@ -191,7 +254,7 @@ void ctrl_buffer_send_ur(void* pctl) {
 			gl_usart_comm_ctx.state_next_tx == STA_NULL) {
 		if (!(US_IMR_TXRDY & usart_get_interrupt_mask(USART_BASE))) {
 			usart_enable_tx(USART_BASE);
-			usart_enable_interrupt(USART_BASE, US_IER_TXRDY); // turn on Tx pipe, liyenho
+			usart_enable_interrupt(USART_BASE, US_IER_TXRDY); // turn on Tx pipe
 		}
 //		prev_time = cur_time;
 	}
@@ -233,8 +296,8 @@ void uart_rx_notify(uint8_t port)
 	if (usart_get_interrupt_mask(USART_BASE)
 		& US_IMR_RXRDY) {
 		// Enable UART TX interrupt to send a new value
-		//usart_enable_tx(USART_BASE); //to avoid usb cdc rx get interferenced, liyenho
-		// disable TXRDY to avoid usb cdc rx get interferenced, liyenho
+		//usart_enable_tx(USART_BASE); //to avoid usb cdc rx get interferenced
+		// disable TXRDY to avoid usb cdc rx get interferenced
 		//usart_enable_interrupt(USART_BASE, US_IER_TXRDY);
 	}
 }
@@ -294,13 +357,13 @@ void uart_config(uint8_t port, usb_cdc_line_coding_t * cfg)
 	usart_options.char_length = databits;
 	usart_options.parity_type = parity;
 	usart_options.stop_bits = stopbits;
-																		// rx signal is connected back to tx pin, tx module is inactive but rx is active..., liyenho
+																		// rx signal is connected back to tx pin, tx module is inactive but rx is active...,
 	usart_options.channel_mode = US_MR_CHMODE_NORMAL/*US_MR_CHMODE_AUTOMATIC*/;
 	imr = usart_get_interrupt_mask(USART_BASE);
 	usart_disable_interrupt(USART_BASE, 0xFFFFFFFF);
 	usart_init_rs232(USART_BASE, &usart_options,
 			sysclk_get_peripheral_bus_hz(USART_BASE));
-	// Restore both RX but disable TX to avoid usb cdc rx get interferenced, liyenho
+	// Restore both RX but disable TX to avoid usb cdc rx get interferenced,
 	usart_enable_tx(USART_BASE);
 	usart_enable_rx(USART_BASE);
 	usart_enable_interrupt(USART_BASE, imr);
@@ -349,10 +412,10 @@ void uart_open(uint8_t port)
 	// Enable USART
 	USART_ENABLE();
 
-	// Enable both RX but disable TX to avoid usb cdc rx get interferenced, liyenho
+	// Enable both RX but disable TX to avoid usb cdc rx get interferenced
 	usart_enable_tx(USART_BASE);
 	usart_enable_rx(USART_BASE);
-	// Enable interrupts, disable TXRDY to avoid usb cdc rx get interferenced, liyenho
+	// Enable interrupts, disable TXRDY to avoid usb cdc rx get interferenced
 	usart_enable_interrupt(USART_BASE, US_IER_RXRDY /*| US_IER_TXRDY*/);
 
 }
@@ -375,13 +438,12 @@ void uart_send_message(char* msg){
 	pdc_tx_init(g_p_pdc_UART, &g_st_packet2, NULL);
 }
 
-void uart_send_Mavlink(MavLinkPacket pkt){
-	memset(outgoing_buff, 0x0, sizeof(outgoing_buff));
-	memcpy(outgoing_buff, &pkt, pkt.length+MAVLINK_HDR_LEN);
-	memcpy(outgoing_buff+pkt.length+MAVLINK_HDR_LEN, pkt.checksum, MAVLINK_CHKSUM_LEN);
+void uart_send_Mavlink(uint8_t *pkt){
+	memcpy( outgoing_buff, pkt, // for efficiency
+					MAVLINK_HDR_LEN+((MavLinkPacket*)pkt)->length+MAVLINK_CHKSUM_LEN);
 	g_st_packet2.ul_addr = (uint32_t)outgoing_buff;
 	g_st_packet2.ul_size = MavLink_Total_Bytes_Used(pkt);
-	pdc_tx_init(g_p_pdc_UART, &g_st_packet2, NULL);	
+	pdc_tx_init(g_p_pdc_UART, &g_st_packet2, NULL);
 }
 
 void uart_Send_Data(uint8_t *data, uint32_t bytes){
@@ -389,5 +451,5 @@ void uart_Send_Data(uint8_t *data, uint32_t bytes){
 	g_st_packet2.ul_addr = (uint32_t)outgoing_buff;
 	g_st_packet2.ul_size =bytes;
 	pdc_tx_init(g_p_pdc_UART, &g_st_packet2, NULL);
-	
+
 }

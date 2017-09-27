@@ -62,7 +62,7 @@ uint32_t it9517_loadIQ_calibration_table (const char*file_name)
 }
 #endif
 // pio configure for LA trigger
-#include <asf.h>  
+#include <asf.h>
 #include <delay.h>
 //id_bus=Bus_I2C
 //stream_type= SERIAL_TS_INPUT
@@ -668,9 +668,6 @@ uint32_t it9517_video_channel_select() {
 	short vch ;
 	long vif ;
 	//puts("...... begin to wait for selected video channels ......");
-#if RECEIVE_MAVLINK
-	uint8_t incoming_data[MAX_MAVLINK_SIZE];
-#endif
 retry_vch_rec:
 	i = 0;
 	while ((!system_main_restart) &&
@@ -679,9 +676,9 @@ retry_vch_rec:
 		while(!system_main_restart) {
 #if RECEIVE_MAVLINK
 			Process_MavLink_Raw_Radio_Data();
-			MavLinkPacket pkt;
+			uint8_t pkt[MAX_MAVLINK_SIZE];
 			if (Get_MavLink(&incoming_messages, &pkt)) {
-				memcpy(rpacket_grp, pkt.data, RADIO_GRPPKT_LEN);
+				memcpy(rpacket_grp, ((MavLinkPacket*)pkt)->data, RADIO_GRPPKT_LEN);
 				break;
 			}
 			else  // wait a while then re-check

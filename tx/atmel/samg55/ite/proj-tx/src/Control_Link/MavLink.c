@@ -3,6 +3,7 @@
  *
  */
 #include <compiler.h>
+#include <math.h>
 #include "MavLink.h"
 
 #define X25_INIT_CRC 							0xffff
@@ -45,107 +46,22 @@ static inline void crc_accumulate(uint8_t data, uint16_t *crcAccum)
 }
 
 
-uint32_t Compute_Mavlink_Checksum(MavLinkPacket packet){
-	
+uint32_t Compute_Mavlink_Checksum(MavLinkPacket *packet){
+
 	uint16_t checksum = X25_INIT_CRC;
 	//compute checksum, excluding packet start sign
-	for (int i =0; i< (packet.length+MAVLINK_HDR_LEN-1); i++){
-		crc_accumulate(*(uint8_t *)((&packet.length)+i), &checksum);
+	for (int i =0; i< (packet->length+MAVLINK_HDR_LEN-1); i++){
+		crc_accumulate(*(uint8_t *)((&packet->length)+i), &checksum);
 	}
 	//add CRC Extra per MavLink definition
-	crc_accumulate(MAVLINK_MESSAGE_CRCS[packet.message_ID], &checksum);
+	crc_accumulate(MAVLINK_MESSAGE_CRCS[packet->message_ID], &checksum);
 	return checksum;
 }
 
 
-bool Check_Mavlink_Checksum(MavLinkPacket packet){
-	uint16_t expected = Compute_Mavlink_Checksum(packet);
-	uint16_t actual = *(uint16_t *)packet.checksum;
-	return (actual == expected);
-}
-
-uint32_t MavLink_Total_Bytes_Used(MavLinkPacket pkt){
-	uint32_t bytes_used = MAVLINK_HDR_LEN + MAVLINK_CHKSUM_LEN + pkt.length;
+uint32_t MavLink_Total_Bytes_Used(MavLinkPacket *pkt){
+	uint32_t bytes_used = MAVLINK_HDR_LEN + MAVLINK_CHKSUM_LEN + pkt->length;
 	return bytes_used;
-	
+
 }
 
-#define MAV_START_SIGN_RDO	0xAB
-
-//returns true when MavLink packet is complete
-bool Build_MavLink_from_Byte_Stream(MavLinkPacket * pkt, uint8_t next_byte){
-static bool header_found = false;
-static uint32_t idx =0;
-static uint32_t checksum_idx=0;
-static uint8_t previous_byte = 0;
-
-	if (!header_found &&(MAVLINK_START_SIGN == next_byte) &&\
-	(previous_byte == MAV_START_SIGN_RDO)){
-		header_found = true;
-		pkt->header = next_byte;
-		idx=0;
-		checksum_idx=0;
-	}else if (header_found){
-		idx++;
-		if (idx==1){
-			pkt->length = next_byte;
-		}else if (idx >= (pkt->length+MAVLINK_HDR_LEN)){
-			//header and payload are filled in
-			//now populate checksum
-			pkt->checksum[checksum_idx]=next_byte;
-			checksum_idx++;
-			if (MAVLINK_CHKSUM_LEN  == checksum_idx)
-			{
-				//packet complete
-				header_found= false; //reset for next packet
-				previous_byte = next_byte;
-				return true;
-			}
-
-		}else{
-			//filling in bulk of packet
-			*(&(pkt->header)+idx) = next_byte;
-		}
-	}
-	previous_byte = next_byte;
-	return false;
-}
-
-
-bool Build_MavLink_from_Radio_Byte_Stream(MavLinkPacket * pkt, uint8_t next_byte){
-	static uint8_t previous_byte = 0;
-	static bool header_found = false;
-	static uint32_t idx =0;
-	static uint32_t checksum_idx=0;
-
-	if (!header_found &&(MAVLINK_START_SIGN == next_byte) &&\
-		(previous_byte == MAV_START_SIGN_RDO)){
-		header_found = true;
-		pkt->header = next_byte;
-		idx=0;
-		checksum_idx=0;
-	}else if (header_found){
-		idx++;
-		if (idx==1){
-			pkt->length = next_byte;
-		}else if (idx >= (pkt->length+MAVLINK_HDR_LEN)){
-			//header and payload are filled in
-			//now populate checksum
-			pkt->checksum[checksum_idx]=next_byte;
-			checksum_idx++;
-			if (MAVLINK_CHKSUM_LEN  == checksum_idx)
-			{
-				//packet complete
-				header_found= false; //reset for next packet
-				previous_byte = next_byte;
-				return true;
-			}
-
-			}else{
-				//filling in bulk of packet
-				*(&(pkt->header)+idx) = next_byte;
-		}
-	}
-	previous_byte = next_byte;
-	return false;
-}

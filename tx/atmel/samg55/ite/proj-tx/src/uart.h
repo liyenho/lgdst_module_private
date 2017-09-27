@@ -81,7 +81,7 @@ typedef enum {
 	QUEUE_UP= 4,
 } usart_state;
 
-typedef enum {	// mainly for maintenance purpose, liyenho
+typedef enum {	// mainly for maintenance purpose
 	CMD_NONE= 0,
 	INIT_VIDEO= 1,
 	START_VIDEO= 2,
@@ -133,7 +133,8 @@ void uart_close(uint8_t port);
 
 extern void ctrl_buffer_send_ur(void* pctl);
 extern void ctrl_buffer_recv_ur(void *pctl1);
+void Configure_UART_DMA(void);
 void uart_send_message(char* msg);
-void uart_send_Mavlink(MavLinkPacket pkt);
+void uart_send_Mavlink(uint8_t *pkt);
 void uart_Send_Data(uint8_t *data, uint32_t bytes);
 #endif // _UART_H_

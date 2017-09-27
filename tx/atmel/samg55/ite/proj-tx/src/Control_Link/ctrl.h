@@ -1,31 +1,31 @@
 /*
  * ctrl.h
  *
- */ 
+ */
 
 #ifndef CTRL_H_
 #define CTRL_H_
 
 
-#define RECEIVE_MAVLINK					/*1*/ 1 //received radio data is MavLink form
-#define SEND_MAVLINK					/*1*/ 1
+#define RECEIVE_MAVLINK					/*0*/ 1 //received radio data is MavLink form
+#define SEND_MAVLINK					/*0*/ 1
 
-#define RADIO_LONG_PKT_LEN				96//long transmissions for 868 MHz
+//#if RECEIVE_MAVLINK	// removed such distinction to avoid radio pkt length sigularity, liyenho
+//#define RADIO_PKT_LEN		40 // ctl/sts radio payload byte length +1
+//#else
+#define RADIO_PKT_LEN		32 // ctl/sts radio payload byte length +1
+//#endif
+#define RADIO_LONG_PKT_LEN				/*96*/ (RADIO_PKT_LEN*3)//long transmissions for 868 MHz, modified by liyenho
 
 
 #define MilliSecToTick			120000 //120000=1ms
-#define MilliSec_To_Tick(X) ((uint32_t)(X)*MilliSecToTick) 
+#define MilliSec_To_Tick(X) ((uint32_t)(X)*MilliSecToTick)
 
 #define REAL_PKT_LEN			(RADIO_PKT_LEN+13+2+2+4) //payload + preamble + sync word + length field
 #define EURO_TDMA_PERIOD		MilliSec_To_Tick(40+3*(1000*REAL_PKT_LEN*8/10000))
 
 
 #define ASYMM_RATIO				/*1*/ 2
-#if RECEIVE_MAVLINK
-#define RADIO_PKT_LEN		40 // ctl/sts radio payload byte length +1
-#else
-#define RADIO_PKT_LEN		32 // ctl/sts radio payload byte length +1
-#endif
 #define RADIO_GRPPKT_LEN    30
 #define RADIO_INFO_LEN      4 // usb pipe information post header
 #define RDO_ELEMENT_SIZE   (RADIO_PKT_LEN/sizeof(uint32_t))  // RADIO_PKT_LEN must divide into sizeof(uint32_t), liyenho
@@ -51,6 +51,9 @@
                                 //   (See TX, main.c, s[tsp]=3;)
 								// 1200000=10ms
 								// testing: TXinterpt to RXinterpt = 40ms (TDMA_PERIOD=80ms)
+			// 5 sec 'flywheel' time doesn't make much sense consider the timing accuracy from sw codes
+			// and variation upon comm latency between si4463 and atmel, never truly proven in the
+			// field but in generic threorem, have to be re-validated perhaps abandon, liyenho
 #define TDMA_UNLOCK_DELAY_MS	MilliSec_To_Tick((5*1000)) //no receive data duration before tdma unlocking
 
 #define TDMA_PERIOD			(USE_915MHZ?US_TDMA_PERIOD:EURO_TDMA_PERIOD)  //macro to select between 915MHz and 869 MHz
@@ -139,7 +142,7 @@ extern const uint8_t RF_FREQ_CONTROL_INTE_HOP13_6[10]; // 925.035 MHz
 																	//approx 5 db above ON threshold
 //keep track of has a request has been sent to other side to turn FEC on
 extern bool Requested_FEC_On;
- 
+
 enum FEC_Options {
 	OFF = 0x00, //Host has asserted control
 	ON = 0x0F,	//Host has asserted control
@@ -162,6 +165,9 @@ int fhop_idx;
 
 uint32_t Control_Outbound_Queue_Available_Slots(void);
 bool Queue_Control_Idle_Packet(void);
+#if SEND_MAVLINK
+  bool Queue_Idle_Mavlink(void) ; // added by liyenho
+#endif
 bool Queue_Control_Packet(uint8_t * pending_msg);
 bool Queue_FEC_Request_On_Packet(void);
 bool Queue_FEC_Request_Off_Packet(void);
