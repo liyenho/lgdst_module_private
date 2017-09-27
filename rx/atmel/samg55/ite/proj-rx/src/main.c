@@ -176,10 +176,7 @@ struct i2s_dev_inst dev_inst_i2s;
 #ifdef RADIO_SI4463
  static uint8_t tune_cap_str[] = {RF_GLOBAL_XO_TUNE_2}; // used by cap val tuning process internally
 
-
 unsigned char gs_rdo_tpacket_ovflw=0;
-
-
 volatile uint32_t rpacket_idle[RDO_ELEMENT_SIZE];
 unsigned char gs_rdo_rpacket_ovflw=0;
 
@@ -203,7 +200,6 @@ volatile uint32_t *DWT_CONTROL = (uint32_t *)0xE0001000;
 volatile uint32_t *DWT_CYCCNT = (uint32_t *)0xE0001004;
 volatile uint32_t *DEMCR = (uint32_t *)0xE000EDFC;
 unsigned char dbg_spififo_lvl_max=0;
-volatile uint32_t ctrl_sndflag = 100;
 
 
 /**
@@ -464,7 +460,12 @@ void SysTick_Handler(void)
 		/*******************************************/
 		//make sure there are enough messages to send
 		#if SEND_MAVLINK
-		while (fifolvlcalc(outgoing_messages.write_pointer,outgoing_messages.read_pointer, MavLinkBufferSize) <2){
+	#if false
+		while ( fifolvlcalc(outgoing_messages.write_pointer,outgoing_messages.read_pointer, MavLinkBufferSize) <2)
+	#else  // look for the current byte cnt instead pkt cnt,
+		if (RADIO_PKT_LEN>outgoing_messages.byte_cnt)
+	#endif
+		{
 			Queue_Idle_Mavlink();
 		}
 
@@ -472,11 +473,10 @@ void SysTick_Handler(void)
 		while (fifolvlcalc(wrptr_rdo_tpacket, rdptr_rdo_tpacket, RDO_TPACKET_FIFO_SIZE)<3){
 			Queue_Control_Idle_Packet();
 		}
+		gp_rdo_tpacket_l = gs_rdo_tpacket + (RDO_ELEMENT_SIZE*rdptr_rdo_tpacket);
 		#endif
 
 		//setup for radio send
-		//rdptr_inc(&wrptr_rdo_tpacket, &rdptr_rdo_tpacket, RDO_TPACKET_FIFO_SIZE, 1);
-		gp_rdo_tpacket_l = gs_rdo_tpacket + (RDO_ELEMENT_SIZE*rdptr_rdo_tpacket);
 		snd_asymm_cnt = ASYMM_RATIO-1;
 
 #ifndef TEMPERATURE_MEASURE
@@ -1044,7 +1044,7 @@ int main(void)
 	ui_powerdown();
 #if 0 //ndef CONF_BOARD_EVM
 	/* Initialize the console UART. */
-	configure_console(); // will be used but inited along with cdc comm module, liyenho
+	configure_console(); // will be used but inited along with cdc comm module
 #endif
 #if (defined(MEDIA_ON_FLASH) && !defined(NO_USB)) || defined(CONFIG_ON_FLASH) || defined(FWM_DNLD_DBG)
 	/* Initialize flash: 6 wait states for flash writing. */
@@ -1063,21 +1063,21 @@ int main(void)
 #endif
 	/* Configure SPI interrupts for slave? only. */
 #if 1 //def CONF_BOARD_EVM, for video now
-	NVIC_DisableIRQ(SPI_IRQn);  // spi5 peripheral instance = 21, liyenho
+	NVIC_DisableIRQ(SPI_IRQn);  // spi5 peripheral instance = 21,
 	NVIC_ClearPendingIRQ(SPI_IRQn);
 	NVIC_SetPriority(SPI_IRQn, 1);
 	NVIC_EnableIRQ(SPI_IRQn);
 #endif
-	NVIC_DisableIRQ(SPI0_IRQn);  // spi3/7 peripheral instance = 19/7, liyenho
+	NVIC_DisableIRQ(SPI0_IRQn);  // spi3/7 peripheral instance = 19/7,
 	NVIC_ClearPendingIRQ(SPI0_IRQn);
 	NVIC_SetPriority(SPI0_IRQn, 1);
 	NVIC_EnableIRQ(SPI0_IRQn);
  #ifdef RADIO_SI4463
-	 NVIC_DisableIRQ(PIOB_IRQn);  // piob radio instance = 12, liyenho
+	 NVIC_DisableIRQ(PIOB_IRQn);  // piob radio instance = 12,
 	 NVIC_ClearPendingIRQ(PIOB_IRQn);
 	 NVIC_SetPriority(PIOB_IRQn, 1);
 	 NVIC_EnableIRQ(PIOB_IRQn);
-	 NVIC_DisableIRQ(SPI7_IRQn);  // spi7 peripheral instance = 7, liyenho
+	 NVIC_DisableIRQ(SPI7_IRQn);  // spi7 peripheral instance = 7,
 	 NVIC_ClearPendingIRQ(SPI7_IRQn);
 	 NVIC_SetPriority(SPI7_IRQn, 1);
 	 NVIC_EnableIRQ(SPI7_IRQn);
@@ -1297,22 +1297,6 @@ pio_set_debounce_filter(PIOB, PIO_PB12, 32768/2);
 			}
 		}
 	}
-	  //Ctrl led control -------------------------------------------------
-	  if(ctrl_sndflag >0 )
-	    ctrl_sndflag--;
-	  if(ctrl_sndflag == (100-1) ) {
-		if(ctrl_ledstate ==0)
-	    {
-			ctrl_ledstate=1;
-			}
-		else
-		{
-			ctrl_ledstate=0;
-			} //force blinking if ctrl too fast
-	  }
-
-	  if(ctrl_sndflag ==1)  {
-		ctrl_ledstate = 0;  }
 #endif //RX_SPI_CHAINING
 #ifdef TIME_ANT_SW
 	extern uint32_t startup_video_tm,
@@ -1488,7 +1472,7 @@ volatile bool main_usb_host_reply(void)
 	}
 		dev_access *ps = (ctx_913x.i2c_overrun)?gs_uc_htbuffer_tm:gs_uc_hrbuffer1;
 	if (USB_HOST_MSG_LEN-sizeof(ps->data[0]) == udd_g_ctrlreq.req.wLength)
-		// (0==ps->dcnt) meant confirmation of write cmd, liyenho
+		// (0==ps->dcnt) meant confirmation of write cmd
 		cnf_echo = 1;
 		// must setup packet size
 		if (!cnf_echo) {
@@ -1714,8 +1698,7 @@ void main_loop_restart() {
 }
 
 /*static*/ int timedelta(bool reset, unsigned int bignum, unsigned int smallnum)
-{ // what the hack on the old codes doing??? liyenho
-	static int64_t bprev, sprev;
+{ static int64_t bprev, sprev;
 	int64_t bl, sl, delta;
 	if (reset) {
 		bprev = sprev = 0L; // chances to collide with 0 are less than twice being by lightning in a day
@@ -1723,7 +1706,7 @@ void main_loop_restart() {
 #define EXTEND64(o, i, i0) o = (i < i0) ? 0x100000000+i : i;
 	EXTEND64(bl, bignum, bprev)
 	EXTEND64(sl, smallnum, sprev)
-	delta = bl - sl;	// delta shall be of 32 bit range, liyenho
+	delta = bl - sl;	// delta shall be of 32 bit range,
 #undef EXTEND64
 	bprev = bignum;
 	sprev = smallnum;

@@ -12,16 +12,22 @@
 #define SEND_MAVLINK					1 /*0*/		//data to send to Drone is in MavLink form
 #define  RECEIVE_MAVLINK				1 /*0*/	//data received from Drone is in MavLink form
 
-#if RECEIVE_MAVLINK
-	#define RADIO_PKT_LEN							40 //split MavLink into 40 byte chunks
-#else
+//#if RECEIVE_MAVLINK	// removed such distinction to avoid radio packet size sigularity, liyenho
+	//#define RADIO_PKT_LEN							40 //split MavLink into 40 byte chunks
+//#else
 	#define RADIO_PKT_LEN							32 // ctl/sts radio payload byte length
-#endif
+//#endif
 #define RADIO_GRPPKT_LEN						30
-#define RDO_ELEMENT_SIZE   			(RADIO_PKT_LEN/sizeof(uint32_t))	// RADIO_PKT_LEN must divide into sizeof(uint32_t), liyenho
+#define RDO_ELEMENT_SIZE   			(RADIO_PKT_LEN/sizeof(uint32_t))	// RADIO_PKT_LEN must divide into sizeof(uint32_t),
 
-#define RADIO_LONG_PKT_LEN				(32*3)//(RADIO_PKT_LEN*1) //long transmissions for 868 MHz
+#define RADIO_LONG_PKT_LEN				/*(32*3)*/ (RADIO_PKT_LEN*3) //long transmissions for 868 MHz, modified by liyenho
 
+#if SEND_MAVLINK
+	#define RADIO_MAVLEN_OUT_IDX			0x5
+#endif
+#if RECEIVE_MAVLINK
+	#define RADIO_MAVLEN_IN_IDX			0x6
+#endif
 #define TICKS_IN_MS			120000 //120000=1ms
 #define BITRATE					40000
 

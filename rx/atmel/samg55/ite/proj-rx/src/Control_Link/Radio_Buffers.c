@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
+#include <assert.h>
 #include "compiler_defs.h"
 #include "Radio_Buffers.h"
 #include "ctrl.h"
@@ -13,7 +14,6 @@
 #include "radio.h"
 #include "bsp.h"
 #include "si446x_api_lib.h"
-
 
 //array for storing received radio data
 volatile uint32_t gs_rdo_rpacket[RDO_RPACKET_FIFO_SIZE*RDO_ELEMENT_SIZE] = {0xffffffff};
@@ -53,9 +53,9 @@ uint32_t wrptr_inc(uint32_t *wrptr,  uint32_t *rdptr, uint32_t fifodepth, int st
 	wrptr_tmp = *wrptr;
 	rdptr_tmp = *rdptr;
 	for(i=0;i<step;i++) {
-		if(wrptr_tmp >= (fifodepth-1))  
+		if(wrptr_tmp >= (fifodepth-1))
 			wrptr_tmp=0;
-		else                        
+		else
 			wrptr_tmp++;
 		if(wrptr_tmp== rdptr_tmp){
 			//overflow condition
@@ -87,7 +87,7 @@ uint32_t rdptr_inc(uint32_t *wrptr,  uint32_t *rdptr, uint32_t fifodepth, int st
 	return 0;  //good data
 }
 
-uint32_t TX_overflow = 0; //for debug purposes
+uint32_t TX_overflow = 0;
 static bool lock_obj= false;
 
 static int tries=0;
@@ -116,20 +116,20 @@ bool Queue_Message(uint8_t *msg){
 	}
 	gp_rdo_tpacket = gs_rdo_tpacket + (RDO_ELEMENT_SIZE*wrtptr_tmp);
 	//copy to output buffer
-	memcpy(gp_rdo_tpacket, msg, RADIO_PKT_LEN);	
+	memcpy(gp_rdo_tpacket, msg, RADIO_PKT_LEN);
 	wrptr_rdo_tpacket = wrtptr_tmp;
 	lock_obj = false;
 	return true;
 }
 
 
-MavLink_FIFO_Buffer outgoing_messages = {0};
-MavLink_FIFO_Buffer incoming_messages = {0};
+volatile MavLink_FIFO_Buffer outgoing_messages = {0};
+volatile MavLink_FIFO_Buffer incoming_messages = {0};
 
 
 //pkt is the MavLink Packet that is attempting to be queued
-bool Queue_MavLink(MavLink_FIFO_Buffer *fifo, MavLinkPacket *pkt){
-	
+bool Queue_MavLink(MavLink_FIFO_Buffer *fifo, uint8_t *pkt){
+  int byte_cnt ; // calculated # bytes in a mav pkt
 	//prevent race conditions caused by interrupts etc
 	if (fifo->lock_obj){
 		fifo->lock_cnt++;
@@ -149,15 +149,18 @@ bool Queue_MavLink(MavLink_FIFO_Buffer *fifo, MavLinkPacket *pkt){
 		return false;
 	}
 	//ok to add to buffer
-	memcpy(&(fifo->buffer[wrtptr_tmp]), pkt, sizeof(*pkt));
+	memcpy((MavLinkPacket*)(fifo->buffer)+wrtptr_tmp, pkt, // reduce memcpy overhead
+		byte_cnt = MAVLINK_HDR_LEN+((MavLinkPacket*)pkt)->length+MAVLINK_CHKSUM_LEN);
 	fifo->write_pointer = wrtptr_tmp;
 	fifo->lock_obj = false;
+	fifo->byte_cnt += byte_cnt ;
 	return true;
 }
 
 //attempts to retrieve a MavLink packet
 //if successful, packet is copied to the location of the pkt pointer
-bool Get_MavLink(MavLink_FIFO_Buffer *fifo, MavLinkPacket *pkt){
+bool Get_MavLink(MavLink_FIFO_Buffer *fifo, uint8_t *pkt){
+  int byte_cnt ; // calculated # bytes in a mav pkt
 	if (fifo->lock_obj){
 		fifo->lock_cnt++;
 		//prevent indefinite deadlock
@@ -167,15 +170,20 @@ bool Get_MavLink(MavLink_FIFO_Buffer *fifo, MavLinkPacket *pkt){
 		}
 		return false;
 	}
-	
+
 	if (fifolvlcalc(fifo->write_pointer,fifo->read_pointer, MavLinkBufferSize)< 1){
-		
+
 		fifo->lock_obj = false;
 		return false;
 	}
 	//packet is available, copy to destination
 	rdptr_inc(&(fifo->write_pointer), &(fifo->read_pointer), MavLinkBufferSize, 1);
-	memcpy(pkt, &(fifo->buffer[fifo->read_pointer]), sizeof(*pkt));
+ 	// it is ok, just sent out actual pkt content
+ 	MavLinkPacket* pkt0 = (MavLinkPacket*)(fifo->buffer)+fifo->read_pointer;
+	memcpy(pkt, pkt0, // reduce memcpy overhead
+		byte_cnt = MAVLINK_HDR_LEN+pkt0->length+MAVLINK_CHKSUM_LEN);
 	fifo->lock_obj = false;
+	fifo->byte_cnt -= byte_cnt; // track current byte cnt in fifo obj
+	assert(0<=fifo->byte_cnt);
 	return true;
 }

@@ -46,32 +46,20 @@ static inline void crc_accumulate(uint8_t data, uint16_t *crcAccum)
 }
 
 
-uint32_t Compute_Mavlink_Checksum(MavLinkPacket packet){
-	
+uint32_t Compute_Mavlink_Checksum(MavLinkPacket *packet){
+
 	uint16_t checksum = X25_INIT_CRC;
 	//compute checksum, excluding packet start sign
-	for (int i =0; i< (packet.length+MAVLINK_HDR_LEN-1); i++){
-		crc_accumulate(*(uint8_t *)((&packet.length)+i), &checksum);
+	for (int i =0; i< (packet->length+MAVLINK_HDR_LEN-1); i++){
+		crc_accumulate(*(uint8_t *)((&packet->length)+i), &checksum);
 	}
 	//add CRC Extra per MavLink definition
-	crc_accumulate(MAVLINK_MESSAGE_CRCS[packet.message_ID], &checksum);
+	crc_accumulate(MAVLINK_MESSAGE_CRCS[packet->message_ID], &checksum);
 	return checksum;
 }
 
 
-bool Check_Mavlink_Checksum(MavLinkPacket packet){
-	return (Compute_Mavlink_Checksum(packet) == *(uint16_t *)packet.checksum);
-}
-
-uint32_t MavLink_Total_Bytes_Used(MavLinkPacket pkt){
-	uint32_t bytes_used = MAVLINK_HDR_LEN + MAVLINK_CHKSUM_LEN + pkt.length;
+uint32_t MavLink_Total_Bytes_Used(MavLinkPacket *pkt){
+	uint32_t bytes_used = MAVLINK_HDR_LEN + MAVLINK_CHKSUM_LEN + pkt->length;
 	return bytes_used;
 }
-
-
-uint32_t MavLink_PackData(MavLinkPacket pkt, uint8_t *buffer){
-	memcpy(buffer, &pkt, pkt.length+MAVLINK_HDR_LEN);
-	memcpy(buffer+pkt.length+MAVLINK_HDR_LEN, pkt.checksum, MAVLINK_CHKSUM_LEN);
-	return MavLink_Total_Bytes_Used(pkt);
-}
-

@@ -1,7 +1,7 @@
 /*
  * MavLink.h
  *
- */ 
+ */
 
 
 #ifndef MAVLINK_H_
@@ -13,9 +13,9 @@
 #define MAVLINK_HDR_LEN						6
 #define MAVLINK_MAX_PAYLOAD_LEN				255
 #define MAX_MAVLINK_SIZE		(MAVLINK_HDR_LEN+MAVLINK_CHKSUM_LEN+MAVLINK_MAX_PAYLOAD_LEN)
+#define MAVLINK_ID_DATA			0x0
 
-
-typedef struct 
+typedef struct
 {
 	uint8_t header;
 	uint8_t length; //this describes how long the data payload is
@@ -27,9 +27,7 @@ typedef struct
 	uint8_t checksum[MAVLINK_CHKSUM_LEN];
 }MavLinkPacket;
 
-uint32_t MavLink_Total_Bytes_Used(MavLinkPacket pkt);
-uint32_t Compute_Mavlink_Checksum(MavLinkPacket packet);
-bool Check_Mavlink_Checksum(MavLinkPacket packet);
-uint32_t MavLink_PackData(MavLinkPacket pkt, uint8_t *buffer);
+uint32_t MavLink_Total_Bytes_Used(MavLinkPacket *pkt);
+uint32_t Compute_Mavlink_Checksum(MavLinkPacket *packet);
 
 #endif /* MAVLINK_H_ */

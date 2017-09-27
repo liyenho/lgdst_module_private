@@ -25,7 +25,7 @@
 	extern volatile uint32_t rpacket_idle[RDO_ELEMENT_SIZE];
   extern uint32_t rpacket_ov[RDO_ELEMENT_SIZE];
 	extern unsigned char gs_rdo_rpacket_ovflw;
-	
+
 	extern volatile unsigned char bMain_IT_Status; // as global ctrl radio intr flag...
 	  extern volatile bool ctrl_tdma_enable;
 	  extern volatile capv_tune_t si4463_factory_tune;
@@ -41,8 +41,6 @@ extern volatile uint32_t wrptr_rdo_tpacket;
 extern volatile uint32_t rdptr_rdo_tpacket;
 
 // function prototyping
-uint32_t wrptr_inc(uint32_t *wrptr,  uint32_t *rdptr, uint32_t fifodepth, int step);
-uint32_t rdptr_inc(uint32_t *wrptr,  uint32_t *rdptr, uint32_t fifodepth, int step);
 uint8_t get_si446x_temp() ;
 void recalibrate_capval (void* ul_page_addr_mtemp, uint8_t median);
 
@@ -57,15 +55,23 @@ void recalibrate_capval (void* ul_page_addr_mtemp, uint8_t median);
 				//ASYMM_RATIO multi-send done here now
 				if(snd_asymm_cnt>0){
 					snd_asymm_cnt--;
+				#if SEND_MAVLINK
+			#if false
+					if (fifolvlcalc(outgoing_messages.write_pointer,outgoing_messages.read_pointer, MavLinkBufferSize) <1)
+			#else  // look for the current byte cnt instead pkt cnt,
+					if (RADIO_PKT_LEN>outgoing_messages.byte_cnt)
+			#endif
+					{
+						Queue_Idle_Mavlink();
+					}
+				#else
 					if(fifolvlcalc(wrptr_rdo_tpacket, rdptr_rdo_tpacket, RDO_TPACKET_FIFO_SIZE)<1)
 					  { //idle packet case
 						  //add idle packet to the output queue
 						  Queue_Control_Idle_Packet();
 					  }
-					//rdptr_inc(&wrptr_rdo_tpacket, &rdptr_rdo_tpacket, RDO_TPACKET_FIFO_SIZE, 1);
 					gp_rdo_tpacket_l = gs_rdo_tpacket + (RDO_ELEMENT_SIZE*rdptr_rdo_tpacket);
-					//vRadio_StartTx_Variable_Length(control_channel, gp_rdo_tpacket_l, RADIO_PKT_LEN);
-					//vRadio_StartTx(control_channel, gp_rdo_tpacket_l, RADIO_PKT_LEN);
+				#endif
 					Control_Send_Event();
 				}
 		    }

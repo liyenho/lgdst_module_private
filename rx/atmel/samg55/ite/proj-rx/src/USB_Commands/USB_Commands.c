@@ -102,6 +102,8 @@ extern void recalibrate_capval (void* ul_page_addr_mtemp, uint8_t median);
 
 unsigned char rpacket_grp_partial[RADIO_GRPPKT_LEN];
 unsigned char radio_mon_rcvjitter=0;
+static volatile int mav_msg_olen = 0,
+									mav_msg_ilen = 0;
 
 void usb_ctrl_cmd_portal(udd_ctrl_request_t *udd_g_ctrlreq) {
 		// it should be safe to use wIndex alternatively instead pointer to interface index
@@ -125,17 +127,32 @@ void usb_ctrl_cmd_portal(udd_ctrl_request_t *udd_g_ctrlreq) {
 			udd_set_setup_payload( (uint8_t *)gs_uc_hrbuffer, udd_g_ctrlreq->req.wLength);
 			udd_g_ctrlreq->callback = si4463_radio_cb; // radio callback
 		}
+	#if SEND_MAVLINK
+		else if (RADIO_MAVLEN_OUT_IDX == udd_g_ctrlreq->req.wIndex) {
+			udd_set_setup_payload(&mav_msg_olen, 2);
+		}
+	#endif
 		else if (RADIO_DATA_TX_IDX == udd_g_ctrlreq->req.wIndex) {
 			#if SEND_MAVLINK
-				udd_set_setup_payload(tpacket_grp, MAVLINK_USB_TRANSFER_LEN); //stores payload in holding buffer
+				if (0<mav_msg_olen)
+					udd_set_setup_payload(tpacket_grp, mav_msg_olen); //stores payload in holding buffer
 			#else
 				udd_set_setup_payload(tpacket_grp, RADIO_GRPPKT_LEN); //stores payload in holding buffer
 			#endif
 		   udd_g_ctrlreq->callback = si4463_radio_cb; // radio callback
 		}
+	#if RECEIVE_MAVLINK
+		else if (RADIO_MAVLEN_IN_IDX == udd_g_ctrlreq->req.wIndex) {
+			Transfer_Control_Data_Out(); // prepared pkt and return actual len,
+		}
+		else if (RADIO_DATA_RX_IDX == udd_g_ctrlreq->req.wIndex) {
+			udd_set_setup_payload( (uint8_t *)rpacket_grp, mav_msg_ilen);// send in the exact msg len,
+		}
+	#else
 		else if (RADIO_DATA_RX_IDX == udd_g_ctrlreq->req.wIndex) {
 			Transfer_Control_Data_Out();
 		}
+	#endif
 		else if (RADIO_STATS_IDX == udd_g_ctrlreq->req.wIndex) {
 			udd_set_setup_payload( (uint8_t *)&r4463_sts, RADIO_STATS_LEN);
 		}
@@ -298,16 +315,17 @@ void USB_Set_Radio_Channel(void){
 
 #if RECEIVE_MAVLINK
 //ToDo: This needs to change if MavLink packets transfered out can be variable length!!!
-Transfer_Control_Data_Out(void){
-	MavLinkPacket pkt = {0};
-	if (Get_MavLink(&incoming_messages, &pkt)){
-		memcpy(rpacket_grp, &pkt, sizeof(pkt));
+void Transfer_Control_Data_Out(void){
+	if (Get_MavLink(&incoming_messages, rpacket_grp)){ //for efficiency,
+		mav_msg_ilen=MavLink_Total_Bytes_Used((MavLinkPacket*)rpacket_grp);
 	}else{
 		//no MavLink packet available, use filler
-		memset(rpacket_grp, 0xee, MAVLINK_USB_TRANSFER_LEN);
+		mav_msg_ilen = MAVLINK_HDR_LEN+ MAVLINK_CHKSUM_LEN+ \
+			RADIO_GRPPKT_LEN+RADIO_INFO_LEN; //same as before
+		memset(rpacket_grp, 0xee, mav_msg_ilen);
 	}
 
-	udd_set_setup_payload( (uint8_t *)rpacket_grp, MAVLINK_USB_TRANSFER_LEN);
+	udd_set_setup_payload(&mav_msg_ilen, 2);
 	return;
 }
 
@@ -374,14 +392,12 @@ void Transfer_Control_Data_Out(void){
 					memcpy(rpacket_grp,partial_packet,15);
 					//copy second half of message to output buffer
 					memcpy(rpacket_grp+15,msg_header+1,15);
-					//for debug info
+					//contain debug info
 					usrvalid_flag = 5;
 					//reset first half of message flag
 					first_half_received = false;
 					}else{
 					//received second half, but first half was dropped
-					//memset(rpacket_grp, 0xd2, RADIO_GRPPKT_LEN);
-					//usrvalid_flag = 0x15;
 					memset(rpacket_grp, 0xee, RADIO_GRPPKT_LEN);
 					usrvalid_flag = 0;
 					first_half_received = false;
@@ -395,8 +411,7 @@ void Transfer_Control_Data_Out(void){
 			else if (MSG_TYPE_REQUEST_FEC_ON == (*msg_header & 0x0F)){
 				Send_with_FEC = true;
 				//transfer dummy data to host
-				//	memset(rpacket_grp, 0xee, RADIO_GRPPKT_LEN);
-				memcpy(rpacket_grp, msg_header+1,RADIO_GRPPKT_LEN); //for debug
+				memcpy(rpacket_grp, msg_header+1,RADIO_GRPPKT_LEN);
 				usrvalid_flag = 1;
 				first_half_received = false;
 
@@ -442,7 +457,6 @@ void Transfer_Control_Data_Out(void){
 			}
 			else{
 				//shouldn't get here right now, unrecognized code
-				//memset(rpacket_grp, 0x6B, RADIO_GRPPKT_LEN);
 				memcpy(rpacket_grp, msg_header,RADIO_GRPPKT_LEN);
 				usrvalid_flag = 12;
 				first_half_received = false;
