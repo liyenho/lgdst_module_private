@@ -672,22 +672,21 @@ retry_vch_rec:
 	i = 0;
 	while ((!system_main_restart) &&
 				(RADIO_GRPPKT_LEN != i)) {
-		delay_ms(100);
+		delay_ms(48/3);
 		while(!system_main_restart) {
 #if RECEIVE_MAVLINK
 			Process_MavLink_Raw_Radio_Data();
 			uint8_t pkt[MAX_MAVLINK_SIZE];
-			if (Get_MavLink(&incoming_messages, &pkt)) {
+			if (Get_MavLink(&incoming_messages, pkt)) {
 				memcpy(rpacket_grp, ((MavLinkPacket*)pkt)->data, RADIO_GRPPKT_LEN);
 				break;
 			}
-			else  // wait a while then re-check
 #else
 			if (Get_Control_Packet(rpacket_grp))
 				break;
 			else  // wait a while then re-check
-#endif
 				delay_ms(30);
+#endif
 		}
 		for(i=0;i<RADIO_GRPPKT_LEN;i++) { // RADIO_USR_RX_LEN==RADIO_USR_TX_LEN! liyenho
 			if ( RADIO_GRPPKT_LEN/2 != i &&
