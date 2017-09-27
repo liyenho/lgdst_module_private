@@ -665,7 +665,7 @@ extern unsigned char rpacket_grp[RADIO_GRPPKT_LEN+RADIO_INFO_LEN];
 
 uint32_t it9517_video_channel_select() {
 	uint32_t i, error=ModulatorError_NO_ERROR;
-	short vch ;
+	short vch, timeout= 0 ;
 	long vif ;
 	//puts("...... begin to wait for selected video channels ......");
 retry_vch_rec:
@@ -680,6 +680,17 @@ retry_vch_rec:
 			if (Get_MavLink(&incoming_messages, pkt)) {
 				memcpy(rpacket_grp, ((MavLinkPacket*)pkt)->data, RADIO_GRPPKT_LEN);
 				break;
+			}
+			else if (100 < timeout++) {
+	extern uint32_t no_recive_cnt;
+	extern volatile bool ctrl_tdma_lock,
+												fhop_in_search,
+												fhop_flag;
+				no_recive_cnt++;  // crucial to ensure si4463 in listen mode
+				ctrl_tdma_lock = false;
+				fhop_in_search = true;
+				fhop_flag = false ;
+				timeout = 0;
 			}
 #else
 			if (Get_Control_Packet(rpacket_grp))
