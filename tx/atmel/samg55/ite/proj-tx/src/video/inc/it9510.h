@@ -913,6 +913,10 @@ uint32_t IT9510_setDCtable (
 		DCInfo dcInfo
 		);
 
+uint32_t IT9510_setRFGaintable(
+	  IT9510INFO*    modulator,
+	  RFGainInfo rfGainInfo
+	);
 /**
  * set dc Value
  *

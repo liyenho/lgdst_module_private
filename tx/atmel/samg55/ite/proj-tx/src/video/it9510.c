@@ -2309,6 +2309,10 @@ uint32_t IT9510_initialize (
 	modulator->pcrCalInfo.positive = 0;
 	modulator->pcrCalInfo.packetTimeJitter_ps = 0;
 
+	modulator->rfGainInfo.tableIsValid = False;
+	modulator->rfGainInfo.tableCount = 0;
+	modulator->rfGainInfo.ptrGaintable = NULL;
+
 	error = IT9510User_setBus(modulator);
 	if (error) goto exit;
 
@@ -3833,7 +3837,7 @@ uint32_t IT9510_adjustOutputGain (
 	c3value = (c3value%2048);
 	*gain = i/10;
 	modulator->calibrationInfo.outputGain = *gain;
-
+	IT9510User_adjustOutputGain(modulator, gain);
 	error = IT9510_writeRegister (modulator, Processor_OFDM, p_IT9510_reg_iqik_c1_7_0, (uint8_t)(c1value&0x00ff));
 	if (error) goto exit;
 	error = IT9510_writeRegister (modulator, Processor_OFDM, p_IT9510_reg_iqik_c1_10_8, (uint8_t)(c1value>>8));
@@ -3885,6 +3889,19 @@ uint32_t IT9510_getGainRange (
 
 	*minGain = -100;
 	IT9510_calOutputGain(modulator, val, minGain);
+	// get the digital output gain info according freq.
+	uint8_t bIndex = 0;
+
+	if (IT9510User_getOutputGainInfo(modulator, frequency, &bIndex) == 0)
+	{
+		int gain_value;
+
+		// setting output gain
+		// digital gain
+		gain_value = modulator->rfGainInfo.ptrGaintable[bIndex].digitalGainValue;
+
+		modulator->calibrationInfo.outputGain = gain_value;
+	}
 exit:
 #if USE_UART
 	sprintf(pdbg, "exit %s, %x\n", __func__, error);
@@ -4143,6 +4160,34 @@ uint32_t IT9510_setDCtable (
 		modulator->dcInfo.ptrOFStable = dcInfo.ptrOFStable;
 		modulator->dcInfo.tableGroups = dcInfo.tableGroups;
 	} else{
+		error = ModulatorError_NULL_PTR;
+	}
+#if USE_UART
+	sprintf(pdbg, "exit %s, %x\n", __func__, error);
+	dbg_len += strlen(pdbg);
+	TRANSFER_LOG
+#endif
+	return (error);
+}
+
+uint32_t IT9510_setRFGaintable(
+	  IT9510INFO*    modulator,
+	  RFGainInfo rfGainInfo
+	){
+	uint32_t   error = ModulatorError_NO_ERROR;
+#if USE_UART
+	char dbg_msg[80], dbg_len, *pdbg ;
+	sprintf(dbg_msg, "enter %s\n", __func__);
+	dbg_len = strlen(dbg_msg);
+	TRANSFER_LOG
+#endif
+
+	if (rfGainInfo.tableIsValid != False && rfGainInfo.tableCount != 0 && rfGainInfo.ptrGaintable != NULL) {
+		modulator->rfGainInfo.tableIsValid = rfGainInfo.tableIsValid;
+		modulator->rfGainInfo.tableCount = rfGainInfo.tableCount;
+		modulator->rfGainInfo.ptrGaintable = rfGainInfo.ptrGaintable;
+	}
+	else{
 		error = ModulatorError_NULL_PTR;
 	}
 #if USE_UART

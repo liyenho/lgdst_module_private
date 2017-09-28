@@ -53,19 +53,19 @@ typedef void* Handle;
 /**
  * The type defination of 8-bits unsigned type.
  */
-typedef unsigned char uint8_t;
+//typedef unsigned char uint8_t;
 
 
 /**
  * The type defination of 16-bits unsigned type.
  */
-typedef unsigned short uint16_t;
+//typedef unsigned short uint16_t;
 
 
 /**
  * The type defination of 32-bits unsigned type.
  */
-typedef unsigned long uint32_t;
+//typedef unsigned long uint32_t;
 
 
 /**
@@ -110,6 +110,8 @@ typedef struct {
 	DCtable *ptrOFStable;
 	uint16_t tableGroups;		//Number of IQtable groups;
 } DCInfo;
+
+
 /**
  * The type defination of Bool
  */
@@ -123,6 +125,21 @@ typedef enum {
  #define True		1
 #endif
 //typedef enum {False=0, True} bool;
+
+
+typedef struct {
+	uint32_t startFrequency;		// unit: k Hz
+	// below from eeprom
+	uint16_t rawFrequency;			// unit: M Hz
+	int  alanogGainValue;
+	int  digitalGainValue;
+} RFGainTable;
+
+typedef struct {
+	Bool tableIsValid;
+	uint8_t tableCount;
+	RFGainTable *ptrGaintable;
+} RFGainInfo;
 
 
 typedef struct {
@@ -835,6 +852,7 @@ typedef struct {
 	PcrMode pcrMode;
 	Bool isExtLo;
 	PCRCALINFO	pcrCalInfo;
+	RFGainInfo rfGainInfo;
 } IT9510INFO;
 
 

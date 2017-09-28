@@ -12,7 +12,7 @@
 #define Bus_9035U2I         						3  /** I2C bus for Ganymede USB */
 #define IT9510User_MAX_PKT_SIZE               		255
 
-#define IT9510User_RETRY_MAX_LIMIT            		1000
+#define IT9510User_RETRY_MAX_LIMIT            		/*1000*/ 1 //???
 
 
 /** Define I2C master speed, the default value 0x07 means 366KHz (1000000000 / (24.4 * 16 * IT9510User_I2C_SPEED)). */
@@ -150,6 +150,21 @@ uint32_t IT9510User_rfPowerOn (
 		IT9510INFO*            modulator,
 		Bool                   isPowerOn	
 		);
+uint32_t IT9510User_LoadRFGainTable(
+	  IT9510INFO*            modulator
+	);
+
+uint32_t IT9510User_getOutputGainInfo(
+	  IT9510INFO*    modulator,
+	  uint32_t			frequency,
+	 uint8_t*			index		
+	);
+
+uint32_t IT9510User_adjustOutputGain(
+	  IT9510INFO*    modulator,
+	  int			  *gain
+	);
+ 
 
 #endif
 

@@ -58,9 +58,22 @@ unsigned long orion_cal_init(IT9510INFO*    modulator, uint32_t crystalFreq)
 {
 	unsigned long error = 0;
 	unsigned char buf[4], val;
-	unsigned char pd_ori[3] = {0xa6, 0x44, 0xfd}; //orion pd (0x48 ~ 0x4a) default value
+	unsigned char pd_ori[3] = {0xa6, 0x44, 0xfd}; /*orion PD with ADC_I/Q on*/
 	unsigned int m_bdry, nc, nv, fbc_vld_cnt;
 	unsigned long tmp_numer, tmp_denom;
+
+	ORION_CAL_RUN_DCCC_W_IQIK_FUNC orion_cal_run_dccc_w_iqik_ptr = NULL;
+	ORION_CAL_SET_REGISTERS_FUNC orion_cal_set_registers_ptr = NULL;
+
+#ifdef FW_SUPPORT
+//#if 0
+	orion_cal_run_dccc_w_iqik_ptr = orion_cal_run_dccc_w_iqik2;
+	orion_cal_set_registers_ptr = orion_cal_set_registers2;
+#else
+	orion_cal_run_dccc_w_iqik_ptr = orion_cal_run_dccc_w_iqik;
+	orion_cal_set_registers_ptr = orion_cal_set_registers;
+#endif
+
 #if USE_UART
 	char dbg_msg[80], dbg_len, *pdbg ;
 	sprintf(dbg_msg, "enter %s\n", __func__);
@@ -84,7 +97,7 @@ unsigned long orion_cal_init(IT9510INFO*    modulator, uint32_t crystalFreq)
 		g_clock_mode = 2;
 
 	/*----- set_registers -----*/
-    error = orion_cal_set_registers(modulator);
+    error = orion_cal_set_registers_ptr(modulator);
 
 	// reset fbc
 	val = 0x01;
@@ -143,11 +156,7 @@ unsigned long orion_cal_init(IT9510INFO*    modulator, uint32_t crystalFreq)
 	val = 0x00;
 	error = orion_cal_wmr(modulator,0x0181, 1, &val);		/*p_reg_p_iqik_m_cal*/
 	if (error) goto exit;
-
-
-	//error = orion_cal_rmr(modulator ,0x0048, 3, pd_ori);	//p_reg_t_pd_7_0
-	//if (error) goto exit;
-
+#if 0
 	// turn on adc_i and adc_q
 	val = (pd_ori[0] & 0xe7);
 	error = orion_cal_wmr(modulator ,0x0048, 1, &val);
@@ -156,12 +165,21 @@ unsigned long orion_cal_init(IT9510INFO*    modulator, uint32_t crystalFreq)
 	if (error) goto exit;
 	error = orion_cal_wmr(modulator ,0x004a, 1, &pd_ori[2]);
 	if (error) goto exit;
-
+#else
+	/* turn on adc_i and adc_q
+	default pd = 0xFD44BE
+	normal operation with ADC_I/Q on, pd = 0xFD44A6
+	*/
+	error = orion_cal_wmr(modulator ,0x0048, 3, pd_ori);
+	if (error) goto exit;
+	//error = orion_cal_rmr(modulator, 0x0048, 3, buf);
+	//if (error) goto exit;
+#endif
 	val = 0x07;
 	error = orion_cal_wmr(modulator,0x0182, 1, &val);		//p_reg_p_iqik_duration
 	if (error) goto exit;
 
-	error = orion_cal_run_dccc_w_iqik(modulator, False);
+	error = orion_cal_run_dccc_w_iqik_ptr(modulator, False);
 	if (error) goto exit;
 
 	// turn off clock from eagle, Michael 20140423
@@ -246,19 +264,23 @@ unsigned long orion_cal_setfreq(IT9510INFO* modulator, unsigned int bw_kHz, unsi
 
 	/*----- write -----*/
 
-	if (g_orion_version == 2) {
-		error = orion_cal_wmr(modulator,0x0246, 1, val);		/*p_reg_p_lnac_lna_cap_sel*/
+	/*no need to support g_orion_version < 3*/
+	/*if (g_orion_version == 2) {
+		error = orion_cal_wmr(modulator,0x0246, 1, val);
 	} else {
-		error = orion_cal_wmr(modulator,0x0206, 1, val);		/*p_reg_p_lnac_lna_cap_sel*/
-	}
+		error = orion_cal_wmr(modulator,0x0206, 1, val);
+	}*/
+
+	error = orion_cal_wmr(modulator, 0x0206, 1, val);		/*p_reg_p_lnac_lna_cap_sel*/
 	if (error) goto exit;
 	error = orion_cal_wmr(modulator,0x0056, 1, &val[1]);	/*p_reg_t_lpf_bw*/
 	if (error) goto exit;
-	error = orion_cal_wmr(modulator,0x004C, 1, &val[2]);	/*p_reg_t_ctrl*/
-	if (error) goto exit;
-	error = orion_cal_wmr(modulator,0x004D, 2, &val[3]);	/*p_reg_t_cal_freq_7_0*/
-	if (error) goto exit;
-	error = orion_cal_wmr(modulator,0x004F, 2, &val[5]);	/*p_reg_t_lo_freq_7_0*/
+	/*
+	p_reg_t_ctrl (0x004C)
+	p_reg_t_cal_freq_7_0 (0x004D/4E)
+	p_reg_t_lo_freq_7_0 (0x004F/50)
+	*/
+	error = orion_cal_wmr(modulator,0x004C, 5, &val[2]);	/*p_reg_t_ctrl*/
 	if (error) goto exit;
 
 	/*---run loc by Michael 05/05/14---*/
@@ -284,6 +306,9 @@ unsigned long orion_cal_setfreq(IT9510INFO* modulator, unsigned int bw_kHz, unsi
 		if (loc_vld_cnt == 100) {break;}
 	}
 
+	/*---Debug, 20161216_MCH---*/
+	//error = orion_cal_rmr(modulator, 0x0246, 1, &val_);	/*p_reg_p_loc_fail*/
+	//if (error) goto exit;
 
 	/*---modified by Hidy 07/16/10 apply AAGCI clear---*/
 	val_ =0x01;
@@ -729,6 +754,11 @@ unsigned long orion_cal_set_registers(IT9510INFO* modulator)
 {
 	unsigned long error = 0;
 	unsigned char val;
+	unsigned char buf[14] = {
+		0xFF, 0x07, 
+		0x2E, 0x0D, 0x2E, 0x0F, 0x2E, 0x0E,
+		0xC6, 0x0D, 0xC6, 0x0F, 0xC6, 0x0E
+	};
 #if USE_UART
 	char dbg_msg[80], dbg_len, *pdbg ;
 	sprintf(dbg_msg, "enter %s\n", __func__);
@@ -737,18 +767,32 @@ unsigned long orion_cal_set_registers(IT9510INFO* modulator)
 #endif
 
 	val = g_clock_mode;
-
-	error = orion_cal_wmr(modulator,0x0085, 1, &val);	//p_reg_p_tsm_init_clock_mode
-
+	error = orion_cal_wmr(modulator, 0x0085, 1, &val);	//p_reg_p_tsm_init_clock_mode
 	if (error) goto exit;
 
-	val = 0x07;
-	error = orion_cal_wmr(modulator,0x0103, 1, &val);	/*p_reg_p_fbc_n_code*/
+	/* fbc
+	p_reg_p_fbc_pll_del (0x0102) = 0xFF
+	p_reg_p_fbc_n_code (0x0103) = 0x07
+	p_reg_p_fbc_m1200_min_7_0 (0x0104) = 0x2E
+	p_reg_p_fbc_m1200_min_12_8 (0x0105) = 0x0D
+	p_reg_p_fbc_m1200_max_7_0 (0x0106) = 0x2E
+	p_reg_p_fbc_m1200_max_12_8 (0x0107) = 0x0F
+	p_reg_p_fbc_m1200_mid_7_0 (0x0108) = 0x2E
+	p_reg_p_fbc_m1200_mid_12_8 (0x0109) = 0x0E
+	p_reg_p_fbc_m2048_min_7_0 (0x010A) = 0xC6
+	p_reg_p_fbc_m2048_min_12_8 (0x010B) = 0x0D
+	p_reg_p_fbc_m2048_max_7_0 (0x010C) = 0xC6
+	p_reg_p_fbc_m2048_max_12_8 (0x010D) = 0x0F
+	p_reg_p_fbc_m2048_mid_7_0 (0x010E) = 0xC6
+	p_reg_p_fbc_m2048_mid_12_8 (0x010F) = 0x0E
+	buf[0] = 0xFF; buf[1] = 0x07;
+	buf[2] = 0x2E; buf[3] = 0x0D; buf[4] = 0x2E; buf[5] = 0x0F;	buf[6] = 0x2E; buf[7] = 0x0E;
+	buf[8] = 0xC6; buf[9] = 0x0D; buf[10] = 0xC6; buf[11] = 0x0F; buf[12] = 0xC6; buf[13] = 0x0E;
+	*/
+	error = orion_cal_wmr(modulator,0x0102, 14, buf);	/*p_reg_p_fbc_pll_del*/
 	if (error) goto exit;
 
 	val = 0xFF;
-	error = orion_cal_wmr(modulator,0x0102, 1, &val);	/*p_reg_p_fbc_pll_del*/
-	if (error) goto exit;
     error = orion_cal_wmr(modulator,0x0242, 1, &val);	/*p_reg_p_loc_pll_del*/
 	if (error) goto exit;
 	error = orion_cal_wmr(modulator,0x0282, 1, &val);	/*p_reg_p_cpllc_pll_del*/
@@ -756,37 +800,26 @@ unsigned long orion_cal_set_registers(IT9510INFO* modulator)
     error = orion_cal_wmr(modulator,0x0203, 1, &val);	/*p_reg_p_lnac_lna_cap_del*/
 	if (error) goto exit;
 
-	/*--- modified by Hidy---06/30--- */
-	//val = 0x72;
-	val = 0x76;
-	error = orion_cal_wmr(modulator,0x0062, 1, &val);	/*p_reg_t_ctrl_new_7_0*/
+	/* ctrl_new
+	p_reg_t_ctrl_new_7_0 = 0x76 (def.0x72); bits<3:2>=0x01 (REGV)to set regulator = 1.42V
+	p_reg_t_ctrl_new_15_8 = 0x02 (def.0x2A); bit<3>=0x00 (LT_EN), bit<5:4>=0x00 (LT_Gain) to turn off LT 
+	p_reg_t_ctrl_new_23_16 = 0x00; write to apply change?
+	*/
+	buf[0] = 0x76; buf[1] = 0x02; buf[2] = 0x00;
+	error = orion_cal_wmr(modulator, 0x0062, 3, buf);	/*p_reg_t_ctrl_new_7_0*/
     if (error) goto exit;
-
-	/*--- modified by Hidy---07/16--- default value is 2a*/
-	//val =0x02;
-	//error = orion_cal_wmr(0x0063, 1, &val);	/*p_reg_t_ctrl_new_15_8*/
-    //if (error) goto exit;
-
-	val =0x00;
-	error = orion_cal_wmr(modulator,0x0064, 1, &val);	/*p_reg_t_ctrl_new_23_16*/
-    if (error) goto exit;
-
 
 	error = orion_cal_wmr(modulator,0x0245, 1, &val);	/*p_reg_p_loc_ceil*/
     if (error) goto exit;
 
-	val =0x03;
-	error = orion_cal_wmr(modulator,0x011D, 1, &val);	/*p_reg_p_fbc_lo_bias_0*/
-    if (error) goto exit;
-
-	val =0x02;
-	error = orion_cal_wmr(modulator,0x011E, 1, &val);	/*p_reg_p_fbc_lo_bias_1*/
-    if (error) goto exit;
-
-	error = orion_cal_wmr(modulator,0x011F, 1, &val);	/*p_reg_p_fbc_lo_bias_2*/
-    if (error) goto exit;
-
-	error = orion_cal_wmr(modulator,0x0120, 1, &val);	/*p_reg_p_fbc_lo_bias_3*/
+	/*
+	p_reg_p_fbc_lo_bias_0 (0x011D) = 0x03
+	p_reg_p_fbc_lo_bias_1 (0x011E) = 0x02
+	p_reg_p_fbc_lo_bias_2 (0x011F) = 0x02
+	p_reg_p_fbc_lo_bias_3 (0x0120) = 0x02
+	*/
+	buf[0] = 0x03; buf[1] = 0x02; buf[3] = 0x02; buf[4] = 0x02;
+	error = orion_cal_wmr(modulator, 0x011D, 4, buf);	/*p_reg_p_fbc_lo_bias_0*/
     if (error) goto exit;
 
 	val =0x08;
@@ -801,71 +834,23 @@ unsigned long orion_cal_set_registers(IT9510INFO* modulator)
 	//error = orion_cal_wmr(0x00C1, 1, &val);	/*p_reg_p_bb_agc_mode*/
     //if (error) goto exit;
 
-	val =0x00;
+	val = 0x00;
 	error = orion_cal_wmr(modulator,0x00DA, 1, &val);	/*p_reg_p_aagci_apply_loc*/
     if (error) goto exit;
 
-	/*---Modified by Hidy 07/09---*/
-	val =0x2E;
-	error = orion_cal_wmr(modulator,0x0104, 1, &val);	/*p_reg_p_fbc_m1200_min_7_0*/
-    if (error) goto exit;
-
-	val =0x0D;
-	error = orion_cal_wmr(modulator,0x0105, 1, &val);	/*p_reg_p_fbc_m1200_min_12_8*/
-    if (error) goto exit;
-
-	val =0x2E;
-	error = orion_cal_wmr(modulator,0x0106, 1, &val);	/*p_reg_p_fbc_m1200_max_7_0*/
-    if (error) goto exit;
-
-	val =0x0F;
-	error = orion_cal_wmr(modulator,0x0107, 1, &val);	/*p_reg_p_fbc_m1200_max_12_8*/
-    if (error) goto exit;
-
-	val =0x2E;
-	error = orion_cal_wmr(modulator,0x0108, 1, &val);	/*p_reg_p_fbc_m1200_mid_7_0*/
-    if (error) goto exit;
-
-	val =0x0E;
-	error = orion_cal_wmr(modulator,0x0109, 1, &val);	/*p_reg_p_fbc_m1200_mid_12_8*/
-    if (error) goto exit;
-
-	val =0xC6;
-	error = orion_cal_wmr(modulator,0x010A, 1, &val);	/*p_reg_p_fbc_m2048_min_7_0*/
-    if (error) goto exit;
-
-	val =0x0D;
-	error = orion_cal_wmr(modulator,0x010B, 1, &val);	/*p_reg_p_fbc_m2048_min_12_8*/
-    if (error) goto exit;
-
-	val =0xC6;
-	error = orion_cal_wmr(modulator,0x010C, 1, &val);	/*p_reg_p_fbc_m2048_max_7_0*/
-    if (error) goto exit;
-
-	val =0x0F;
-	error = orion_cal_wmr(modulator,0x010D, 1, &val);	/*p_reg_p_fbc_m2048_max_12_8*/
-    if (error) goto exit;
-
-	val =0xC6;
-	error = orion_cal_wmr(modulator,0x010E, 1, &val);	/*p_reg_p_fbc_m2048_mid_7_0*/
-    if (error) goto exit;
-
-	val =0x0E;
-	error = orion_cal_wmr(modulator,0x010F, 1, &val);	/*p_reg_p_fbc_m2048_mid_12_8*/
-    if (error) goto exit;
-
+	/* MCH: comment out because this is done in orion_cal_init() */
 	/*---modified by Hidy 07/16/10 apply AAGCI clear---*/
-	val =0x01;
-	error = orion_cal_wmr(modulator,0x00D0, 1, &val);	/*p_reg_p_aagci_clear*/
+	/*val =0x01;
+	error = orion_cal_wmr(modulator,0x00D0, 1, &val);
     if (error) goto exit;
 
 	val =0x00;
-	error = orion_cal_wmr(modulator,0x00D0, 1, &val);	/*p_reg_p_aagci_clear*/
-    if (error) goto exit;
+	error = orion_cal_wmr(modulator,0x00D0, 1, &val);
+    if (error) goto exit;*/
 
 	// Added by Hidy 09/07/10
-	val =0x07;                          /*p_reg_p_dcc_timer_thld_track*/
-	error = orion_cal_wmr(modulator,0x014A, 1, &val);
+	val =0x07;                          
+	error = orion_cal_wmr(modulator,0x014A, 1, &val);	/*p_reg_p_dcc_timer_thld_track*/
 	if (error) goto exit;
 
 	// Added by Hidy 11/12/10
@@ -884,10 +869,15 @@ exit:
 unsigned long orion_cal_run_dccc_w_iqik(IT9510INFO* modulator, Bool log_on)
 {
 	unsigned long error = 0;
-	unsigned char val, pd_ori[3], agc_ori[4], agc_mode_ori[2], dc_i_cal, dc_q_cal, dc_i_min, dc_q_min, i_start, i_end, q_start, q_end, dc_i, dc_q;
+	unsigned char buf[8];
+	unsigned char pd_ori[3] = {0xa6, 0x44, 0xfd};
+	unsigned char agc_param_ori[8];
+	unsigned char dc_iq_cal[2], dc_iq_min[2], i_start, i_end, q_start, q_end;
+	unsigned char dc_iq[2];
 	unsigned int vi_abs_min, vq_abs_min, vi_abs, vq_abs;
 	int pga1_end, vi_real, vi_imag, vq_real, vq_imag;
-	unsigned short dcc_i_addr, dcc_q_addr;
+	//unsigned short dcc_i_addr, dcc_q_addr;
+	unsigned short dcc_i_addr;
 #if USE_UART
 	char dbg_msg[80], dbg_len, *pdbg ;
 	sprintf(dbg_msg, "enter %s\n", __func__);
@@ -897,42 +887,45 @@ unsigned long orion_cal_run_dccc_w_iqik(IT9510INFO* modulator, Bool log_on)
 
 	unsigned char dd = 4, pga1_start = 3;
 
-	int pga1;
+	int pga1, idx;
 	//pga1_start = 3;
 	pga1_end = 0;
-
 
 	/*-------- setup parameter --------*/
 	error = orion_cal_rmr(modulator ,0x0048, 3, pd_ori);	//p_reg_t_pd_7_0
 	if (error) goto exit;
-	error = orion_cal_rmr(modulator ,0x00c0, 2, agc_mode_ori);	//p_reg_p_rf_agc_mode
-	if (error) goto exit;
-	error = orion_cal_rmr(modulator ,0x00c4, 4, agc_ori);	//p_reg_p_rf_lna_gain
-	if (error) goto exit;
-
-	// turn off LNA
-	val = (pd_ori[1] & 0xdf) + 0x20;
-	error = orion_cal_wmr(modulator ,0x0049, 1, &val);
-	if (error) goto exit;
-	error = orion_cal_wmr(modulator ,0x004a, 1, &pd_ori[2]);
+	/* 
+	agc_param_ori [0~1]: rf_agc_mode, bb_agc_mode
+	agc_param_ori [2~3]: aagci_ext_lna_mode, aagci_pga_bak_mode, both default = 0x00
+	agc_param_ori [4~8]: rf_lna_gain, rf_pgc_gain, rf_pga1_gain, rf_pga2_gain
+	*/
+	error = orion_cal_rmr(modulator ,0x00c0, 8, agc_param_ori);	//p_reg_p_rf_agc_mode
 	if (error) goto exit;
 
-	val = 0x02;
-	error = orion_cal_wmr(modulator ,0x0140, 1, &val);	//p_reg_p_dcc_mode
+	// turn off LNA, write p_reg_t_pd_23_16 to apply
+	buf[0] = (pd_ori[1] & 0xdf) + 0x20;
+	buf[1] = pd_ori[2];
+	error = orion_cal_wmr(modulator, 0x0049, 2, buf);	/*p_reg_t_pd_15_8*/
+	if (error) goto exit;
+
+	buf[0] = 0x02;
+	error = orion_cal_wmr(modulator ,0x0140, 1, buf);	/*p_reg_p_dcc_mode*/
 	if (error) goto exit;
 	/*----------------------------------*/
 
+	/*read everything back at once*/
+	error = orion_cal_rmr(modulator, 0x0141, 8, buf);	/*p_reg_p_dcc_i_acc_0_fixed*/
+	if (error) goto exit;
+
 	for (pga1 = pga1_start; pga1 >= pga1_end; pga1--)
 	{
+		idx = pga1 * 2;
+		dc_iq_cal[0] = buf[idx]; 
+		dc_iq_cal[1] = buf[idx + 1];
+		dcc_i_addr = 0x0141 + idx;
+
 		// set agc 7 5 pga1 0
 		error = orion_cal_set_agc(modulator, 7, 5, (unsigned char)pga1, 0);
-		if (error) goto exit;
-
-		dcc_i_addr = 0x0141 + (unsigned char)pga1*2;
-		dcc_q_addr = 0x0142 + (unsigned char)pga1*2;
-		error = orion_cal_rmr(modulator , dcc_i_addr, 1, &dc_i_cal);
-		if (error) goto exit;
-		error = orion_cal_rmr(modulator , dcc_q_addr, 1, &dc_q_cal);
 		if (error) goto exit;
 
 		if (log_on)
@@ -943,19 +936,17 @@ unsigned long orion_cal_run_dccc_w_iqik(IT9510INFO* modulator, Bool log_on)
 
 		vi_abs_min = 10000;
 		vq_abs_min = 10000;
-		dc_i_min = 32;
-		dc_q_min = 32;
-		i_start = dc_i_cal - dd;
-		i_end = dc_i_cal + dd;
-		q_start = dc_q_cal - dd;
-		q_end = dc_q_cal + dd;
+		dc_iq_min[0] = 32;
+		dc_iq_min[1] = 32;
+		i_start = dc_iq_cal[0] - dd;
+		i_end = dc_iq_cal[0] + dd;
+		q_start = dc_iq_cal[1] - dd;
+		q_end = dc_iq_cal[1] + dd;
 
-		dc_q = q_start;
-		for (dc_i = i_start; dc_i <= i_end; dc_i++)
+		dc_iq[1] = q_start;
+		for (dc_iq[0] = i_start; dc_iq[0] <= i_end; (dc_iq[0])++)
 		{
-			error = orion_cal_wmr(modulator ,dcc_i_addr, 1, &dc_i);
-			if (error) goto exit;
-			error = orion_cal_wmr(modulator ,dcc_q_addr, 1, &dc_q);
+			error = orion_cal_wmr(modulator ,dcc_i_addr, 2, dc_iq);
 			if (error) goto exit;
 
 			error = orion_cal_run_iqik(modulator);
@@ -963,43 +954,42 @@ unsigned long orion_cal_run_dccc_w_iqik(IT9510INFO* modulator, Bool log_on)
 			error = orion_cal_read_iqik(modulator, &vi_real, &vi_imag, &vq_real, &vq_imag);
 			if (error) goto exit;
 
-			vi_abs = vi_real*vi_real + vi_imag*vi_imag;
-			vq_abs = vq_real*vq_real + vq_imag*vq_imag;
+			/*m_cal = 0 => vi_imag = 0 & vq_imag = 0*/
+			/*vi_abs = vi_real*vi_real + vi_imag*vi_imag;
+			vq_abs = vq_real*vq_real + vq_imag*vq_imag;*/
+			vi_abs = vi_real*vi_real;
+			vq_abs = vq_real*vq_real;
 
-			if (vi_abs <= vi_abs_min || dc_i == i_start)
+			if (vi_abs <= vi_abs_min || dc_iq[0] == i_start)
 			{
 				vi_abs_min = vi_abs;
-				dc_i_min = dc_i;
+				dc_iq_min[0] = dc_iq[0];
 			}
-			if (vq_abs <= vq_abs_min || dc_q == q_start)
+			if (vq_abs <= vq_abs_min || dc_iq[1] == q_start) 
 			{
 				vq_abs_min = vq_abs;
-				dc_q_min = dc_q;
+				dc_iq_min[1] = dc_iq[1];
 			}
 			if (log_on)
 			{
 				//printf("%d\t%d\t%d\t%d\n", dc_i, dc_q, vi_abs, vq_abs);
 			}
-			dc_q++;
+			(dc_iq[1])++;
 		}
 
-		error = orion_cal_wmr(modulator ,dcc_i_addr, 1, &dc_i_min);
-		if (error) goto exit;
-		error = orion_cal_wmr(modulator ,dcc_q_addr, 1, &dc_q_min);
+		error = orion_cal_wmr(modulator ,dcc_i_addr, 2, dc_iq_min);
 		if (error) goto exit;
 
 		if (log_on)
 		{
-			IT9510User_printf("%d\t%d\n", dc_i_min, dc_q_min);
+			IT9510User_printf("%d\t%d\n", dc_iq_min[0], dc_iq_min[1]);
 		}
 	}
 
 	/*-------- resume parameter --------*/
 	error = orion_cal_wmr(modulator ,0x0048, 3, pd_ori);
 	if (error) goto exit;
-	error = orion_cal_wmr(modulator ,0x00c0, 2, agc_mode_ori);
-	if (error) goto exit;
-	error = orion_cal_wmr(modulator ,0x00c4, 4, agc_ori);
+	error = orion_cal_wmr(modulator ,0x00c0, 8, agc_param_ori);
 	if (error) goto exit;
 	/*----------------------------------*/
 
@@ -1015,7 +1005,7 @@ exit:
 unsigned long orion_cal_set_agc(IT9510INFO* modulator, unsigned char lna, unsigned char pgc, unsigned char pga1, unsigned char pga2)
 {
 	unsigned long error;
-	unsigned char val;
+	unsigned char buf[8];
 #if USE_UART
 	char dbg_msg[80], dbg_len, *pdbg ;
 	sprintf(dbg_msg, "enter %s\n", __func__);
@@ -1023,21 +1013,15 @@ unsigned long orion_cal_set_agc(IT9510INFO* modulator, unsigned char lna, unsign
 	TRANSFER_LOG
 #endif
 
-	// set agc mode
-	val = 0x01;
-	error = orion_cal_wmr(modulator ,0x00c0, 1, &val);
-	if (error) goto exit;
-	error = orion_cal_wmr(modulator ,0x00c1, 1, &val);
-	if (error) goto exit;
+	/* theoretically we should read 0x00c2 and 0x00c3 back, but we know their default values are 0x00*/
+	//error = orion_cal_rmr(modulator, 0x00c2, 2, &buf[2]);	/*p_reg_p_aagci_ext_lna_mode*/
+	//if (error) goto exit;
 
-	// set agc gain
-	error = orion_cal_wmr(modulator ,0x00c4, 1, &lna);
-	if (error) goto exit;
-	error = orion_cal_wmr(modulator ,0x00c5, 1, &pgc);
-	if (error) goto exit;
-	error = orion_cal_wmr(modulator ,0x00c6, 1, &pga1);
-	if (error) goto exit;
-	error = orion_cal_wmr(modulator ,0x00c7, 1, &pga2);
+	//set agc_mode and agc_gain, leave 0x00c2, 0x00c3 unchanged
+	buf[0] = 0x01; buf[1] = 0x01;
+	buf[2] = 0x00; buf[3] = 0x00;
+	buf[4] = lna; buf[5] = pgc; buf[6] = pga1; buf[7] = pga2;
+	error = orion_cal_wmr(modulator, 0x00c0, 8, buf);	/*p_reg_p_r_agc_mode*/
 	if (error) goto exit;
 
 exit:
@@ -1094,7 +1078,7 @@ exit:
 unsigned long orion_cal_read_iqik(IT9510INFO* modulator, int *vi_real, int *vi_imag, int *vq_real, int *vq_imag)
 {
 	unsigned long error;
-	unsigned char val[3];
+	unsigned char val[12];
 #if USE_UART
 	char dbg_msg[80], dbg_len, *pdbg ;
 	sprintf(dbg_msg, "enter %s\n", __func__);
@@ -1102,21 +1086,12 @@ unsigned long orion_cal_read_iqik(IT9510INFO* modulator, int *vi_real, int *vi_i
 	TRANSFER_LOG
 #endif
 
-	error = orion_cal_rmr(modulator, 0x0188, 3, val);
+	error = orion_cal_rmr(modulator, 0x0188, 12, val);	/*r_reg_r_iqik_vi_readl_7_0*/
 	if (error) goto exit;
 	*vi_real = (val[2] << 16) + (val[1] << 8) + val[0];
-
-	error = orion_cal_rmr(modulator, 0x018b, 3, val);
-	if (error) goto exit;
-	*vi_imag = (val[2] << 16) + (val[1] << 8) + val[0];
-
-	error = orion_cal_rmr(modulator, 0x018e, 3, val);
-	if (error) goto exit;
-	*vq_real = (val[2] << 16) + (val[1] << 8) + val[0];
-
-	error = orion_cal_rmr(modulator, 0x0191, 3, val);
-	if (error) goto exit;
-	*vq_imag = (val[2] << 16) + (val[1] << 8) + val[0];
+	*vi_imag = (val[5] << 16) + (val[4] << 8) + val[3];
+	*vq_real = (val[8] << 16) + (val[7] << 8) + val[6];
+	*vq_imag = (val[11] << 16) + (val[10] << 8) + val[9];
 
 	// Sign conversion UQ(16,0) -> Q(16,0)
 	*vi_real = ((*vi_real + 65536) % 131072) - 65536;
@@ -1136,8 +1111,8 @@ exit:
 unsigned long orion_dc_scan (IT9510INFO* modulator, Bool ofs)
 {
 	uint32_t	error, limit;
-	uint8_t	val[6], agc_ori[4], agc_mode_ori[2];
-	//Word	addr_start, addr_end, reg_addr;
+	uint8_t	val[6], agc_param_ori[8];
+	//uint16_t	addr_start, addr_end, reg_addr;
 	uint8_t	val_org[6];
 	int		dc_i_ctr, dc_i_range, dc_q_ctr, dc_q_range, dc_i_min, dc_q_min;
 #if USE_UART
@@ -1160,12 +1135,14 @@ unsigned long orion_dc_scan (IT9510INFO* modulator, Bool ofs)
 	if (error) goto exit;
 
 	// read original agc setting
-	error = orion_cal_rmr(modulator ,0x00c0, 2, agc_mode_ori);	//p_reg_p_rf_agc_mode
+	error = orion_cal_rmr(modulator ,0x00c0, 8, agc_param_ori);	/*p_reg_p_rf_agc_mode*/
 	if (error) goto exit;
-	error = orion_cal_rmr(modulator ,0x00c4, 4, agc_ori);	//p_reg_p_rf_lna_gain
-	if (error) goto exit;
+
 	// set agc 4 7 0 0
-	error = orion_agc_dcc (modulator, 0);
+	if (ofs == 0)	//9518
+		error = orion_agc_dcc(modulator, 0);
+	else	//9517
+		error = orion_agc_dcc(modulator, 0);
 	//error = orion_cal_set_agc(modulator, 5, 7, 0, 0);
 	if (error) goto exit;
 
@@ -1175,12 +1152,9 @@ unsigned long orion_dc_scan (IT9510INFO* modulator, Bool ofs)
 	if (error) goto exit;
 
 	// set scaling facotr of Tx 64
-	val[0] = 0x40;
-	val[1] = 0x00;
-	val[2] = 0x00;
-	val[3] = 0x00;
-	val[4] = 0x40;
-	val[5] = 0x00;
+	val[0] = 0x40;	val[1] = 0x00;
+	val[2] = 0x00;	val[3] = 0x00;
+	val[4] = 0x40;	val[5] = 0x00;
 	error = IT9510_writeRegisters (modulator, Processor_OFDM, 0xF752, 6, val);
 	if (error) goto exit;
 
@@ -1196,7 +1170,6 @@ unsigned long orion_dc_scan (IT9510INFO* modulator, Bool ofs)
 		dc_q_range = 32;
 		//limit = 10000000;
 		limit = 100000000;
-
 
 		error = orion_dc_scan_core_ptr(modulator, dc_i_ctr, dc_i_range, dc_q_ctr, dc_q_range, True, limit, &dc_i_min, &dc_q_min);
 		if (error) goto exit;
@@ -1262,9 +1235,7 @@ unsigned long orion_dc_scan (IT9510INFO* modulator, Bool ofs)
 	if (error) goto exit;
 
 	// set agc original setting
-	error = orion_cal_wmr(modulator ,0x00c0, 2, agc_mode_ori);
-	if (error) goto exit;
-	error = orion_cal_wmr(modulator ,0x00c4, 4, agc_ori);
+	error = orion_cal_wmr(modulator ,0x00c0, 8, agc_param_ori);
 	if (error) goto exit;
 
 exit:
@@ -1332,7 +1303,8 @@ unsigned long orion_dc_scan_core (IT9510INFO* modulator, int dc_i_ctr, int dc_i_
 		if (error) goto exit;
 
 		ssum_pre = ssum;
-		ssum = (vi_real-vq_imag)*(vi_real-vq_imag) + (vi_imag+vq_real)*(vi_imag+vq_real);
+		//ssum = (vi_real-vq_imag)*(vi_real-vq_imag) + (vi_imag+vq_real)*(vi_imag+vq_real);
+		ssum = vi_real*vi_real + vq_real*vq_real;
 
 		if (ssum <= ssum_min || dc_i == dc_i_ctr)
 		{
@@ -1367,7 +1339,8 @@ unsigned long orion_dc_scan_core (IT9510INFO* modulator, int dc_i_ctr, int dc_i_
 		if (error) goto exit;
 
 		ssum_pre = ssum;
-		ssum = (vi_real-vq_imag)*(vi_real-vq_imag) + (vi_imag+vq_real)*(vi_imag+vq_real);
+		//ssum = (vi_real-vq_imag)*(vi_real-vq_imag) + (vi_imag+vq_real)*(vi_imag+vq_real);
+		ssum = vi_real*vi_real + vq_real*vq_real;
 
 		if (ssum <= ssum_min)
 		{
@@ -1402,7 +1375,8 @@ unsigned long orion_dc_scan_core (IT9510INFO* modulator, int dc_i_ctr, int dc_i_
 		if (error) goto exit;
 
 		ssum_pre = ssum;
-		ssum = (vi_real-vq_imag)*(vi_real-vq_imag) + (vi_imag+vq_real)*(vi_imag+vq_real);
+		//ssum = (vi_real-vq_imag)*(vi_real-vq_imag) + (vi_imag+vq_real)*(vi_imag+vq_real);
+		ssum = vi_real*vi_real + vq_real*vq_real;
 
 		if (ssum <= ssum_min || dc_q == dc_q_ctr)
 		{
@@ -1436,7 +1410,8 @@ unsigned long orion_dc_scan_core (IT9510INFO* modulator, int dc_i_ctr, int dc_i_
 		if (error) goto exit;
 
 		ssum_pre = ssum;
-		ssum = (vi_real-vq_imag)*(vi_real-vq_imag) + (vi_imag+vq_real)*(vi_imag+vq_real);
+		//ssum = (vi_real-vq_imag)*(vi_real-vq_imag) + (vi_imag+vq_real)*(vi_imag+vq_real);
+		ssum = vi_real*vi_real + vq_real*vq_real;
 
 		if (ssum <= ssum_min)
 		{
@@ -1461,8 +1436,8 @@ exit:
 unsigned long orion_dc_scan_core2(IT9510INFO* modulator, int dc_i_ctr, int dc_i_range, int dc_q_ctr, int dc_q_range, Bool ofs, unsigned long limit, int* dc_i_min, int* dc_q_min)
 {
 	uint32_t error = 0;
-	uint8_t tmp_buf[14] = {0};
-	uint8_t i;
+	uint8_t tmp_buf[32] = {};
+	uint8_t i = 0;
 #if USE_UART
 	char dbg_msg[80], dbg_len, *pdbg ;
 	sprintf(dbg_msg, "enter %s\n", __func__);
@@ -1470,37 +1445,40 @@ unsigned long orion_dc_scan_core2(IT9510INFO* modulator, int dc_i_ctr, int dc_i_
 	TRANSFER_LOG
 #endif
 
-	tmp_buf[0] = 0x20; // run orion_dc_scan_core() function
+	tmp_buf[i++] = 0x20; // run orion_dc_scan_core() function
 
-	tmp_buf[1] = (dc_i_ctr >> 8) & 0xFF;
-	tmp_buf[2] = dc_i_ctr & 0xFF;
+	tmp_buf[i++] = (dc_i_ctr >> 8) & 0xFF;
+	tmp_buf[i++] = dc_i_ctr & 0xFF;
 
-	tmp_buf[3] = (dc_i_range >> 8) & 0xFF;
-	tmp_buf[4] = dc_i_range & 0xFF;
+	tmp_buf[i++] = (dc_i_range >> 8) & 0xFF;
+	tmp_buf[i++] = dc_i_range & 0xFF;
 
-	tmp_buf[5] = (dc_q_ctr >> 8) & 0xFF;
-	tmp_buf[6] = dc_q_ctr & 0xFF;
+	tmp_buf[i++] = (dc_q_ctr >> 8) & 0xFF;
+	tmp_buf[i++] = dc_q_ctr & 0xFF;
 
-	tmp_buf[7] = (dc_q_range >> 8) & 0xFF;
-	tmp_buf[8] = dc_q_range & 0xFF;
+	tmp_buf[i++] = (dc_q_range >> 8) & 0xFF;
+	tmp_buf[i++] = dc_q_range & 0xFF;
 
-	tmp_buf[9] = ofs & 0xFF;
+	tmp_buf[i++] = ofs & 0xFF;
 
-	tmp_buf[10] = (limit >> 24) & 0xFF;
-	tmp_buf[11] = (limit >> 16) & 0xFF;
-	tmp_buf[12] = (limit >> 8) & 0xFF;
-	tmp_buf[13] = limit & 0xFF;
+	tmp_buf[i++] = (limit >> 24) & 0xFF; // 10th
+	tmp_buf[i++] = (limit >> 16) & 0xFF;
+	tmp_buf[i++] = (limit >> 8) & 0xFF;
+	tmp_buf[i++] = limit & 0xFF; // 13th
 
-	error = IT9510_writeRegisters2(modulator, Processor_LINK, 0x4900, 14, tmp_buf);
+	error = IT9510_writeRegisters(modulator, Processor_LINK, 0x4900, i, tmp_buf);
 	if (error) goto exit;
+
+	// ZeroMemory(tmp_buf, sizeof(tmp_buf));
+	for (i = 0; i < sizeof(tmp_buf); i++)
+		tmp_buf[i] = 0;
 
  // get the orion_dc_scan_core() result
-   uint8_t buf[4]={0};
-	error = IT9510_readRegisters2(modulator, Processor_LINK, 0x7E00, 4, buf);
+	error = IT9510_readRegisters(modulator, Processor_LINK, 0x7E00, 4, tmp_buf);
 	if (error) goto exit;
 
-	*dc_i_min = (signed short)((buf[0] << 8) + buf[1]);
-	*dc_q_min = (signed short)((buf[2] << 8) + buf[3]);
+	*dc_i_min = (signed short)((tmp_buf[0] << 8) + tmp_buf[1]);
+	*dc_q_min = (signed short)((tmp_buf[2] << 8) + tmp_buf[3]);
 
 exit:
 #if USE_UART
@@ -1515,7 +1493,7 @@ unsigned long orion_cal_run_iqik2(IT9510INFO* modulator)
 {
 	uint32_t error = 0;
 	uint8_t tmp_buf[32] = {};
-	uint8_t i;
+	//uint8_t i;
 #if USE_UART
 	char dbg_msg[80], dbg_len, *pdbg ;
 	sprintf(dbg_msg, "enter %s\n", __func__);
@@ -1541,7 +1519,7 @@ unsigned long setDCCalibrationValue2(IT9510INFO* modulator, int dc_i, int dc_q)
 {
 	uint32_t error = 0;
 	uint8_t tmp_buf[32] = {};
-	uint8_t i;
+	uint8_t i = 0;
 #if USE_UART
 	char dbg_msg[80], dbg_len, *pdbg ;
 	sprintf(dbg_msg, "enter %s\n", __func__);
@@ -1549,15 +1527,15 @@ unsigned long setDCCalibrationValue2(IT9510INFO* modulator, int dc_i, int dc_q)
 	TRANSFER_LOG
 #endif
 
-	tmp_buf[0] = 0x23; // run IT9510_setDCCaibrationValue() function
+	tmp_buf[i++] = 0x23; // run IT9510_setDCCaibrationValue() function
 
-	tmp_buf[1] = (dc_i >> 8) & 0xFF;
-	tmp_buf[2] = dc_i & 0xFF;
+	tmp_buf[i++] = (dc_i >> 8) & 0xFF;
+	tmp_buf[i++] = dc_i & 0xFF;
 
-	tmp_buf[3] = (dc_q >> 8) & 0xFF;
-	tmp_buf[4] = dc_q & 0xFF;
+	tmp_buf[i++] = (dc_q >> 8) & 0xFF;
+	tmp_buf[i++] = dc_q & 0xFF;
 
-	error = IT9510_writeRegisters(modulator, Processor_LINK, 0x4900, 5, tmp_buf);
+	error = IT9510_writeRegisters(modulator, Processor_LINK, 0x4900, i, tmp_buf);
 	if (error) goto exit;
 
 exit:
@@ -1573,7 +1551,7 @@ unsigned long setOFSCalibrationValue2(IT9510INFO* modulator, uint8_t ofs_i, uint
 {
 	uint32_t error = 0;
 	uint8_t tmp_buf[32] = {};
-	uint8_t i;
+	uint8_t i = 0;
 #if USE_UART
 	char dbg_msg[80], dbg_len, *pdbg ;
 	sprintf(dbg_msg, "enter %s\n", __func__);
@@ -1581,12 +1559,12 @@ unsigned long setOFSCalibrationValue2(IT9510INFO* modulator, uint8_t ofs_i, uint
 	TRANSFER_LOG
 #endif
 
-	tmp_buf[0] = 0x24; // run IT9510_setOFSCalibrationValue() function
+	tmp_buf[i++] = 0x24; // run IT9510_setOFSCalibrationValue() function
 
-	tmp_buf[1] = ofs_i & 0xFF;
-	tmp_buf[2] = ofs_q & 0xFF;
+	tmp_buf[i++] = ofs_i & 0xFF;
+	tmp_buf[i++] = ofs_q & 0xFF;
 
-	error = IT9510_writeRegisters(modulator, Processor_LINK, 0x4900, 3, tmp_buf);
+	error = IT9510_writeRegisters(modulator, Processor_LINK, 0x4900, i, tmp_buf);
 	if (error) goto exit;
 
 exit:
@@ -1645,6 +1623,121 @@ exit:
 	return(error);
 }
 
+unsigned long orion_cal_read_tune_rssi2(IT9510INFO* modulator, unsigned int *rssi_avg, unsigned int avg_times)
+{
+	uint32_t error = 0;
+	uint8_t tmp_buf[32] = {};
+	uint8_t i = 0;
+#if USE_UART
+	char dbg_msg[80], dbg_len, *pdbg ;
+	sprintf(dbg_msg, "enter %s\n", __func__);
+	dbg_len = strlen(dbg_msg);
+	TRANSFER_LOG
+#endif
+
+	tmp_buf[i++] = 0x25; // run orion_cal_read_tune_rssi() function
+
+	tmp_buf[i++] = (avg_times >> 24) & 0xFF;
+	tmp_buf[i++] = (avg_times >> 16) & 0xFF;
+	tmp_buf[i++] = (avg_times >> 8) & 0xFF;
+	tmp_buf[i++] = avg_times & 0xFF; // 4th
+
+	error = IT9510_writeRegisters(modulator, Processor_LINK, 0x4900, i, tmp_buf);
+	if (error) goto exit;
+
+	// ZeroMemory(tmp_buf, sizeof(tmp_buf));
+	for (i = 0; i < sizeof(tmp_buf); i++)
+		tmp_buf[i] = 0;
+
+	// get the orion_cal_read_tune_rssi() result
+
+	error = IT9510_readRegisters(modulator, Processor_LINK, 0x7E00, 4, tmp_buf);
+	if (error) goto exit;
+
+	*rssi_avg = (tmp_buf[0] << 24) + (tmp_buf[1] << 16) + (tmp_buf[2] << 8) + tmp_buf[3];
+
+exit:
+#if USE_UART
+	sprintf(pdbg, "exit %s, %x\n", __func__,error);
+	dbg_len += strlen(pdbg);
+	TRANSFER_LOG
+#endif
+	return(error);
+}
+
+unsigned long orion_cal_run_dccc_w_iqik2(IT9510INFO* modulator, Bool log_on)
+{
+	uint32_t error = 0;
+	uint8_t tmp_buf[32] = {};
+#if USE_UART
+	char dbg_msg[80], dbg_len, *pdbg ;
+	sprintf(dbg_msg, "enter %s\n", __func__);
+	dbg_len = strlen(dbg_msg);
+	TRANSFER_LOG
+#endif
+
+	tmp_buf[0] = 0x26; // run orion_cal_run_dccc_w_iqik() function
+
+	error = IT9510_writeRegisters(modulator, Processor_LINK, 0x4900, 1, tmp_buf);
+	if (error) goto exit;
+
+exit:
+#if USE_UART
+	sprintf(pdbg, "exit %s, %x\n", __func__,error);
+	dbg_len += strlen(pdbg);
+	TRANSFER_LOG
+#endif
+	return(error);
+}
+
+unsigned long orion_cal_set_agc2(IT9510INFO* modulator, unsigned char lna, unsigned char pgc, unsigned char pga1, unsigned char pga2)
+{
+	uint32_t error = 0;
+	uint8_t tmp_buf[32] = {};
+	uint8_t i = 0;
+#if USE_UART
+	char dbg_msg[80], dbg_len, *pdbg ;
+	sprintf(dbg_msg, "enter %s\n", __func__);
+	dbg_len = strlen(dbg_msg);
+	TRANSFER_LOG
+#endif
+
+	tmp_buf[i++] = 0x27; // run orion_cal_set_agc() function
+
+	tmp_buf[i++] = lna;
+	tmp_buf[i++] = pgc;
+	tmp_buf[i++] = pga1;
+	tmp_buf[i++] = pga2;
+
+	error = IT9510_writeRegisters(modulator, Processor_LINK, 0x4900, i, tmp_buf);
+	if (error) goto exit;
+
+exit:
+#if USE_UART
+	sprintf(pdbg, "exit %s, %x\n", __func__,error);
+	dbg_len += strlen(pdbg);
+	TRANSFER_LOG
+#endif
+	return(error);
+}
+
+unsigned long orion_cal_set_registers2(IT9510INFO* modulator)
+{
+	uint32_t error = 0;
+	uint8_t tmp_buf[32] = {};
+	uint8_t i = 0;
+
+	tmp_buf[i++] = 0x28; // run orion_cal_set_registers() function
+
+	tmp_buf[i++] = g_clock_mode;
+
+	error = IT9510_writeRegisters(modulator, Processor_LINK, 0x4900, i, tmp_buf);
+	if (error) goto exit;
+
+exit:
+	return(error);
+}
+
 unsigned long orion_cal_read_tune_rssi(IT9510INFO* modulator, unsigned int *rssi_avg, unsigned int avg_times)
 {
 	unsigned char val[5], rssi_tuner[5];
@@ -1657,7 +1750,7 @@ unsigned long orion_cal_read_tune_rssi(IT9510INFO* modulator, unsigned int *rssi
 	TRANSFER_LOG
 #endif
 	val[0] = 0x03;
-	error = orion_cal_wmr(modulator ,0x005B, 1, val);
+	error = orion_cal_wmr(modulator ,0x005B, 1, val);	/*p_reg_t_rssi_avg_sel*/
 	if (error) goto exit;
 
 	rssi_acc = 0;
@@ -1694,7 +1787,7 @@ exit:
 unsigned long orion_agc_dcc (IT9510INFO* modulator, int tx_pw)
 {
 	unsigned long error = 0;
-	unsigned char val, pd_ori[3];
+	unsigned char buf[3], pd_ori[3];
 	int add_gain, near_gain, gain_diff;
 	int rssi_avg, near_idx;
 #if USE_UART
@@ -1712,22 +1805,34 @@ unsigned long orion_agc_dcc (IT9510INFO* modulator, int tx_pw)
 	unsigned int temp;
 	unsigned int i;
 
+	ORION_CAL_READ_TUNE_RSSI_FUNC orion_cal_read_tune_rssi_ptr = NULL;
+	ORION_CAL_SET_AGC_FUNC orion_cal_set_agc_ptr = NULL;
+
+#ifdef FW_SUPPORT
+	orion_cal_read_tune_rssi_ptr = orion_cal_read_tune_rssi2;
+	orion_cal_set_agc_ptr = orion_cal_set_agc2;
+#else
+	orion_cal_read_tune_rssi_ptr = orion_cal_read_tune_rssi;
+	orion_cal_set_agc_ptr = orion_cal_set_agc;
+#endif
+
 	error = orion_cal_rmr(modulator ,0x0048, 3, pd_ori);	//p_reg_t_pd_7_0
 	if (error) goto exit;
 
-	// turn on adc_i and adc_q
-	val = 0x3e;
-	error = orion_cal_wmr(modulator ,0x0048, 1, &val);
-	if (error) goto exit;
-	error = orion_cal_wmr(modulator ,0x004a, 1, &pd_ori[2]);
+	// turn off adc_i(pd[3]) and adc_q(pd[4])
+	// turn on rssi(pd[7]) and aadc(pd[7]) 
+	buf[0] = 0x3e; 
+	buf[1] = pd_ori[1];
+	buf[2] = pd_ori[2];
+	error = orion_cal_wmr(modulator ,0x0048, 3, buf);
 	if (error) goto exit;
 
 	if (tx_pw > -12 && tx_pw <= 0)
 	{
-		error = orion_cal_set_agc(modulator, 3, 0, 0, 0);
+		error = orion_cal_set_agc_ptr(modulator, 3, 0, 0, 0);
 		if (error) goto exit;
 
-		error = orion_cal_read_tune_rssi(modulator, &temp, 100);
+		error = orion_cal_read_tune_rssi_ptr(modulator, &temp, 100);
 		if (error) goto exit;
 		rssi_avg = (int)temp;
 		//add_gain = (double(rssi_avg)-808)/13.5+34.276-3;
@@ -1738,10 +1843,10 @@ unsigned long orion_agc_dcc (IT9510INFO* modulator, int tx_pw)
 
 	} else if (tx_pw > -27 && tx_pw <= -12)
 	{
-		error = orion_cal_set_agc(modulator, 3, 5, 0, 0);
+		error = orion_cal_set_agc_ptr(modulator, 3, 5, 0, 0);
 		if (error) goto exit;
 
-		error = orion_cal_read_tune_rssi(modulator, &temp, 100);
+		error = orion_cal_read_tune_rssi_ptr(modulator, &temp, 100);
 		if (error) goto exit;
 	    rssi_avg = (int)temp;
 
@@ -1749,10 +1854,10 @@ unsigned long orion_agc_dcc (IT9510INFO* modulator, int tx_pw)
 		add_gain = (rssi_avg-808)*100/135 + 19216 - 3000;
 	} else
 	{
-		error = orion_cal_set_agc(modulator, 6, 5, 0, 0);
+		error = orion_cal_set_agc_ptr(modulator, 6, 5, 0, 0);
 		if (error) goto exit;
 
-		error = orion_cal_read_tune_rssi(modulator, &temp, 100);
+		error = orion_cal_read_tune_rssi_ptr(modulator, &temp, 100);
 		if (error) goto exit;
 		rssi_avg = (int)temp;
 
@@ -1776,7 +1881,7 @@ unsigned long orion_agc_dcc (IT9510INFO* modulator, int tx_pw)
 		}
 	}
 
-	error = orion_cal_set_agc(modulator, lna_tb[near_idx], pgc_tb[near_idx], pga1_tb[near_idx], 0);
+	error = orion_cal_set_agc_ptr(modulator, lna_tb[near_idx], pgc_tb[near_idx], pga1_tb[near_idx], 0);
 	if (error) goto exit;
 
 
@@ -1799,7 +1904,7 @@ uint32_t orion_calDC (
 
 ) {
 	uint8_t	val;
-	uint8_t	temp;
+	uint8_t	buf[3];
 	uint32_t	error = 0;
 #if USE_UART
 	char dbg_msg[80], dbg_len, *pdbg ;
@@ -1807,16 +1912,15 @@ uint32_t orion_calDC (
 	dbg_len = strlen(dbg_msg);
 	TRANSFER_LOG
 #endif
-
-	if(frequency>950000 || frequency<70000){
-
-		goto orion_pd;
-	}
+	
 	// turn on clock from eagle, Michael 20140423
 	val = 0x80;
 	error = IT9510_writeRegisters (modulator, Processor_OFDM, 0xFB26, 1, &val);
 	if (error) goto exit;
+	if(frequency>950000 || frequency<70000){
 
+		goto orion_pd; 
+	}
 
 
 	error = orion_cal_setfreq(modulator, 8000, frequency);
@@ -1828,16 +1932,11 @@ uint32_t orion_calDC (
 
 	//----------------
 orion_pd:
-	temp = 0xFE;
-	error = orion_cal_wmr(modulator ,0x0048, 1, &temp);
+	buf[0] = 0xFE;	
+	buf[1] = 0xDF; 
+	buf[2] = 0xFD;
+	error = orion_cal_wmr(modulator, 0x0048, 3, buf);
 	if (error) goto exit;
-	temp = 0xDF;
-	error = orion_cal_wmr(modulator ,0x0049, 1, &temp);
-	if (error) goto exit;
-	temp = 0xFD;
-	error = orion_cal_wmr(modulator ,0x004a, 1, &temp);
-	if (error) goto exit;
-
 
 	//----------------
 

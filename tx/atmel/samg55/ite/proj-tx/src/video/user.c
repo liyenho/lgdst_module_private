@@ -16,6 +16,7 @@ extern void twi_sms4470_handler(const uint32_t id, const uint32_t index);
 static DCtable dc_table[7];
 static DCtable ofs_table[7];
 
+static RFGainTable rfGain_table[50];
 uint32_t IT9510User_i2cSwitchToADRF6755 (  IT9510INFO*    modulator)
 {
 	return IT9510_writeRegister (modulator, Processor_LINK, p_IT9510_reg_top_gpioh2_o, 1);
@@ -246,7 +247,7 @@ uint32_t IT9510User_busRx (
 			//break;
 		if (ctx_951x.it951x_err_rd == TWI_SUCCESS) {
 			error = ModulatorError_NO_ERROR;
-			break;;
+			break;
 		}
 		IT9510User_delay(10);
 	}
@@ -377,6 +378,7 @@ uint32_t IT9510User_Initialization  (
 //#endif
 	error = IT9510_writeRegister (modulator, Processor_LINK, p_IT9510_reg_top_gpioh2_o, 0); //RF out power down
 	if (error) goto exit;
+	IT9510User_LoadRFGainTable(modulator);
 	IT9510User_LoadDCCalibrationTable(modulator);
 exit:
 #if USE_UART
@@ -461,7 +463,23 @@ uint32_t IT9510User_acquireChannel (
 		if (error) goto exit;
 	}
 */
+	uint8_t bIndex = 0;
+	int gain_value;
 
+	if (IT9510User_getOutputGainInfo(modulator, frequency + LO_Frequency, &bIndex) == 0)
+			{
+			// setting output gain
+			// analog gain
+			gain_value = modulator->rfGainInfo.ptrGaintable[bIndex].alanogGainValue;
+			error = IT9510_writeRegister(modulator, Processor_OFDM, 0xFBBC, gain_value);
+			if (error) goto exit;
+
+			// digital gain
+			gain_value = modulator->rfGainInfo.ptrGaintable[bIndex].digitalGainValue;
+			error = IT9510_adjustOutputGain(modulator, &gain_value);
+			if (error) goto exit;
+		}
+exit:
 	return (error);
 }
 
@@ -577,6 +595,7 @@ uint32_t IT9510User_LoadDCCalibrationTable (
 	if (error) goto exit;
 
 	if((eeprom ==1) && ((DCcalibration & 0x80) == 0x80)){
+		; //puts("found eeprom and chip supported DC calibration as well");
 		error = IT9510_readRegisters (modulator, Processor_LINK, 0x49D6, 12, DCvalue);//DC calibration value
 		if (error) goto exit;
 
@@ -603,7 +622,7 @@ uint32_t IT9510User_LoadDCCalibrationTable (
 		if (error) goto exit;
 		error = IT9510_readRegister (modulator, Processor_LINK, 0x49E9, &OFS_Q_value[6]);//OFS_7_q calibration value
 		if (error) goto exit;
-
+		; //puts("set up I/Q-DC calibration table");
 		for(index = 1; index<8; index++){
 
 			if(index == 1){
@@ -680,3 +699,189 @@ uint32_t IT9510User_rfPowerOn (
 
 }
 
+uint16_t EepromProtocolChecksum(uint8_t* p, uint8_t count)
+{
+	uint16_t sum;
+	uint8_t i;
+
+	sum = 0;
+	for (i = 0; i < count; i++) {
+		if (i & 1)
+			sum += p[i];		// add low byte.
+		else
+			sum += ((uint8_t)p[i]) << 8;	// add high byte.
+	}
+
+	return ~sum;
+}
+
+uint32_t IT9510User_LoadRFGainTable(
+		IT9510INFO*            modulator
+		)
+{
+	uint32_t error = ModulatorError_NO_ERROR;
+	RFGainInfo rfGain_Info;
+	uint8_t eeprom = 0;
+	uint16_t tempAddress = 0;
+	uint8_t tempLength = 16;
+	uint8_t tab_count, i, tmp_val;
+	uint16_t tmp_data1, tmp_data2;
+	uint8_t eepromData[256];
+	uint16_t chk_tmp = 0, chk_page = 0;
+	const uint8_t header_len = 4;
+	const uint8_t sec_unit_size = 4; // eeprom: 2 byte for freq, 1 byte for digital and analog gain
+	uint8_t tab_size = sizeof(rfGain_table) / sizeof(RFGainTable);
+
+	rfGain_Info.tableIsValid = False;
+	error = IT9510_writeRegister(modulator, Processor_LINK, 0x4979, 0x1);
+	if (error) goto exit;
+
+	error = IT9510_writeRegister(modulator, Processor_LINK, 0x496D, 0xa8);
+	if (error) goto exit;
+
+	//-------------get RF Gain table
+	error = IT9510_readRegister(modulator, Processor_LINK, 0x4979, &eeprom);//has eeprom ??
+	if (error) goto exit;
+
+	if (eeprom == 0)
+	{
+		error = ModulatorError_NO_SUCH_TABLE;
+		goto exit;
+	}
+
+	// read 256 byte from eeprom
+	for (i = 0; i<16; i++) {
+		tempAddress = i * 16;
+		// get page 2 data
+		error = IT9510_readEepromValues(modulator, 0x200 + tempAddress, tempLength, &eepromData[tempAddress]);
+		if (error)	goto exit;
+	}
+
+	// checksum whether correct
+	chk_tmp = EepromProtocolChecksum(eepromData, 256 - 2);
+
+	chk_page = (eepromData[254] << 8) + eepromData[255];
+
+	if (chk_tmp != chk_page)
+	{
+		error = ModulatorError_WRONG_CHECKSUM;
+		goto exit;
+	}
+	// check eeprom data
+	if (eepromData[0] == 0)
+	{
+		error = ModulatorError_NO_SUCH_TABLE;
+		goto exit;
+	}
+
+	// get the table count
+	tab_count = eepromData[1];
+
+	if (tab_count > tab_size || tab_count == 1)
+	{
+		error = ModulatorError_INVALID_DATA_LENGTH;
+		goto exit;
+	}
+
+	for (i = 0; i < tab_count; i++)
+	{
+		// get freq
+		rfGain_table[i].rawFrequency = (eepromData[header_len + i * sec_unit_size] << 8) +
+										eepromData[header_len + i * sec_unit_size + 1];
+		// get alalog gain
+		rfGain_table[i].alanogGainValue = eepromData[header_len + i * sec_unit_size + 2];
+
+		//get digital gain
+		tmp_val = eepromData[header_len + i * sec_unit_size + 3];
+		rfGain_table[i].digitalGainValue = tmp_val & 0x80 ? ((tmp_val & 0x7F) * -1) : tmp_val;
+	}
+
+	// calculate the start frequency for gain control
+	for (i = 0; i < tab_count - 1; i++)
+	{
+		tmp_data1 = rfGain_table[i].rawFrequency;
+		tmp_data2 = rfGain_table[i + 1].rawFrequency;
+
+		rfGain_table[i].startFrequency = (tmp_data1 + tmp_data2) * 1000 / 2; // use K Hz
+	}
+
+	rfGain_Info.tableIsValid = True;
+	rfGain_Info.tableCount = tab_count;
+	rfGain_Info.ptrGaintable = rfGain_table;
+
+	error = IT9510_setRFGaintable(modulator, rfGain_Info);
+
+exit:
+	return error;
+}
+
+uint32_t IT9510User_getOutputGainInfo(
+		IT9510INFO*    modulator,
+		uint32_t			frequency,
+		uint8_t*			index
+		)
+{
+	uint32_t error = ModulatorError_NO_ERROR;
+	uint8_t tab_count, i, tmpVal;
+
+	RFGainInfo rfGain_Info = modulator->rfGainInfo;
+
+	if (rfGain_Info.tableIsValid == False)
+	{
+		error = ModulatorError_NOT_SUPPORT;
+		goto exit;
+	}
+
+	tab_count  = rfGain_Info.tableCount;
+
+	// search the start frequency
+	tmpVal = 0;
+
+	for (i = 0; i < tab_count - 1; i++)
+	{
+		if (rfGain_Info.ptrGaintable[i].startFrequency == frequency)
+		{
+			tmpVal = i + 1;
+			break;
+		}
+		else if (rfGain_Info.ptrGaintable[i].startFrequency > frequency)
+		{
+			tmpVal = i;
+			break;
+		}
+	}
+
+	// check frequency whether more than max table value
+	if (i == tab_count - 1 && tmpVal == 0)
+		tmpVal = i;
+
+	// return output gain index
+	*index = tmpVal;
+
+exit:
+	return error;
+}
+
+uint32_t IT9510User_adjustOutputGain(
+		IT9510INFO*    modulator,
+		int			  *gain
+		)
+{
+	uint32_t error = ModulatorError_NO_ERROR;
+
+
+	uint8_t bIndex = 0;
+	uint32_t frequency = modulator->frequency;
+	
+	frequency = modulator->frequency + LO_Frequency; // RFFC2072's LO_Frequency 
+
+
+	if (IT9510User_getOutputGainInfo(modulator, frequency, &bIndex) == 0)
+	{
+		// save the digital gain when different with eeprom 
+		modulator->rfGainInfo.ptrGaintable[bIndex].digitalGainValue = *gain;
+	}
+
+
+	return error;
+}

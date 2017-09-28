@@ -98,23 +98,32 @@ unsigned long orion_cal_run_iqik(IT9510INFO* modulator);
 unsigned long orion_cal_read_iqik(IT9510INFO* modulator, int *vi_real, int *vi_imag, int *vq_real, int *vq_imag);
 unsigned long orion_dc_scan (IT9510INFO* modulator, Bool ofs);
 unsigned long orion_dc_scan_core (IT9510INFO* modulator, int dc_i_ctr, int dc_i_range, int dc_q_ctr, int dc_q_range, Bool ofs, unsigned long limit, int* dc_i_min, int* dc_q_min);
-unsigned long orion_dc_scan_core2(IT9510INFO* modulator, int dc_i_ctr, int dc_i_range, int dc_q_ctr, int dc_q_range, Bool ofs, unsigned long limit, int* dc_i_min, int* dc_q_min);
 
 unsigned long orion_cal_read_tune_rssi(IT9510INFO* modulator, unsigned int *rssi_avg, unsigned int avg_times);
 unsigned long orion_agc_dcc (IT9510INFO* modulator, int tx_pw);
 
-uint32_t orion_calDC (IT9510INFO* modulator, uint32_t frequency,Bool ofs);
+uint32_t orion_calDC (IT9510INFO*	modulator, uint32_t frequency,Bool ofs	);
 
 #define FW_SUPPORT
+unsigned long orion_dc_scan_core2(IT9510INFO* modulator, int dc_i_ctr, int dc_i_range, int dc_q_ctr, int dc_q_range, Bool ofs, unsigned long limit, int* dc_i_min, int* dc_q_min);
+unsigned long orion_cal_read_tune_rssi2(IT9510INFO* modulator, unsigned int *rssi_avg, unsigned int avg_times);
+unsigned long orion_cal_run_dccc_w_iqik2(IT9510INFO* modulator, Bool log_on);
+unsigned long orion_cal_set_agc2(IT9510INFO* modulator, unsigned char lna, unsigned char pgc, unsigned char pga1, unsigned char pga2);
+unsigned long orion_cal_set_registers2(IT9510INFO* modulator);
+
 // define function prototype
 typedef unsigned long (*ORION_SCAN_CORE_FUNC) (IT9510INFO* modulator, int dc_i_ctr, int dc_i_range, int dc_q_ctr, int dc_q_range, Bool ofs, unsigned long limit, int* dc_i_min, int* dc_q_min);
+typedef unsigned long(*ORION_CAL_READ_TUNE_RSSI_FUNC) (IT9510INFO* modulator, unsigned int *rssi_avg, unsigned int avg_times);
+typedef unsigned long(*ORION_CAL_RUN_DCCC_W_IQIK_FUNC) (IT9510INFO* modulator, Bool log_on);
+typedef unsigned long(*ORION_CAL_SET_AGC_FUNC) (IT9510INFO* modulator, unsigned char lna, unsigned char pgc, unsigned char pga1, unsigned char pga2);
+typedef unsigned long(*ORION_CAL_SET_REGISTERS_FUNC) (IT9510INFO* modulator);
 
+// #define FW_SUPPORT_DBG
 unsigned long orion_cal_run_iqik2(IT9510INFO* modulator);
 unsigned long orion_cal_read_iqik2(IT9510INFO* modulator, int *vi_real, int *vi_imag, int *vq_real, int *vq_imag);
 unsigned long setDCCalibrationValue2(IT9510INFO* modulator, int dc_i, int dc_q);
 unsigned long setOFSCalibrationValue2(IT9510INFO* modulator, uint8_t ofs_i, uint8_t ofs_q);
 
-// #define FW_SUPPORT_DBG
 typedef unsigned long(*ORION_CAL_RUN_IQIK_FUNC) (IT9510INFO* modulator);
 typedef unsigned long(*ORION_CAL_READ_IQIK_FUNC) (IT9510INFO* modulator, int *vi_real, int *vi_imag, int *vq_real, int *vq_imag);
 typedef unsigned long(*ORION_SET_DC_FUNC) (IT9510INFO* modulator, int dc_i, int dc_q);

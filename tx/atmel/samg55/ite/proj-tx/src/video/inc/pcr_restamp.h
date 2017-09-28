@@ -1,7 +1,7 @@
 #ifndef __PCR_RESTAMP_TABLE_H__
 #define __PCR_RESTAMP_TABLE_H__
 
-const static unsigned char DVBT_basehex_8mhz[60] = {
+static unsigned char DVBT_basehex_8mhz[60] = {
     0x1B,
     0x18,
     0x17,
@@ -64,7 +64,7 @@ const static unsigned char DVBT_basehex_8mhz[60] = {
     0x4 
 };
 
-const static unsigned char DVBT_basehex_7mhz[60] = {
+static unsigned char DVBT_basehex_7mhz[60] = {
     0x1F,
     0x1B,
     0x1A,
@@ -127,7 +127,7 @@ const static unsigned char DVBT_basehex_7mhz[60] = {
     0x4 
 };
 
-const static unsigned char DVBT_basehex_6mhz[60] = {
+static unsigned char DVBT_basehex_6mhz[60] = {
     0x24,
     0x20,
     0x1E,
@@ -2984,7 +2984,7 @@ const static unsigned long ISDBT_2mhz_datarate_bps[60] = {
 	7744899 
 };
 
-const static unsigned long ISDBT_1mhz_datarate_bps[60] = {
+static unsigned long ISDBT_1mhz_datarate_bps[60] = {
 	608527  ,
 	676142  ,
 	715915  ,

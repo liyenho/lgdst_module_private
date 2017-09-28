@@ -15,7 +15,7 @@
 /**
  * API date.
  */
-#define IT9510_Version_DATE        0x20161114
+#define IT9510_Version_DATE        0x20170605
 
 /**
  * API build.
