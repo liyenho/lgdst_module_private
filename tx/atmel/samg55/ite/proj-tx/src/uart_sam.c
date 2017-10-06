@@ -202,7 +202,6 @@ ISR(USART_HANDLER)  // we need this ISR to pump status data to usb cdc comm,
 		}
 
 	if ((sr & US_CSR_ENDRX)== US_CSR_ENDRX){
-		static MavLinkPacket pkt;
 		static bool buffer1_full = false; //updated the order, liyenho
 
 		if (buffer1_full){
