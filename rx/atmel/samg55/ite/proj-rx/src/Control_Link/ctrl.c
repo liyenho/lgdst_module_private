@@ -449,6 +449,12 @@ bool Queue_Idle_Mavlink(void){
 
 	memset(idle_pkt->data, RADIO_IDLE_CHAR, idle_pkt->length);
 
-	*(uint16_t*) (mav_pkt_buff+MAVLINK_HDR_LEN+RADIO_GRPPKT_LEN) = Compute_Mavlink_Checksum(idle_pkt);
+	uint16_t chksm = Compute_Mavlink_Checksum(idle_pkt);
+	uint8_t lo=0, *pcs = (uint8_t*)&chksm,
+					*pkt1 = ((uint8_t*)mav_pkt_buff+MAVLINK_HDR_LEN+RADIO_GRPPKT_LEN);
+	do {	// in place of memcpy for efficiency,
+		*((uint8_t*)pkt1+lo) = *pcs++;
+	} while(++lo < MAVLINK_CHKSUM_LEN);
+
 	return Queue_MavLink(&outgoing_messages, mav_pkt_buff);
 }
