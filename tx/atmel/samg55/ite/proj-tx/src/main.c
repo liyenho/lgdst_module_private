@@ -456,8 +456,8 @@ static inline bool usb_read_buf(void *pb)
 			*(pbi+2) = *(pbr+2);
 			*(pbi+1) = *(pbr+1);
 			*(pbi+0) = *pbr++;
-			size -= 1;
-		} while (PID_VID != (0x00ff1fff & read)
+			size -= 1;	// due to the requirement of sequence # scrambling, bypass upper 3 bit of pid, liyenho
+		} while (PID_VID != (/*0x00ff1fff*/0x00ff03ff & read)
 							&& 0 < size
 							&& !system_main_restart);
 		if (0 == size)
