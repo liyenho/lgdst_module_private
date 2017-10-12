@@ -428,13 +428,13 @@ void spi_tx_transfer(void *p_tbuf, uint32_t tsize, void *p_rbuf,
 
 static inline bool usb_read_buf(void *pb)
 {
-	int itr=0, read=0, size=I2SC_BUFFER_SIZE;
-	static uint8_t rd_int_buff[I2SC_BUFFER_SIZE];
+	int itr=0, read=0, size=TP_SIZE*10;
+	static uint8_t rd_int_buff[TP_SIZE*10];
 	static int once=1, left=0;
 	uint8_t *pbr= rd_int_buff, *pbi;
 	if (0 == once) {
 		memcpy(pb,
-			rd_int_buff+I2SC_BUFFER_SIZE-left,
+			rd_int_buff+TP_SIZE*10-left,
 			left);
 	}
 	do {
@@ -447,9 +447,9 @@ static inline bool usb_read_buf(void *pb)
 		pbr += b;
 		size -= b;
 		read += b;
-	} while (I2SC_BUFFER_SIZE != read && !system_main_restart);
+	} while (TP_SIZE*10 != read && !system_main_restart);
 	if (1 == once) {
-		size = I2SC_BUFFER_SIZE;
+		size = TP_SIZE*10;
 		pbr = rd_int_buff;
 		pbi = &read;
 		do {
@@ -465,11 +465,11 @@ static inline bool usb_read_buf(void *pb)
 		left = size+1;
 		once = 0;
 	}
-	else if (I2SC_BUFFER_SIZE>left) {
+	else if (TP_SIZE*10>left) {
 		memcpy(
 			pb+left,
 			rd_int_buff,
-			I2SC_BUFFER_SIZE-left);
+			TP_SIZE*10-left);
 	}
 	return true;
 }
@@ -493,7 +493,7 @@ static inline bool usb_read_buf(void *pb)
 		memcpy(&media_file_len,
 						udd_g_ctrlreq.payload,
 						USB_LOADM_LEN);
-		if ((media_file_len % I2SC_BUFFER_SIZE) ||
+		if ((media_file_len % (TP_SIZE*10)) ||
 			NUM_OF_PAGES * IFLASH_PAGE_SIZE<media_file_len)
 			return ; /* error in file len */
 		uint32_t ul_rc;
@@ -833,7 +833,7 @@ int main(void)
 	uint32_t startup_video_tm,
 						last_done_spi;
 	int32_t /*tm_const_spi1 = //time spent per TS block goes thru spi xfer
-							120*1000000*(int64_t)I2SC_BUFFER_SIZE*8/(int64_t)gs_ul_spi_clock[1],*/
+							120*1000000*(int64_t)TP_SIZE*10*8/(int64_t)gs_ul_spi_clock[1],*/
 					// due to largest interleaver inside DVB-T taking 11 packets latency
 					tm_const_tsb =  //time spent per (12.5>11) TS packet goes thru video pipe @ (4<4.524) mb/s
 							120*1000000*(int64_t)188*(12.5)*8/(int64_t)(4*1000000);
@@ -1022,7 +1022,7 @@ system_restart:  // system restart entry,
 #ifdef DEBUG1
 	volatile int ii, bcnt = 0;
 #endif
-	lm = SECTOR_RES+I2SC_BUFFER_SIZE;
+	lm = SECTOR_RES+TP_SIZE*10;
 	le = erlen;
 	do {
 		usb_read_buf1(gs_uc_tbuffer, 1880);
@@ -1040,32 +1040,32 @@ system_restart:  // system restart entry,
 			}
 			erase = false;
 		}
-		ul_rc = flash_write(ul_page_addr, gs_uc_tbuffer, I2SC_BUFFER_SIZE, 0);
+		ul_rc = flash_write(ul_page_addr, gs_uc_tbuffer, TP_SIZE*10, 0);
 		if (ul_rc != FLASH_RC_OK) {
 			//printf("- Pages write error %lu\n\r", (UL)ul_rc);
 			return; /* error when write pages */
 		}
-		rem -= I2SC_BUFFER_SIZE;
-		ul_page_addr += I2SC_BUFFER_SIZE;
+		rem -= TP_SIZE*10;
+		ul_page_addr += TP_SIZE*10;
 		// determine whether erasure is necessary or not
-		lm += I2SC_BUFFER_SIZE;
+		lm += TP_SIZE*10;
 		if (le < lm) {
 			erase = true;
 			le += erlen;
 			er_adr += erlen;
 		}
  #ifdef DEBUG1
-		bcnt += 1;  // track how many blocks in I2SC_BUFFER_SIZE
+		bcnt += 1;  // track how many blocks in TP_SIZE*10
  #endif
 	} while (0<rem);
   #ifdef DEBUG1
   ul_page_addr=PAGE_ADDRESS ;
   	do {
-	  	memcpy(gs_uc_rbuffer, ul_page_addr, I2SC_BUFFER_SIZE);
+	  	memcpy(gs_uc_rbuffer, ul_page_addr, TP_SIZE*10);
 
 		  delay_us(3000); // see if this stablize? it does!
-  		usb_write_buf(gs_uc_rbuffer,I2SC_BUFFER_SIZE);
-  		ul_page_addr += I2SC_BUFFER_SIZE;
+  		usb_write_buf(gs_uc_rbuffer,TP_SIZE*10);
+  		ul_page_addr += TP_SIZE*10;
   	} while (0<--bcnt);
   #endif
    // write this media length onto flash
@@ -1263,10 +1263,10 @@ bypass:
 #endif
 		// start usb rx line
 #ifndef CTRL_RADIO_ENCAP
-		pusb = (1 & usbfrm) ?((uint8_t*)gs_uc_tbuffer)+I2SC_BUFFER_SIZE : gs_uc_tbuffer;
+		pusb = (1 & usbfrm) ?((uint8_t*)gs_uc_tbuffer)+TP_SIZE*10 : gs_uc_tbuffer;
 #else
 												/* adapt to requirement of control radio data encapsulation, to accommodate Biil's potential two blocks mavlink packet */
-		pusb = (1 & usbfrm) ?((uint8_t*)gs_uc_tbuffer)+I2SC_BUFFER_SIZE+2*TP_SIZE : gs_uc_tbuffer;
+		pusb = (1 & usbfrm) ?((uint8_t*)gs_uc_tbuffer)+TP_SIZE*10+2*TP_SIZE : gs_uc_tbuffer;
 #endif
   #ifdef MEDIA_ON_FLASH
    #ifdef NO_USB
@@ -1276,8 +1276,8 @@ bypass:
    	if (pusbe<=pusbs)
    		pusbs= ul_page_addr;
    #else
-  		memcpy(pusb, ul_page_addr, I2SC_BUFFER_SIZE);
-  		ul_page_addr += I2SC_BUFFER_SIZE;
+  		memcpy(pusb, ul_page_addr, TP_SIZE*10);
+  		ul_page_addr += TP_SIZE*10;
   		if (ul_page_end <=ul_page_addr)
   			ul_page_addr = PAGE_ADDRESS;
   	#endif
@@ -1293,7 +1293,7 @@ bypass:
   #endif
   #if defined(TEST_USB) || defined(TEST_SPI)
 	 volatile uint8_t *pusb1;
-	   pusb1 = (1 & usbfrm) ?((uint8_t*)gs_uc_rbuffer)+I2SC_BUFFER_SIZE : gs_uc_rbuffer;
+	   pusb1 = (1 & usbfrm) ?((uint8_t*)gs_uc_rbuffer)+TP_SIZE*10 : gs_uc_rbuffer;
   #endif
   #ifndef TEST_USB
   	#ifndef TEST_SPI
@@ -1339,7 +1339,7 @@ bypass:
 			vid_ant_switch1 = 0;
 		 }
 #ifdef VIDEO_DUAL_BUFFER
-		static uint32_t pre_tbuffer[I2SC_BUFFER_SIZE/4];
+		static uint32_t pre_tbuffer[TP_SIZE*10/4];
 		const uint32_t *pte =pre_tbuffer+sizeof(pre_tbuffer)/4;
 		static uint32_t *ptw=pre_tbuffer,
 										*ptr = pre_tbuffer;
@@ -1347,7 +1347,7 @@ bypass:
 		if (first_blk_vid) {
 			uint32_t *ptb = pre_tbuffer ;
 	  		usb_data_done = true;
-	  		for (n=0; n<I2SC_BUFFER_SIZE/188; n++) {
+	  		for (n=0; n<TP_SIZE*10/188; n++) {
 				spi_tx_transfer(pusb, 188,
 					gs_uc_rbuffer/*don't care*/, 188, 1/*video*/);
 				memcpy(ptb, pusb, 188);
@@ -1362,7 +1362,7 @@ bypass:
 		}
 #endif
   		usb_data_done = true;
-  		for (n=0; n<I2SC_BUFFER_SIZE/188; n++) {
+  		for (n=0; n<TP_SIZE*10/188; n++) {
 			spi_tx_transfer(pusb, 188,
 				gs_uc_rbuffer/*don't care*/, 188, 1/*video*/);
 			while (usb_data_done) ; // usb pipe overflow,
@@ -1406,8 +1406,8 @@ fill_in_ctrl_pkts:
 		}
 #endif
    #else
-		spi_tx_transfer(pusb, I2SC_BUFFER_SIZE,
-			pusb1, I2SC_BUFFER_SIZE, 1/*video*/);
+		spi_tx_transfer(pusb, TP_SIZE*10,
+			pusb1, TP_SIZE*10, 1/*video*/);
 		while (usb_data_done) ; // usb pipe overflow,
 		usb_data_done = true;
    #endif
@@ -1417,11 +1417,11 @@ fill_in_ctrl_pkts:
 		while (usb_data_done) ;
 #else
   		delay_us(800); // a bit delay to lower bit rate
-  		memcpy(pusb1,pusb,I2SC_BUFFER_SIZE);
+  		memcpy(pusb1,pusb,TP_SIZE*10);
 	   usb_data_done = false;
 #endif
    #ifndef MEDIA_ON_FLASH
-  		usb_write_buf(pusb1,I2SC_BUFFER_SIZE);
+  		usb_write_buf(pusb1,TP_SIZE*10);
    #endif
   #endif
 next:
