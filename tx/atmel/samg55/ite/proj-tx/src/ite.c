@@ -457,8 +457,8 @@ int init_video_subsystem(void)
 {
 	uint16_t bandwidth = 6000;
 	uint16_t sawBandwidth = 8000;
-	uint32_t error = ModulatorError_NO_ERROR;
-
+	uint32_t error = ModulatorError_NO_ERROR,
+						err_cnt ; // to retry from error, liyenho
 #if USE_UART
 	// initialize atmel debug facility, mainly for monitoring ite intf
 	if (logger.primed)
@@ -469,14 +469,26 @@ int init_video_subsystem(void)
 
 	init_rf2072();
 	//	goto exit; //liyen says checking response of init_rf2072 not necessary
-	error=it9517_initialize (Bus_I2C,SERIAL_TS_INPUT);
-	if(error){error=1; goto exit;}
+	err_cnt = 0;
+	do {
+		error=it9517_initialize (Bus_I2C,SERIAL_TS_INPUT);
+		if (2<=err_cnt++)
+			{error=1; goto exit;}
+	} while(error );
 	//error= it9517_loadIQ_calibration_table (const char*file_name);
 	//if(error)goto exit;
-	error = it9517_reset_pidfilter();
-	if(error) {error=2;goto exit;}
-	error= it9517_control_pidfilter(0,0);
-	if(error){error=3;goto exit;}
+	err_cnt = 0;
+	do {
+		error = it9517_reset_pidfilter();
+		if (2<=err_cnt++)
+			{error=2; goto exit;}
+	} while(error );
+	err_cnt = 0;
+	do {
+		error= it9517_control_pidfilter(0,0);
+		if (2<=err_cnt++)
+			{error=3; goto exit;}
+	} while(error );
 //	puts ("video subsystem initialized...");
 	return 0;
  exit:
@@ -486,7 +498,8 @@ int init_video_subsystem(void)
 
 int start_video_subsystem(void)
 {
-	uint32_t error = ModulatorError_NO_ERROR;
+	uint32_t error = ModulatorError_NO_ERROR,
+						err_cnt ;	 // to retry from error, liyenho
 	ChannelModulation      channel_Modulation;
 	//	channel_Modulation.frequency=/*809000*/720000;
 	//	channel_Modulation.bandwidth=6000;
@@ -494,22 +507,38 @@ int start_video_subsystem(void)
 	channel_Modulation.highCodeRate=CodeRate_1_OVER_2;
 	channel_Modulation.interval=Interval_1_OVER_32;
 	channel_Modulation.transmissionMode=TransmissionMode_2K;
-	error=it9517_set_channel_modulation( channel_Modulation,2);
-	if(error){ error=1; goto exit;}
-#if /*true*/false   // dynamic video channel selection
+	err_cnt = 0;
+	do {
+		error=it9517_set_channel_modulation( channel_Modulation,2);
+		if (2<=err_cnt++)
+			{ error=1; goto exit;}
+	} while(error );
+#if /*true*/ false   // dynamic video channel selection
 	static bool boot_state = false;
-	if (boot_state && it9517_video_channel_select())
-		{ error=5; goto exit ; }
-	else boot_state = true; // bypass vchan select ops during first boot
+	err_cnt = 0;
+	do {
+		if (boot_state && it9517_video_channel_select()) {
+			if (2<=err_cnt++)
+				{ error=5; goto exit ; }}
+		else boot_state = true; // bypass vchan select ops during first boot
+	} while(error );
 #else
-	error=it9517_acquire_channel(/*809000*//*720000*/706000,6000);
-	if(error){ error=2; goto exit;}
+	err_cnt = 0;
+	do {
+		error=it9517_acquire_channel(/*809000*//*720000*/706000,6000);
+		if (2<=err_cnt++)
+			{ error=2; goto exit;}
+	} while(error );
 	//error=it9517_get_output_gain();
 	//if(error)goto exit;
 	//error=it9517_get_output_gain_range(/*809000*/720000,6000);
 	//if(error)goto exit;
-	error=it9517_adjust_output_gain(0);
-	if(error){error=3; goto exit;}
+	err_cnt = 0;
+	do {
+		error=it9517_adjust_output_gain(0);
+		if (2<=err_cnt++)
+			{error=3; goto exit;}
+	} while(error );
 	//	error = it9517_reset_pidfilter();
 	//	if(error)goto exit;
 	//	error= it9517_control_pidfilter(0,1);
@@ -518,8 +547,12 @@ int start_video_subsystem(void)
 	//if(error)goto exit;
 	//	error=it9517_pcr_restamp(PcrModeDisable,1);
 	//	if(error)goto exit;
-	error=it9517_enable_transmission_mode(1);
-	if(error){error=4; goto exit;}
+	err_cnt = 0;
+	do {
+		error=it9517_enable_transmission_mode(1);
+		if (2<=err_cnt++)
+			{error=4; goto exit;}
+	} while(error );
 #endif
 	main_loop_on = true;  // enter run time stage
 	return 0;
