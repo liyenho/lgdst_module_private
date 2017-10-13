@@ -173,6 +173,7 @@ bool Queue_FEC_Request_On_Packet(void);
 bool Queue_FEC_Request_Off_Packet(void);
 //void Ctrl_Set_FEC(uint8_t FEC_Options);
 uint8_t Get_Control_Packet(uint8_t *ptr);
+uint8_t Get_Control_Packet_r(uint8_t *ptr);
 void Handle_Channel_Change_Request(uint8_t *msg_start);
 void Set_Pair_ID(uint8_t *ID);
 uint8_t Insert_Control_In_TSStream(uint8_t *ptr);

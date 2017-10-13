@@ -158,6 +158,19 @@ uint8_t Get_Control_Packet(uint8_t *ptr){
 	return 0;
 }
 
+uint8_t Get_Control_Packet_r(uint8_t *ptr){
+	// made specially for video chan scan comm, liyenho
+	if (fifolvlcalc(wrptr_rdo_rpacket, rdptr_rdo_rpacket, RDO_RPACKET_FIFO_SIZE)>1)
+	{
+		//copy packet from storage buffer to ptr
+		memcpy(ptr, (uint8_t*)(gs_rdo_rpacket+(rdptr_rdo_rpacket*RDO_ELEMENT_SIZE))+1, RADIO_PKT_LEN);
+		rdptr_inc(&wrptr_rdo_rpacket, &rdptr_rdo_rpacket, RDO_TPACKET_FIFO_SIZE,1);
+		return 1;
+	}
+
+	return 0;
+}
+
 bool Queue_Channel_Change_ACK(void){
 	uint8_t msg[RADIO_GRPPKT_LEN] = {0};
 

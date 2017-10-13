@@ -682,7 +682,7 @@ retry_vch_rec:
 				break;
 			}
 #else
-			if (Get_Control_Packet(rpacket_grp))
+			if (Get_Control_Packet_r(rpacket_grp))
 				break;
 #endif
 			else if (100 < timeout++) {
