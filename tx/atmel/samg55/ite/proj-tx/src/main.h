@@ -218,7 +218,7 @@ void main_sof_action(void);
 #define USB_CPLD_UPGRADE_VAL	0x21  // cpld upgrade cmd
 #define USB_ATMEL_UPGRADE_VAL	0x23	// atmel upgrade cmd
 /** ite 951x to host irq assignment */
-#define LO_Frequency 								/*1583000*/ 1686000
+#define LO_Frequency 								/*1583000*/ 1693000
 	#define VID_CH_BW							6000
 	#define VID_CH_TTL							(VID_CH_BW+1000) // include guard band
 	#define MAX_VID_CH_F					2478000
