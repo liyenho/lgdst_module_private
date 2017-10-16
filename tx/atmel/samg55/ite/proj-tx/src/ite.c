@@ -494,7 +494,7 @@ int start_video_subsystem(void)
 	uint32_t error = ModulatorError_NO_ERROR,
 						err_cnt ;	 // to retry from error, liyenho
 	ChannelModulation      channel_Modulation;
-	//	channel_Modulation.frequency=/*809000*/720000;
+	//	channel_Modulation.frequency=/*802000*/713000;
 	//	channel_Modulation.bandwidth=6000;
 	channel_Modulation.constellation=Constellation_QPSK;
 	channel_Modulation.highCodeRate=CodeRate_1_OVER_2;
@@ -511,7 +511,7 @@ int start_video_subsystem(void)
 		else boot_state = true; // bypass vchan select ops during first boot
 	} while(error );
 #else
-	SCHEME_RETRY(it9517_acquire_channel(/*809000*//*720000*/706000,6000), 2)
+	SCHEME_RETRY(it9517_acquire_channel(699000,6000), 2)
 	//error=it9517_get_output_gain();
 	//if(error)goto exit;
 	//error=it9517_get_output_gain_range(/*809000*/720000,6000);
