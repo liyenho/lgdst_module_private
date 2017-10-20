@@ -21,7 +21,9 @@
 #if (SAMG55)
 #include "flexcom.h"
 #endif
-
+#if defined(RECV_IT913X)
+  #include "ite.h"
+#endif
 static volatile bool system_main_restart = false;  // system restart flag, liyenho
 static volatile uint8_t system_upgrade = 0;  // system upgrade flag, liyenho
 /*static*/ char __version_atmel__[3];  // stored as mon/day/year
@@ -133,6 +135,12 @@ volatile bool usb_write_start = false ; // called back from udc.c, liyenho
   	bool i2c_read_cb_on = false; // adopt cb ext, liyenho
  #endif
   bool first_in = true ;
+	const uint32_t vch_tbl[] = {
+		2392, 2406, 2413, 2420,
+		2427, 2434, 2441, 2448,
+		2455, 2462, 2469
+	};  // kept for mem alloc and reference
+  	static uint8_t vch= 0; //dynamic video chan select
  extern volatile bool reset_ts_count_error;
  extern volatile bool gl_vid_ant_sw;
 #else // non-real time mode
@@ -768,6 +776,12 @@ void usb_read_buf1(void *pb, int size0);
 		if (Is_udd_in_sent(0) ||
 			udd_g_ctrlreq.payload_size >/*!=*/ udd_g_ctrlreq.req.wLength)
 			return; // invalid call
+		if (VIDEO_SETVCH_VAL == udd_g_ctrlreq.req.wValue) {
+			if (sizeof(vch_tbl)>vch) {
+				pio_clear(PIOB, PIO_PB9); // disable TS gate
+				spi_disable(g_p_spis_pdc);
+			}
+		}
 		if (USB_BOOT_APP_VAL == udd_g_ctrlreq.req.wValue) {
 			erase_last_sector() ;
 			CHECKED_FLASH_WR(
@@ -1220,7 +1234,6 @@ pio_set_debounce_filter(PIOB, PIO_PB12, 32768/2);
 
 	// The main loop manages
 #if defined(RECV_IT913X)
-  #include "ite.h"
 		reset_ts_count_error = true;
   #if defined(RX_SPI_CHAINING)
 		mon_spidmachainfail_cnt  = 0;
@@ -1635,6 +1648,10 @@ volatile bool main_vender_specific(void) {
 			__version_atmel__[0] = 12;
 		__version_atmel__[1] = (uint8_t)atoi(day);
 		__version_atmel__[2] = (uint8_t)(atoi(year)-2000);
+	}
+	else if (VIDEO_SETVCH_VAL == udd_g_ctrlreq.req.wValue) {
+		udd_set_setup_payload( &vch, sizeof(vch));
+		udd_g_ctrlreq.callback = host_usb_cb;
 	}
  	return (bool) -1; /* error in msg */
 }

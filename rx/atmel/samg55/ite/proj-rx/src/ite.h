@@ -3,6 +3,8 @@
 #ifdef CONF_BOARD_USB_TX
 #include "main.h"
 #define LO_Frequency 							/*1583000*/ 1686000
+#define VIDEO_SETVCH_VAL								0x14
+  #define VIDEO_SETVCH_IDX								0x2
 #ifdef RECV_IT913X
 	#define TS_FAIL_INT						PIO_PA24
 	#define TS_CAPACITY						(4.5*1000000) // 4.5 mb/s assumed
