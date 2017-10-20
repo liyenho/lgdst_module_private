@@ -19,6 +19,13 @@ extern twi_packet_t packet_tx;
 extern volatile uint32_t it951x_fw_hdr[1];
 extern volatile context_it951x ctx_951x;
 extern volatile uint8_t main_loop_on;
+extern volatile uint8_t vch;
+
+const uint32_t vch_tbl[] = {
+	2392, 2406, 2413, 2420,
+	2427, 2434, 2441, 2448,
+	2455, 2462, 2469
+};
 
 static int pwr_attn=10000;
 static int chsel_2072 = 0;
@@ -457,7 +464,7 @@ skip:
 	err_cnt = 0; \
 	do { \
 		error=it9517_func_call ; \
-		if (2<=err_cnt++) \
+		if (5<=err_cnt++) \
 			{error=err_val; goto exit;} \
 	} while(error );
 
@@ -491,9 +498,12 @@ int init_video_subsystem(void)
 
 int start_video_subsystem(void)
 {
+	static bool boot_state = false;
 	uint32_t error = ModulatorError_NO_ERROR,
 						err_cnt ;	 // to retry from error, liyenho
 	ChannelModulation      channel_Modulation;
+	if (boot_state)
+		SCHEME_RETRY(it9517_enable_transmission_mode(0), 4)
 	//	channel_Modulation.frequency=/*802000*/713000;
 	//	channel_Modulation.bandwidth=6000;
 	channel_Modulation.constellation=Constellation_QPSK;
@@ -502,7 +512,6 @@ int start_video_subsystem(void)
 	channel_Modulation.transmissionMode=TransmissionMode_2K;
 	SCHEME_RETRY(it9517_set_channel_modulation( channel_Modulation,2), 1)
 #if /*true*/ false   // dynamic video channel selection
-	static bool boot_state = false;
 	err_cnt = 0;
 	do {
 		if (boot_state && it9517_video_channel_select()) {
@@ -511,7 +520,8 @@ int start_video_subsystem(void)
 		else boot_state = true; // bypass vchan select ops during first boot
 	} while(error );
 #else
-	SCHEME_RETRY(it9517_acquire_channel(699000,6000), 2)
+	if (sizeof(vch_tbl)>vch)
+		SCHEME_RETRY(it9517_acquire_channel(vch_tbl[vch]*1000-LO_Frequency,6000), 2)
 	//error=it9517_get_output_gain();
 	//if(error)goto exit;
 	//error=it9517_get_output_gain_range(/*809000*/720000,6000);
@@ -526,6 +536,7 @@ int start_video_subsystem(void)
 	//	error=it9517_pcr_restamp(PcrModeDisable,1);
 	//	if(error)goto exit;
 	SCHEME_RETRY(it9517_enable_transmission_mode(1), 4)
+	boot_state = true;
 #endif
 	main_loop_on = true;  // enter run time stage
 	return 0;

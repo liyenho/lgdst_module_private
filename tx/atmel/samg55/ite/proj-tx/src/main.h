@@ -228,6 +228,8 @@ void main_sof_action(void);
 	#error Number of video channels cannot be less than 3
  #endif
 	#define VID_IF_CH_BASE				(MIN_VID_CH_F-LO_Frequency)
+#define VIDEO_SETVCH_VAL								0x14
+  #define VIDEO_SETVCH_IDX								0x2
 
   /** TWI Bus Clock 100kHz */
   #define TWI_CLK     /*200000*/ 100000

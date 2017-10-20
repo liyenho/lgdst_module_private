@@ -89,6 +89,8 @@ extern volatile bool udi_cdc_data_running; // from udi_cdc.c, liyenho
   /*static*/ enum pair_mode hop_state;
   	volatile unsigned char ynsdbyte ; //Take care in Rate Control Section!!! liyenho
 #endif
+// to enable embedded ITE asic  video subsystem ***********
+ volatile bool init_video_flag = false, start_video_flag = false;
 volatile bool stream_flag = false; // wait for host to signal TS stream on
 volatile int vid_ant_switch = 0;
 #ifdef CONFIG_ON_FLASH
@@ -138,6 +140,7 @@ static uint32_t gs_uc_htbuffer[(USB_HOST_MSG_LEN+HOST_BUFFER_SIZE+3)/sizeof(int)
 							gs_uc_htbuffer_tm[(USB_HOST_MSG_LEN+HOST_BUFFER_SIZE+3)/sizeof(int)];
 uint32_t gs_uc_hrbuffer[(USB_HOST_MSG_LEN+HOST_BUFFER_SIZE+3)/sizeof(int)],
 					gs_uc_hrbuffer1[(USB_HOST_MSG_LEN+HOST_BUFFER_SIZE+3)/sizeof(int)];
+  volatile uint8_t vch= 0;  // set up video chan for test
   //volatile bool i2c_read_done = false;
   volatile context_it951x ctx_951x={0};
   /*static*/ twi_packet_t packet_tx;
@@ -511,6 +514,14 @@ static inline bool usb_read_buf(void *pb)
 		if (Is_udd_in_sent(0) ||
 			udd_g_ctrlreq.payload_size >/*!=*/ udd_g_ctrlreq.req.wLength)
 			return; // invalid call
+		if (VIDEO_SETVCH_VAL == udd_g_ctrlreq.req.wValue) {
+			extern uint32_t vch_tbl[10+1];
+			if (sizeof(vch_tbl)>vch) {
+				main_loop_on = false ;  // avoid ts pkt unaligned due to interruption
+				init_video_flag = true;
+				start_video_flag = true;
+			}
+		}
 		if (USB_BOOT_APP_VAL == udd_g_ctrlreq.req.wValue) {
 			erase_last_sector() ;
 			CHECKED_FLASH_WR(
@@ -811,9 +822,6 @@ static void _app_exec(void *addr)
 				while (1); // wait for processor reset
 			}
 	}
-// to enable embedded ITE asic  video subsystem ***********
- volatile bool init_video_flag = false;
- volatile bool start_video_flag = false;
 /*! \brief Main function. Execution starts here.
  */
 int main(void)
@@ -1739,6 +1747,10 @@ volatile bool main_vender_specific() {
 		udd_set_setup_payload( &usb_tgt_active, sizeof(usb_tgt_active));
 	}
 	#endif
+	else if (VIDEO_SETVCH_VAL == udd_g_ctrlreq.req.wValue) {
+		udd_set_setup_payload( &vch, sizeof(vch));
+		udd_g_ctrlreq.callback = host_usb_cb;
+	}
  	return (bool) -1; /* error in msg */
 }
 
