@@ -298,9 +298,11 @@ U8 bRadio_Check_Tx_RX(void)
 			#else
 
 			//copy data from temp buffer
-			for (int i =0; i< (bytes_read/RADIO_PKT_LEN);i++){
+			int i, bs = bytes_read;
+			for (i =0; i< (bytes_read/RADIO_PKT_LEN);i++){
 				wrptr_inc(&wrptr_rdo_rpacket, &rdptr_rdo_rpacket, RDO_TPACKET_FIFO_SIZE, 1);
-				memcpy(gs_rdo_rpacket + (wrptr_rdo_rpacket*RDO_ELEMENT_SIZE), incoming_data+(i*RADIO_PKT_LEN), bytes_read);
+				memcpy(gs_rdo_rpacket + (wrptr_rdo_rpacket*RDO_ELEMENT_SIZE), incoming_data+(i*RADIO_PKT_LEN), bs);
+				bs -= RADIO_PKT_LEN;
 			}
 
 			uint32_t wrptr_tmp=wrptr_rdo_rpacket;
