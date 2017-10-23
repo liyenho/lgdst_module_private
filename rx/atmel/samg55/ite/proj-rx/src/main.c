@@ -1207,6 +1207,10 @@ pio_set_debounce_filter(PIOB, PIO_PB12, 32768/2);
 #endif
 //////////////////////////////////////////////////////////////////////////////
 	init_4463();  // this init function has to be after siano came up!? liyenho
+	rdptr_rdo_tpacket=RDO_TPACKET_FIFO_SIZE-1;
+	wrptr_rdo_tpacket=RDO_TPACKET_FIFO_SIZE-1;
+	rdptr_rdo_rpacket=RDO_RPACKET_FIFO_SIZE-1;
+	wrptr_rdo_rpacket=RDO_RPACKET_FIFO_SIZE-1;
 #ifdef RADIO_CTRL_AUTO
 		/* init radio stats obj */
 		{

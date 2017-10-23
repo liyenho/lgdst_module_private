@@ -1119,10 +1119,10 @@ bypass:
   	pio_set_output(PIOA, CPLD_2072_TRIG, HIGH, DISABLE, ENABLE); // extra trigger line for 2072 access with cpld
  #endif
 	init_4463();  // be sure to place this function before next line!
-	rdptr_rdo_tpacket=0;
-	wrptr_rdo_tpacket=0;
-	rdptr_rdo_rpacket=0;
-	wrptr_rdo_rpacket=0;
+	rdptr_rdo_tpacket=RDO_TPACKET_FIFO_SIZE-1;
+	wrptr_rdo_tpacket=RDO_TPACKET_FIFO_SIZE-1;
+	rdptr_rdo_rpacket=RDO_RPACKET_FIFO_SIZE-1;
+	wrptr_rdo_rpacket=RDO_RPACKET_FIFO_SIZE-1;
 	//initialize to slot 1 to prevent skipping errors
 	//otherwise pointer goes slot 0, 2, 3
 	gp_rdo_rpacket_l = gs_rdo_rpacket + (RDO_ELEMENT_SIZE*1);
