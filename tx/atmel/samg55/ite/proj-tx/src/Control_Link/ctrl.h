@@ -15,7 +15,7 @@
 //#else
 #define RADIO_PKT_LEN		32 // ctl/sts radio payload byte length +1
 //#endif
-#define RADIO_LONG_PKT_LEN				/*96*/ (RADIO_PKT_LEN*3)//long transmissions for 868 MHz, modified by liyenho
+#define RADIO_LONG_PKT_LEN				/*96*/ (RADIO_PKT_LEN*1)//long transmissions for 868 MHz, modified by liyenho
 
 
 #define MilliSecToTick			120000 //120000=1ms
@@ -56,7 +56,7 @@
 			// field but in generic threorem, have to be re-validated perhaps abandon, liyenho
 #define TDMA_UNLOCK_DELAY_MS	MilliSec_To_Tick((5*1000)) //no receive data duration before tdma unlocking
 
-#define TDMA_PERIOD			(USE_915MHZ?US_TDMA_PERIOD:EURO_TDMA_PERIOD)  //macro to select between 915MHz and 869 MHz
+#define TDMA_PERIOD			(/*USE_915MHZ*/1 ?US_TDMA_PERIOD:EURO_TDMA_PERIOD)  //macro to select between 915MHz and 869 MHz
 
 
 

@@ -20,7 +20,7 @@
 #define RADIO_GRPPKT_LEN						30
 #define RDO_ELEMENT_SIZE   			(RADIO_PKT_LEN/sizeof(uint32_t))	// RADIO_PKT_LEN must divide into sizeof(uint32_t),
 
-#define RADIO_LONG_PKT_LEN				/*(32*3)*/ (RADIO_PKT_LEN*3) //long transmissions for 868 MHz, modified by liyenho
+#define RADIO_LONG_PKT_LEN				/*(32*3)*/ (RADIO_PKT_LEN*1) //long transmissions for 868 MHz, modified by liyenho
 
 #if SEND_MAVLINK
 	#define RADIO_MAVLEN_OUT_IDX			0x5
@@ -39,7 +39,7 @@
 #define US_TDMA_PERIOD    				MilliSec_To_Tick(15+3*(1000*REAL_PKT_LEN*8/40000))		// see TX ctrl.h for details
 #define  TDMA_BOUND								 /*5400000*/ /*4860000*/ (12*4320000) // 100 ms = 12000000
 
-#define TDMA_PERIOD			(USE_915MHZ?US_TDMA_PERIOD:EURO_TDMA_PERIOD)  //macro to select between 915MHz and 869 MHz
+#define TDMA_PERIOD			(/*USE_915MHZ*/1 ?US_TDMA_PERIOD:EURO_TDMA_PERIOD)  //macro to select between 915MHz and 869 MHz
 
  #define HOP_ID_LEN											10
 //upper nibble of 1st byte encodes whether the message has FEC or not

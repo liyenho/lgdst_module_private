@@ -231,6 +231,7 @@ U8 bRadio_Check_Tx_RX(void)
 				bytes_sent+= PKT_TX_THRESHOLD;
 				if ((bytes_sent%RADIO_PKT_LEN)==0){
 					rdptr_inc(&wrptr_rdo_tpacket, &rdptr_rdo_tpacket, RDO_TPACKET_FIFO_SIZE, 1);
+					bytes_sent = 0;
 				}
 
 				//return SI446X_CMD_GET_INT_STATUS_REP_PH_PEND_TX_FIFO_ALMOST_EMPTY_PEND_BIT;
