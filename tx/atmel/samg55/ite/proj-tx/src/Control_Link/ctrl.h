@@ -56,7 +56,7 @@
 			// field but in generic threorem, have to be re-validated perhaps abandon, liyenho
 #define TDMA_UNLOCK_DELAY_MS	MilliSec_To_Tick((5*1000)) //no receive data duration before tdma unlocking
 
-#define TDMA_PERIOD			(/*USE_915MHZ*/1 ?US_TDMA_PERIOD:EURO_TDMA_PERIOD)  //macro to select between 915MHz and 869 MHz
+#define TDMA_PERIOD			(USE_915MHZ ?US_TDMA_PERIOD:EURO_TDMA_PERIOD)  //macro to select between 915MHz and 869 MHz
 
 
 
