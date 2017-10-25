@@ -34,7 +34,7 @@
 #define MilliSec_To_Tick(X) ((X)*TICKS_IN_MS)
 
 #define REAL_PKT_LEN				(RADIO_PKT_LEN+13+2+2+4) //payload + preamble + sync word + length field
-#define EURO_TDMA_PERIOD			MilliSec_To_Tick(40+3*(1000*(13+2+32*3+2)*8/10000))
+#define EURO_TDMA_PERIOD			MilliSec_To_Tick(/*40*/30+3*(1000*(13+2+RADIO_LONG_PKT_LEN+2)*8/10000)) //revised by liyenho
 
 #define US_TDMA_PERIOD    				MilliSec_To_Tick(15+3*(1000*REAL_PKT_LEN*8/40000))		// see TX ctrl.h for details
 #define  TDMA_BOUND								 /*5400000*/ /*4860000*/ (12*4320000) // 100 ms = 12000000
