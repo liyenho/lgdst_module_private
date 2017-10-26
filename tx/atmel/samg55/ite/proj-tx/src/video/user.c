@@ -872,13 +872,13 @@ uint32_t IT9510User_adjustOutputGain(
 
 	uint8_t bIndex = 0;
 	uint32_t frequency = modulator->frequency;
-	
-	frequency = modulator->frequency + LO_Frequency; // RFFC2072's LO_Frequency 
+
+	frequency = modulator->frequency + LO_Frequency; // RFFC2072's LO_Frequency
 
 
 	if (IT9510User_getOutputGainInfo(modulator, frequency, &bIndex) == 0)
 	{
-		// save the digital gain when different with eeprom 
+		// save the digital gain when different with eeprom
 		modulator->rfGainInfo.ptrGaintable[bIndex].digitalGainValue = *gain;
 	}
 

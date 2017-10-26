@@ -762,7 +762,6 @@ uint32_t IT9517Cmd_sendCommand (
 		goto exit;
 	}
 
-
 	if (writeBufferLength == 0) {
 		command   = IT9517Cmd_buildCommand (command, processor);
 		buffer[1] = (uint8_t) (command >> 8);
@@ -770,7 +769,7 @@ uint32_t IT9517Cmd_sendCommand (
 		buffer[3] = (uint8_t) IT9517Cmd_sequence++;
 		bufferLength = 4;
 		error = IT9517Cmd_addChecksum (modulator, &bufferLength, buffer);
-		if (error) goto exit;
+		if (error) { goto exit; }
 
 		// send command packet
 		i = 0;
