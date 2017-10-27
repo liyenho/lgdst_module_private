@@ -969,6 +969,20 @@ int main(void)
 				sizeof(backup)-NUM_OF_FPGA_REGS-1 -4 -4)
 		}
 #endif
+#if USE_UART
+	/* Initialize the console UART. */
+	//configure_console(); // used for generic system messages logging,
+	Configure_UART_DMA(); // using uart dma mode, no other configs required,
+	/*COMPILER_WORD_ALIGNED
+	static usb_cdc_line_coding_t uart_coding; // used for si446x radio dev, liyenho
+	  uart_coding.dwDTERate = CPU_TO_LE32(UDI_CDC_DEFAULT_RATE);
+	  uart_coding.bCharFormat = UDI_CDC_DEFAULT_STOPBITS;
+	  uart_coding.bParityType = UDI_CDC_DEFAULT_PARITY;
+	  uart_coding.bDataBits = UDI_CDC_DEFAULT_DATABITS;
+	// re-config/open for si4463 ctrl with uart port, liyenho
+		uart_config(0, &uart_coding);
+		uart_open(0);*/
+#endif
 system_restart:  // system restart entry,
 	system_main_restart = false;
 #ifdef  RADIO_SI4463
@@ -1149,20 +1163,6 @@ bypass:
 #endif //RADIO_CTRL_AUTO
 	if (system_upgrade)
 		upgrade_sys_fw(system_upgrade);
-#if USE_UART
-	/* Initialize the console UART. */
-	//configure_console(); // used for generic system messages logging,
-	Configure_UART_DMA(); // using uart dma mode, no other configs required,
-	/*COMPILER_WORD_ALIGNED
-	static usb_cdc_line_coding_t uart_coding; // used for si446x radio dev, liyenho
-	  uart_coding.dwDTERate = CPU_TO_LE32(UDI_CDC_DEFAULT_RATE);
-	  uart_coding.bCharFormat = UDI_CDC_DEFAULT_STOPBITS;
-	  uart_coding.bParityType = UDI_CDC_DEFAULT_PARITY;
-	  uart_coding.bDataBits = UDI_CDC_DEFAULT_DATABITS;
-	// re-config/open for si4463 ctrl with uart port, liyenho
-		uart_config(0, &uart_coding);
-		uart_open(0);*/
-#endif
 #ifdef RADIO_SI4463
 	r4463_sts.tick_prev = tick_prev = *DWT_CYCCNT;
 #endif
