@@ -74,7 +74,7 @@ uint32_t it9517_initialize (uint8_t id_bus,TsInterface stream_type)
 	uint32_t chip_Type;
 	uint8_t Bus_id = Bus_USB;
 	TsInterface tsin_streamType = PARALLEL_TS_INPUT;
-	IT9510_reset(NULL); // reset ite before init? liyenho
+	//IT9510_reset(&eagle); // never access i2c bus prior to it9517 is inited, liyenho
 	Bus_id  =id_bus;
 	tsin_streamType = stream_type;
 	pio_configure(PIOA, PIO_OUTPUT_0, PIO_PA31, 0); // LA trigger pin, liyenho

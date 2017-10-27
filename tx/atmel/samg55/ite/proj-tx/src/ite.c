@@ -20,6 +20,7 @@ extern volatile uint32_t it951x_fw_hdr[1];
 extern volatile context_it951x ctx_951x;
 extern volatile uint8_t main_loop_on;
 extern volatile uint8_t vch;
+extern IT9510INFO eagle;
 
 const uint32_t vch_tbl[] = {
 	2392, 2406, 2413, 2420,
@@ -466,11 +467,11 @@ skip:
 		error=it9517_func_call ; \
 		if (5<=err_cnt++) \
 			{error=err_val; goto exit;} \
-		/*if (Error_I2C_READ_FAILED == error ||*/ \
-			 /*Error_I2C_WRITE_FAILED == error) {*/ /*i2c nack breaker from Shaq*/ \
-				/*uint8_t value = 0x01;*/ \
-				/*IT9510_writeRegisters ( 0, Processor_LINK, 0x4900, 1, &value);*/ \
-		/*}*/ \
+		if (Error_I2C_READ_FAILED == error || \
+			 Error_I2C_WRITE_FAILED == error) { /*i2c nack breaker from Shaq*/ \
+				uint8_t value = 0x01; \
+				IT9510_writeRegisters (&eagle, Processor_LINK, 0x4900, 1, &value); \
+		} \
 	} while(error );
 
 int init_video_subsystem(void)
