@@ -1391,8 +1391,10 @@ _reg_acs:
 							#ifndef RX_SPI_CHAINING
 								pio_set(PIOB, PIO_PB9); // enable TS gate
 							#else
+					static bool spi_vid_restart = false;
 								// pull over to here instead init inside main loop to get rid of time constraint, liyenho
-								start_it913x_spi(false);
+								start_it913x_spi(spi_vid_restart);
+								spi_vid_restart = true;
 							#endif
 							 #ifdef TIME_ANT_SW
 							 	startup_video_tm = *DWT_CYCCNT;
