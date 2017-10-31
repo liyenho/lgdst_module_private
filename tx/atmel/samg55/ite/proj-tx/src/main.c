@@ -518,7 +518,6 @@ static inline bool usb_read_buf(void *pb)
 			extern uint32_t vch_tbl[10+1];
 			if (sizeof(vch_tbl)>vch) {
 				main_loop_on = false ;  // avoid ts pkt unaligned due to interruption
-				init_video_flag = true;
 				start_video_flag = true;
 			}
 		}
