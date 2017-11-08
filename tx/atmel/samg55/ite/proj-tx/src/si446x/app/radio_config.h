@@ -3,7 +3,7 @@
  * configurations.
  *
  * @n WDS GUI Version: 3.2.10.0
- * @n Device: Si4463 Rev.: C2                                 
+ * @n Device: Si4463 Rev.: C2
  *
  * @b COPYRIGHT
  * @n Silicon Laboratories Confidential
@@ -17,7 +17,7 @@
 // USER DEFINED PARAMETERS
 // Define your own parameters here
 #define EXTERNAL_PA			1
-#define Si4463_USE_TCXO		1/*0*/
+#define Si4463_USE_TCXO		1
 
 
 // INPUT DATA
@@ -124,7 +124,7 @@
 //   FRR_CTL_B_MODE - Fast Response Register B Configuration.
 //   FRR_CTL_C_MODE - Fast Response Register C Configuration.
 //   FRR_CTL_D_MODE - Fast Response Register D Configuration.
-*/ 
+*/
 //0x0A -> store latched RSSI value
 #define RF_FRR_CTL_A_MODE_4 0x11, 0x02, 0x04, 0x00, 0x0A, 0x09, 0x00, 0x00
 
@@ -204,7 +204,8 @@
 //_Static_assert(PKT_RX_THRESHOLD % sizeof(uint32_t)==0, L"PKT_RX_THRESHOLD must must divide into sizeof(uint32_t)");  //no longer required
 #define PKT_TX_THRESHOLD 0x10
 //variable length packets
-#define RF_PKT_LEN_12 0x11, 0x12, 0x0C, 0x08, 0x10, 0x01, 0x00, PKT_TX_THRESHOLD, PKT_RX_THRESHOLD, 0x00, 0x02, 0x04, 0xA2, 0x00, 0xFF, 0x00
+//#define RF_PKT_LEN_12 0x11, 0x12, 0x0C, 0x08, 0x10, 0x01, 0x00, PKT_TX_THRESHOLD, PKT_RX_THRESHOLD, 0x00, 0x02, 0x04, 0xA2, 0x00, 0xFF, 0x00
+#define RF_PKT_LEN_12 0x11, 0x12, 0x0C, 0x08, 0x00, 0x00, 0x00, PKT_TX_THRESHOLD, PKT_RX_THRESHOLD, 0x00, RADIO_PKT_LEN, 0x04, 0xA2, 0x00, 0x00, 0x00
 
 
 /*
@@ -249,7 +250,8 @@
 //   PKT_RX_FIELD_3_LENGTH_7_0 - Unsigned 13-bit RX Field 3 length value.
 //   PKT_RX_FIELD_3_CONFIG - General data processing and packet configuration bits for RX Field 3.
 */
-#define RF_PKT_FIELD_5_CRC_CONFIG_12 0x11, 0x12, 0x0C, 0x20, 0x00, 0x00, 0x02, 0x00, 0x8A, 0x00, 0xff, 0x00, 0x0A, 0x00, 0x00, 0x00
+//#define RF_PKT_FIELD_5_CRC_CONFIG_12 0x11, 0x12, 0x0C, 0x20, 0x00, 0x00, 0x02, 0x00, 0x8A, 0x00, 0xff, 0x00, 0x0A, 0x00, 0x00, 0x00  //variable length packets
+#define RF_PKT_FIELD_5_CRC_CONFIG_12 0x11, 0x12, 0x0C, 0x20, 0x00, 0x00, RADIO_PKT_LEN, 0x00, 0x8A, 0x00, 0x00, 0x00, 0x0A, 0x00, 0x00, 0x00
 
 /*
 // Set properties:           RF_PKT_RX_FIELD_3_CRC_CONFIG_9
