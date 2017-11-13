@@ -15,22 +15,21 @@
 //#else
 #define RADIO_PKT_LEN		32 // ctl/sts radio payload byte length +1
 //#endif
-#define RADIO_LONG_PKT_LEN				/*96*/ (RADIO_PKT_LEN*1)//long transmissions for 868 MHz, modified by liyenho
+#define RADIO_LONG_PKT_LEN				(RADIO_PKT_LEN*1)//long transmissions for 868 MHz, modified by liyenho
 
 
 #define MilliSecToTick			120000 //120000=1ms
 #define MilliSec_To_Tick(X) ((uint32_t)(X)*MilliSecToTick)
 
 #define REAL_PKT_LEN			(RADIO_PKT_LEN+13+2+2+4) //payload + preamble + sync word + length field
-//#define EURO_TDMA_PERIOD		MilliSec_To_Tick(40+3*(1000*REAL_PKT_LEN*8/10000))
-#define EURO_TDMA_PERIOD		MilliSec_To_Tick(30+3*(1000*(RADIO_LONG_PKT_LEN+13+2+2)*8/10000))  //revised by liyenho
+#define EURO_TDMA_PERIOD		MilliSec_To_Tick(30+3*(1000*REAL_PKT_LEN*8/10000))  //revised by liyenho
 
 
 #define ASYMM_RATIO				/*1*/ 2
 #define RADIO_GRPPKT_LEN    30
 #define RADIO_INFO_LEN      4 // usb pipe information post header
 #define RDO_ELEMENT_SIZE   (RADIO_PKT_LEN/sizeof(uint32_t))  // RADIO_PKT_LEN must divide into sizeof(uint32_t), liyenho
-#define US_TDMA_PERIOD     MilliSec_To_Tick(15+3*(1000*REAL_PKT_LEN*8/40000))
+#define US_TDMA_PERIOD     MilliSec_To_Tick(12+3*(1000*REAL_PKT_LEN*8/40000))
 								// 30kbps 2snd1rx case--------------------------------------------
 								//   actual transfer period = 26B*8*3/30000 = 20.8ms
 								//   TX delivery time = 26*8*2/30000 = 13.86ms
@@ -40,11 +39,11 @@
 								//   TDMA_PERIOD_TOL = 96000 = +/-0.8ms (FYI:saw only 0.2ms jitter)
 								//   TDMA_RX_TO_TX 120000=1ms. immediately start to transmit.
 #define TDMA_TX_PERIOD     ((TDMA_PERIOD)*2/3)
-#define  TDMA_BOUND	 /*5400000*/ /*4860000*/ (12*4320000) // 5400000 = 45 ms
-#define TDMA_PERIOD_TOL /*96000*/ MilliSec_To_Tick(5) //(12*144000) /*192000*/ // jitter tolerance 480000=4ms 600000=5ms
+#define  TDMA_BOUND	 (12*4320000)
+#define TDMA_PERIOD_TOL  MilliSec_To_Tick(5) // jitter tolerance 480000=4ms 600000=5ms
 #define TDMA_PERIOD_MAX ((TDMA_PERIOD)+TDMA_PERIOD_TOL)
 #define TDMA_PERIOD_MIN ((TDMA_PERIOD)-TDMA_PERIOD_TOL)
-#define TDMA_RX_TO_TX   (1.5*1.5*120000) /**180000**/ /*360000*/ // RX interrupt to TX startTX()
+#define TDMA_RX_TO_TX   (1.5*1.5*120000) // RX interrupt to TX startTX()
                                 // 1200000
                                  // results show that this gap delay is accurate enough (no tuning required)
                                 // 600000=5ms
