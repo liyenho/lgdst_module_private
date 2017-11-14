@@ -9,8 +9,8 @@
 
 #define ASYMM_RATIO								/*1*/ 2
 
-#define SEND_MAVLINK					1 /*0*/		//data to send to Drone is in MavLink form
-#define  RECEIVE_MAVLINK				1 /*0*/	//data received from Drone is in MavLink form
+#define SEND_MAVLINK					/*1*/ 0		//data to send to Drone is in MavLink form
+#define  RECEIVE_MAVLINK				/*1*/ 0	//data received from Drone is in MavLink form
 
 //#if RECEIVE_MAVLINK	// removed such distinction to avoid radio packet size sigularity, liyenho
 	//#define RADIO_PKT_LEN							40 //split MavLink into 40 byte chunks
@@ -20,7 +20,7 @@
 #define RADIO_GRPPKT_LEN						30
 #define RDO_ELEMENT_SIZE   			(RADIO_PKT_LEN/sizeof(uint32_t))	// RADIO_PKT_LEN must divide into sizeof(uint32_t),
 
-#define RADIO_LONG_PKT_LEN				(RADIO_PKT_LEN*1) //long transmissions for 868 MHz, modified by liyenho
+#define RADIO_LONG_PKT_LEN				(RADIO_PKT_LEN) //long transmissions for 868 MHz, modified by liyenho
 
 #if SEND_MAVLINK
 	#define RADIO_MAVLEN_OUT_IDX			0x5
@@ -35,8 +35,7 @@
 
 #define REAL_PKT_LEN				(RADIO_PKT_LEN+13+2+2+4) //payload + preamble + sync word + length field
 #define EURO_TDMA_PERIOD			MilliSec_To_Tick(30+3*(1000*REAL_PKT_LEN*8/10000)) //revised by liyenho
-
-#define US_TDMA_PERIOD    				MilliSec_To_Tick(12+3*(1000*REAL_PKT_LEN*8/40000))		// see TX ctrl.h for details
+#define US_TDMA_PERIOD    				MilliSec_To_Tick(12+3*(1000*REAL_PKT_LEN*8/40000))	// see TX ctrl.h for details
 #define  TDMA_BOUND								 (12*4320000) // 100 ms = 12000000
 
 #define TDMA_PERIOD			(USE_915MHZ ?US_TDMA_PERIOD:EURO_TDMA_PERIOD)  //macro to select between 915MHz and 869 MHz
@@ -61,7 +60,7 @@
 #define FEC_OFF_RSSI_THRESHOLD		(FEC_ON_RSSI_THRESHOLD+10)   //RSSI reading at which to request FEC Off
 //approx 5 db above ON threshold
 
-#define MAVLINK_USB_TRANSFER_LEN		263//(30+MAVLINK_HDR_LEN+MAVLINK_CHKSUM_LEN)
+#define MAVLINK_USB_TRANSFER_LEN		263
 
 //keep track of has a request has been sent to other side to turn FEC on
 extern bool Requested_FEC_On;

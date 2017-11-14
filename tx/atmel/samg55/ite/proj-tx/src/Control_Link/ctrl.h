@@ -7,15 +7,15 @@
 #define CTRL_H_
 
 
-#define RECEIVE_MAVLINK					/*0*/ 1 //received radio data is MavLink form
-#define SEND_MAVLINK					/*0*/ 1
+#define RECEIVE_MAVLINK					0 /*1*/ //received radio data is MavLink form
+#define SEND_MAVLINK					0 /*1*/
 
 //#if RECEIVE_MAVLINK	// removed such distinction to avoid radio pkt length sigularity, liyenho
 //#define RADIO_PKT_LEN		40 // ctl/sts radio payload byte length +1
 //#else
 #define RADIO_PKT_LEN		32 // ctl/sts radio payload byte length +1
 //#endif
-#define RADIO_LONG_PKT_LEN				(RADIO_PKT_LEN*1)//long transmissions for 868 MHz, modified by liyenho
+#define RADIO_LONG_PKT_LEN				(RADIO_PKT_LEN)//long transmissions for 868 MHz, modified by liyenho
 
 
 #define MilliSecToTick			120000 //120000=1ms
@@ -25,7 +25,7 @@
 #define EURO_TDMA_PERIOD		MilliSec_To_Tick(30+3*(1000*REAL_PKT_LEN*8/10000))  //revised by liyenho
 
 
-#define ASYMM_RATIO				/*1*/ 2
+#define ASYMM_RATIO				2
 #define RADIO_GRPPKT_LEN    30
 #define RADIO_INFO_LEN      4 // usb pipe information post header
 #define RDO_ELEMENT_SIZE   (RADIO_PKT_LEN/sizeof(uint32_t))  // RADIO_PKT_LEN must divide into sizeof(uint32_t), liyenho
@@ -57,9 +57,6 @@
 #define TDMA_UNLOCK_DELAY_MS	MilliSec_To_Tick((5*1000)) //no receive data duration before tdma unlocking
 
 #define TDMA_PERIOD			(USE_915MHZ ?US_TDMA_PERIOD:EURO_TDMA_PERIOD)  //macro to select between 915MHz and 869 MHz
-
-
-
 
 //upper nibble of 1st byte encodes whether the message has FEC or not
 #define MSG_TYPE_HDR_HAS_FEC			(0xF<<4)
