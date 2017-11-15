@@ -395,11 +395,23 @@ void vRadio_StartTx(U8 channel, U8 *pioRadioPacket, U16  length)
 		//rely on FIFO almost empty interrupt to transfer rest of message
 		sending_long_packet = true;
 		uint32_t lvl = fifolvlcalc(wrptr_rdo_tpacket,rdptr_rdo_rpacket, RDO_RPACKET_FIFO_SIZE);
+		int delta = (int)rdptr_rdo_tpacket + (length/RADIO_PKT_LEN) - RDO_TPACKET_FIFO_SIZE;
+		if (0 <= delta) {
+			int delta_0 = RADIO_PKT_LEN*(RDO_TPACKET_FIFO_SIZE - rdptr_rdo_tpacket-1);
+			memcpy(outgoing_data, gs_rdo_tpacket+(rdptr_rdo_tpacket*RDO_ELEMENT_SIZE), delta_0);
+			memcpy(outgoing_data+ delta_0, gs_rdo_tpacket, length- delta_0);
+		}
+		else  // no buffer wrapping
+			memcpy(outgoing_data, gs_rdo_tpacket+(rdptr_rdo_tpacket*RDO_ELEMENT_SIZE), length);
+#if false
+		// wrong implementation again removed, in order to send data amount
+		// over fifo size, first increment tx rdptr with fifo_size/ctl_pkt_len, then flag on
+		// subsequent increment by ALMOST_EMPTY_TX intr per (ctl>pkt_len/buf_thr_sz), liyenho
 		for(int i =0; i< length/RADIO_PKT_LEN; i++){
 			memcpy(outgoing_data+(i*RADIO_PKT_LEN), gs_rdo_tpacket+(rdptr_rdo_tpacket*RDO_ELEMENT_SIZE), RADIO_PKT_LEN);
-
 			rdptr_inc(&wrptr_rdo_tpacket, &rdptr_rdo_tpacket, RDO_TPACKET_FIFO_SIZE, 1);
 		}
+#endif
 		fifo_write_ptr = outgoing_data;
 		si446x_write_tx_fifo(RADIO_TX_FIFO_SIZE, fifo_write_ptr+fifo_write_offset);
 		fifo_write_offset+=RADIO_TX_FIFO_SIZE;
