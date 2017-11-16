@@ -47,7 +47,7 @@ extern void spi_tx_transfer(void *p_tbuf, uint32_t tsize, void *p_rbuf,
 extern void spi_rx_transfer(void *p_tbuf, uint32_t tsize, void *p_rbuf,
 		uint32_t rsize, uint32_t ch);
 extern void usb_read_buf1(void *pb, int size);
-extern int timedelta(bool reset, unsigned int bignum, unsigned int smallnum);
+extern int timedelta(unsigned int bignum, unsigned int smallnum);
 
 	/*static inline*/ void usb_write_buf1(void *pb, int size0, bool log)
 	{
@@ -66,7 +66,7 @@ extern int timedelta(bool reset, unsigned int bignum, unsigned int smallnum);
 				else {
 					tm_curr= *DWT_CYCCNT;
 			#if USE_UART
-					int tdel =timedelta(false, tm_curr, tm_entry);
+					int tdel =timedelta(tm_curr, tm_entry);
 					if (HALF10_SEC <=tdel) {
 						logger.active = false;  // not active
 						return ;

@@ -82,7 +82,8 @@ extern volatile bool udi_cdc_data_running; // from udi_cdc.c, liyenho
   volatile bool ctrl_tdma_lock = false;
    volatile uint8_t dbg_antpos;
   volatile bool ctrl_tdma_rxactive = false;  //block rtt_handle startTx() call
-	int timedelta(bool reset, unsigned int bignum, unsigned int smallnum);
+	static int timedelta0(bool reset, unsigned int bignum, unsigned int smallnum);
+	int timedelta(unsigned int bignum, unsigned int smallnum);  // no static vars inside
 	/*static*/ bool timedelta_reset, timedelta_reset_rx; //to handle system restart
 	volatile bool fhop_in_search= false, fhop_flag, fhop_dir;
   unsigned int tdma_sndthr=0;
@@ -585,7 +586,7 @@ void SysTick_Handler(void)
 
 			//clock adjustment ---------------------------------
 			lc = *DWT_CYCCNT;  //not working when in "no-debug" mode
-			cdelta = timedelta(timedelta_reset, tdma_sndthr, lc);
+			cdelta = timedelta0(timedelta_reset, tdma_sndthr, lc);
 			timedelta_reset = false;
 			if((cdelta>TDMA_BOUND)||(cdelta<-TDMA_BOUND)||
 			((false==ctrl_tdma_lock) && (false == fhop_flag))){
@@ -1258,8 +1259,7 @@ bypass:
 #ifdef TIME_ANT_SW
 		else /*if (stream_flag)*/ {
 			tick_curr_antv = *DWT_CYCCNT;
-			tick_del_antv= timedelta(timedelta_reset,
-																	tick_curr_antv,
+			tick_del_antv= timedelta(tick_curr_antv,
 																	tick_prev_antv);
 			// toggle every three seconds
 			if (3*120000000<tick_del_antv)	{
@@ -1312,15 +1312,13 @@ bypass:
 			 pio_set(PIOA, PIO_PA24);
 			 // survey time interval for requested period of time
 			 last_done_spi = *DWT_CYCCNT;
-			 delta=timedelta(timedelta_reset,
-			 									last_done_spi,
+			 delta=timedelta(last_done_spi,
 			 									startup_video_tm);
 			 while (tm_const_tsb>delta) {
 			 	/*wait until it is sure a block of TS has been delivered thru air*/
 			 	delay_ms(1);
 			 	last_done_spi = *DWT_CYCCNT;
-			 	delta=timedelta(timedelta_reset,
-			 									last_done_spi,
+			 	delta=timedelta(last_done_spi,
 			 									startup_video_tm);
 		 	 }
 			// switch between two antenna only takes 0.96 usec,
@@ -1820,8 +1818,8 @@ void main_loop_restart() {
 #endif
 }
 
-int timedelta(bool reset, unsigned int bignum, unsigned int smallnum)
-{ static int64_t bprev, sprev;
+static int timedelta0(bool reset, unsigned int bignum, unsigned int smallnum){
+	static int64_t bprev, sprev;
 	int64_t bl, sl, delta;
 	if (reset) {
 		bprev = sprev = 0L; // chances to collide with 0 are less than twice hit by lightning in a day
@@ -1833,6 +1831,12 @@ int timedelta(bool reset, unsigned int bignum, unsigned int smallnum)
 #undef EXTEND64
 	bprev = bignum;
 	sprev = smallnum;
+	return (int)delta ;
+}
+
+int timedelta(unsigned int bignum, unsigned int smallnum){
+	int64_t bl=bignum, sl=smallnum, delta;
+	delta = bl - sl;	// delta shall be of 32 bit range,
 	return (int)delta ;
 }
 
