@@ -91,7 +91,8 @@ extern volatile bool udi_cdc_data_running; // from udi_cdc.c, liyenho
   								ctrl_tdma_enable_shdw;  // shadow of ctrl_tdma_enable
   volatile bool ctrl_tdma_lock = false;  //always, since RX is master
   //volatile bool ctrl_pkt_rd_available = false;
-	/*static*/ int timedelta(bool reset, unsigned int bignum, unsigned int smallnum);
+	static int timedelta0(bool reset, unsigned int bignum, unsigned int smallnum);
+	int timedelta(unsigned int bignum, unsigned int smallnum);  // no static vars inside
 	static bool fhop_dir, timedelta_reset ; //to handle system restart
 	/*static*/ uint8_t hop_id[HOP_ID_LEN]; // 10 byte hop id from host
 
@@ -242,8 +243,7 @@ void PB12_pin_edge_handler(const uint32_t id, const uint32_t index)
 			goto assign_prev;  // arm the handler, nothing else to do
 		}
 		else {
-			int tdel= timedelta(timedelta_reset,
-													tm_btn_dwn,
+			int tdel= timedelta(tm_btn_dwn,
 													tm_btn_dwn_prev);
 			if (120000000 < tdel)
 				gl_vid_ant_sw = 2; // switch to next antenna
@@ -453,7 +453,7 @@ void SysTick_Handler(void)
 
 	  //clock adjustment ---------------------------------
 	  lc = *DWT_CYCCNT;  //not working when in "no-debug" mode
-	  cdelta = timedelta(timedelta_reset, tdma_sndthr, lc);
+	  cdelta = timedelta0(timedelta_reset, tdma_sndthr, lc);
 	  timedelta_reset = false ;
 	  if((cdelta>TDMA_BOUND)||(cdelta<-TDMA_BOUND)){
 		//restart
@@ -1307,7 +1307,7 @@ pio_set_debounce_filter(PIOB, PIO_PB12, 32768/2);
 			uint32_t cur_time;
 			 cur_time = *DWT_CYCCNT;
 			int dur;
-			 dur= timedelta(0, cur_time, last_three_sec);
+			 dur= timedelta(cur_time, last_three_sec);
 			if ((3*120000000)<dur) {
 				// assume video dem/dec get stable after 3 sec, liyenho
 				reset_ts_count_error = false;
@@ -1720,8 +1720,8 @@ void main_loop_restart() {
 	}
 }
 
-/*static*/ int timedelta(bool reset, unsigned int bignum, unsigned int smallnum)
-{ static int64_t bprev, sprev;
+static int timedelta0(bool reset, unsigned int bignum, unsigned int smallnum){
+	static int64_t bprev, sprev;
 	int64_t bl, sl, delta;
 	if (reset) {
 		bprev = sprev = 0L; // chances to collide with 0 are less than twice being by lightning in a day
@@ -1736,3 +1736,8 @@ void main_loop_restart() {
 	return (int)delta ;
 }
 
+int timedelta(unsigned int bignum, unsigned int smallnum) {
+	int64_t bl=bignum, sl=smallnum, delta;
+	delta = bl - sl;	// delta shall be of 32 bit range,
+	return (int)delta ;
+}

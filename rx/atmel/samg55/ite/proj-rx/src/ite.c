@@ -15,7 +15,7 @@
 #include "..\video\inc\platform_it9137.h"
 #include "..\video\inc\type.h"
 //#define DEBUG_VIDEOPIPE
- extern int timedelta(bool reset, unsigned int bignum, unsigned int smallnum);
+ extern int timedelta(unsigned int bignum, unsigned int smallnum);
 #ifdef TIME_ANT_SW
   volatile uint32_t startup_video_tm= 0, // to measure hold off time
   										last_done_spi= 0;
@@ -284,7 +284,7 @@ void RTT_Handler(void)
 		int n, dur;
 		if (startup_meas/*hold off not measure immediately*/) {
 			cur_time = *DWT_CYCCNT;
-			dur= timedelta(0, cur_time, last_done_spi);
+			dur= timedelta(cur_time, last_done_spi);
 			if (1200000<dur && 19200000>dur) { // cpu clk @ 120 mhz assumed
 				// max possible latency due to ant sw to be 150 msec assumed
 				if (intv_stats_idx<sizeof(intv_stats)/sizeof(intv_stats[0])) {
@@ -506,7 +506,7 @@ usr_next:
 			uint32_t cur_time;
 			 cur_time = *DWT_CYCCNT;
 			int dur;
-			 dur= timedelta(0, cur_time, last_half_sec);
+			 dur= timedelta(cur_time, last_half_sec);
 			 // 120 mhz core clock assumed, tried to align
 			 // rtt fire period into closest time on half sec,
 			 // it will be 480 ms if it is time exact...
