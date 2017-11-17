@@ -66,11 +66,20 @@ static inline void crc_accumulate(uint8_t data, uint16_t *crcAccum)
 }
 
 #define MAX_USART_PKT_LEN		120 // downlink from drone, variable length
-#define MAVLINK_HDR_LEN				6
-#define MAVLINK_START_SIGN		0x55
+#ifdef MAVLINK_V1
+  #define MAVLINK_HDR_LEN				6
+  #define MAVLINK_START_SIGN		0x55
+#elif defined(MAVLINK_V2)
+  #define MAVLINK_HDR_LEN				10
+  #define MAVLINK_START_SIGN		0xfd
+#endif
 #define START_SIGN_LEN				1  // one byte
 #define CHKSUM_LEN							2  // two bytes
-#define RADIO_GRPPKT_LEN    	30	// uplink from controller, fixed length
+#if  FEC_ON
+  #define RADIO_GRPPKT_LEN						23 // accommodate single ctl pkt per host msg with RS fec
+#else  //
+  #define RADIO_GRPPKT_LEN						30	// uplink from controller, fixed length
+#endif
 #define USART_ACK_LEN					3 // "ATA"
 
 typedef enum {

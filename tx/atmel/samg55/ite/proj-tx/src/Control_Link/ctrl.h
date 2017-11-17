@@ -14,6 +14,7 @@
 //#define RADIO_PKT_LEN		40 // ctl/sts radio payload byte length +1
 //#else
 #define RADIO_PKT_LEN		32 // ctl/sts radio payload byte length +1
+#define MAX_PACKET_LEN			1000		//maximum packet lenght in bytes. can be increased
 //#endif
 #define RADIO_LONG_PKT_LEN				(RADIO_PKT_LEN)//long transmissions for 868 MHz, modified by liyenho
 
@@ -22,11 +23,15 @@
 #define MilliSec_To_Tick(X) ((uint32_t)(X)*MilliSecToTick)
 
 #define REAL_PKT_LEN			(RADIO_PKT_LEN+13+2+2+4) //payload + preamble + sync word + length field
-#define EURO_TDMA_PERIOD		MilliSec_To_Tick(30+3*(1000*REAL_PKT_LEN*8/10000))  //revised by liyenho
+#define EURO_TDMA_PERIOD		MilliSec_To_Tick(30+3*(1000*REAL_PKT_LEN*8/10000)) // revised by liyenho
 
 
 #define ASYMM_RATIO				2
-#define RADIO_GRPPKT_LEN    30
+#if  FEC_ON
+  #define RADIO_GRPPKT_LEN						23 // accommodate single ctl pkt per host msg with RS fec
+#else  //
+  #define RADIO_GRPPKT_LEN						30
+#endif
 #define RADIO_INFO_LEN      4 // usb pipe information post header
 #define RDO_ELEMENT_SIZE   (RADIO_PKT_LEN/sizeof(uint32_t))  // RADIO_PKT_LEN must divide into sizeof(uint32_t), liyenho
 #define US_TDMA_PERIOD     MilliSec_To_Tick(12+3*(1000*REAL_PKT_LEN*8/40000))
@@ -40,7 +45,7 @@
 								//   TDMA_RX_TO_TX 120000=1ms. immediately start to transmit.
 #define TDMA_TX_PERIOD     ((TDMA_PERIOD)*2/3)
 #define  TDMA_BOUND	 (12*4320000)
-#define TDMA_PERIOD_TOL  MilliSec_To_Tick(5) // jitter tolerance 480000=4ms 600000=5ms
+#define TDMA_PERIOD_TOL MilliSec_To_Tick(5) // jitter tolerance 600000=5ms
 #define TDMA_PERIOD_MAX ((TDMA_PERIOD)+TDMA_PERIOD_TOL)
 #define TDMA_PERIOD_MIN ((TDMA_PERIOD)-TDMA_PERIOD_TOL)
 #define TDMA_RX_TO_TX   (1.5*1.5*120000) // RX interrupt to TX startTX()
@@ -86,7 +91,9 @@ extern const uint8_t RF_FREQ_CONTROL_INTE_HOP13_6[10]; // 925.035 MHz
 #define HOP_2CH_ENABLE                      0/*1*/   //debug testing
 #define HOP_2CH_OFFSET0                     0
 #define HOP_2CH_OFFSET1                     1/*24*/
-#define FIXED_PAIR_ID						1
+#define FIXED_PAIR_ID						0
+#define ID_BYTE_DEFAULT                     0x1  //Before Set_Pair_ID() is called
+#define ID_BYTE_SEED                        0x0
 #define HOP_ID_LEN									10
  extern const uint8_t *chtbl_ctrl_rdo[HOPPING_TABLE_SIZE*2] ;
 #define RF_FREQ_CONTROL_INTE_LEN	sizeof(RF_FREQ_CONTROL_INTE_HOP0_6)

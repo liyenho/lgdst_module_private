@@ -44,7 +44,8 @@ void Packet_Received_Routine();
 	      static unsigned char tsrxos=0;
 		  static unsigned char gflag,tsrxos_prev,tsrxos_tail;
 		  static unsigned int tcal,lc, i, lc_prev;
-
+extern uint8_t incoming_data[MAX_PACKET_LEN];
+extern volatile  uint8_t id_byte;
 
 
 // function prototyping
@@ -69,9 +70,6 @@ void si4463_radio_handler(const uint32_t id, const uint32_t index)
 			; // I don't want to deal with dynamic rate control here...
 		}
 		if(bMain_IT_Status == SI446X_CMD_GET_INT_STATUS_REP_PH_PEND_PACKET_RX_PEND_BIT)
-		{
-			Packet_Received_Routine();
-		}else if (bMain_IT_Status == SI446X_CMD_GET_INT_STATUS_REP_PH_STATUS_CRC_ERROR_BIT)
 		{
 			Packet_Received_Routine();
 		}
@@ -130,6 +128,12 @@ void Packet_Received_Routine(void){
 			}else{
 				vRadio_StartRX(control_channel,RADIO_LONG_PKT_LEN);
 			}
+			#if (!SEND_MAVLINK)
+				if(incoming_data[RADIO_PKT_LEN-1] != id_byte)//yh: if incorrect id, don't update flywheel
+				 {
+					return;
+				 }
+			#endif
 
 			rxnorec_intv=0;  //reset rx no receive flag
 			//check timing

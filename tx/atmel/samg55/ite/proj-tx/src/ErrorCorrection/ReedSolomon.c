@@ -422,10 +422,7 @@ void Encode_Control_Packet(uint8_t *source, uint8_t *destination){
     gen_poly(); 
     initialization_complete = true; 
   } 
-   
-  memset(data, 0x00, kk); 
-  memset(destination, 0x00, CONTROL_MESSAGE_LENGTH+PARITY_LENGTH); 
-   
+	
   memcpy(data, source, CONTROL_MESSAGE_LENGTH); 
    
   encode_rs(); 
@@ -442,8 +439,6 @@ void Decode_Control_Packet(uint8_t *source, uint8_t *destination)
     gen_poly(); 
     initialization_complete = true; 
   } 
-   
-  memset(destination, 0x00, CONTROL_MESSAGE_LENGTH); 
    
   //copy encoded message to local 
   for(int i =0; i<CONTROL_MESSAGE_LENGTH;i++){ 

@@ -26,8 +26,6 @@ extern unsigned int *gp_rdo_rpacket_l;
 extern volatile uint32_t rdptr_rdo_rpacket;
 extern volatile uint32_t wrptr_rdo_rpacket;
 
-extern uint8_t dummy_data[3*RADIO_LONG_PKT_LEN];
-
 #define MavLinkBufferSize			10
 #define MavLinkPacketSize			sizeof(MavLinkPacket)
 

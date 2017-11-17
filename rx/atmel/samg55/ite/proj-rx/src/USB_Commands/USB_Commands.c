@@ -367,53 +367,24 @@ void Transfer_Control_Data_Out(void){
 			payldvalid_flag=(((uint8_t *)gp_rdo_rpacket)[RADIO_PKT_LEN-1]>>7)&0x01;
 			if(ctrl_tdma_lock) tdma_lock_char=2; else tdma_lock_char=0;
 
-			static bool first_half_received = false;
 			uint8_t *msg_header = (uint8_t *)gp_rdo_rpacket;
 
-			if (MSG_TYPE_HDR_HAS_FEC == (*msg_header & 0xF0)){
-				//message has FEC - decode
-				uint8_t decoded_pkt[16] ={0};
-				Decode_Control_Packet(gp_rdo_rpacket,decoded_pkt);
-				memcpy(gp_rdo_rpacket, decoded_pkt,16);
-				memset(gp_rdo_rpacket+16,0x0, 16);
+			if (Send_with_FEC){
+				//message has FEC - decode, it is safe to reuse in buff as out buff
+				Decode_Control_Packet(gp_rdo_rpacket,gp_rdo_rpacket);
 			}
 
 
-			if (MSG_TYPE_HOST_GENERATED_A == (*msg_header & 0x0F)){
-				//first half of a host message
-				memcpy(partial_packet, msg_header+1, 15);
-				first_half_received = true;
-				memset(rpacket_grp, 0xee, RADIO_GRPPKT_LEN);
-				usrvalid_flag = 0;
-				}else if (MSG_TYPE_HOST_GENERATED_B == (*msg_header & 0x0F)){
-				//second half of a host message received
-				if (first_half_received){
-					//copy first half of message to output buffer
-					memcpy(rpacket_grp,partial_packet,15);
-					//copy second half of message to output buffer
-					memcpy(rpacket_grp+15,msg_header+1,15);
-					//contain debug info
-					usrvalid_flag = 5;
-					//reset first half of message flag
-					first_half_received = false;
-					}else{
-					//received second half, but first half was dropped
-					memset(rpacket_grp, 0xee, RADIO_GRPPKT_LEN);
-					usrvalid_flag = 0;
-					first_half_received = false;
-				}
-				}else if (MSG_TYPE_HOST_GENERATED == (*msg_header&0x0F)){
+			if (MSG_TYPE_HOST_GENERATED == (*msg_header&0x0F)){
 				//entire host message, copy to output buffer, omitting header byte
 				memcpy(rpacket_grp, msg_header+1,RADIO_GRPPKT_LEN);
 				usrvalid_flag = 9;
-				first_half_received = false;
 			}
 			else if (MSG_TYPE_REQUEST_FEC_ON == (*msg_header & 0x0F)){
 				Send_with_FEC = true;
 				//transfer dummy data to host
 				memcpy(rpacket_grp, msg_header+1,RADIO_GRPPKT_LEN);
 				usrvalid_flag = 1;
-				first_half_received = false;
 
 			}
 			else if (MSG_TYPE_REQUEST_FEC_OFF == (*msg_header & 0x0F)){
@@ -421,16 +392,9 @@ void Transfer_Control_Data_Out(void){
 				//transfer dummy data to host
 				memset(rpacket_grp, 0xee, RADIO_GRPPKT_LEN);
 				usrvalid_flag = 0;
-				first_half_received = false;
 			}
 			else if (MSG_TYPE_IDLE == (*msg_header & 0x0F)){
-				if (MSG_TYPE_HDR_HAS_FEC == (*msg_header & 0xF0)){
-					memcpy(rpacket_grp, msg_header+1, 15);
-					//idle message with FEC only has 15 bytes of data, fill in second half manually
-					memset(rpacket_grp+15, 0xe5, 15);
-					}else{
 					memcpy(rpacket_grp, msg_header+1, RADIO_GRPPKT_LEN);
-				}
 				usrvalid_flag = 0;
 				#ifdef DEBUG_RADIOSTATUS
 				rpacket_grp[21]=dbg_ctrlvidbuff[0];
@@ -457,9 +421,8 @@ void Transfer_Control_Data_Out(void){
 			}
 			else{
 				//shouldn't get here right now, unrecognized code
-				memcpy(rpacket_grp, msg_header,RADIO_GRPPKT_LEN);
-				usrvalid_flag = 12;
-				first_half_received = false;
+				memset(rpacket_grp, 0x0, RADIO_GRPPKT_LEN);
+				usrvalid_flag = 0;
 			}
 
 			rdptr_rdo_rpacket = rdptr_race;

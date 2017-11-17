@@ -10,7 +10,7 @@
 
 #ifndef _MAIN_H_
 #define _MAIN_H_
-#define __REL_DATE__	"July/21/2017"	// update only when released not every build
+#define __REL_DATE__	"Oct/05/2017"	// update only when released not every build
 #include <compiler.h>  // for U8/16/32 definition, liyenho
 #include "usb_protocol_cdc.h"
 
@@ -114,7 +114,9 @@ volatile bool si4463_radio_started;
 #define HOP_2CH_ENABLE                      0/*1*/   //debug testing
 #define HOP_2CH_OFFSET0                     0
 #define HOP_2CH_OFFSET1                     1/*24*/
-#define FIXED_PAIR_ID						1
+#define FIXED_PAIR_ID						0
+#define ID_BYTE_DEFAULT                     1
+#define ID_BYTE_SEED                        0
  extern const uint8_t *chtbl_ctrl_rdo[HOPPING_TABLE_SIZE*2] ;
  #define RF_FREQ_CONTROL_INTE_LEN	sizeof(RF_FREQ_CONTROL_INTE_HOP0_6)
  #define RF_MODEM_AFC_LIMITER_LEN	sizeof(RF_MODEM_AFC_LIMITER_HOP0_3)
@@ -451,4 +453,5 @@ void main_remotewakeup_lpm_enable(void);
 void main_remotewakeup_lpm_disable(void);
 #endif
 
+extern int timedelta(unsigned int bignum, unsigned int smallnum);
 #endif // _MAIN_H_

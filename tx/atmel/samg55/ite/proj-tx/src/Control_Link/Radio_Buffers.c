@@ -31,6 +31,7 @@ volatile uint32_t wrptr_rdo_rpacket=RDO_RPACKET_FIFO_SIZE-1;   //wrptr to valid 
 volatile uint32_t rdptr_rdo_rpacket=RDO_RPACKET_FIFO_SIZE-1;  //rdptr to last consummed data
 	//rdptr=wrptr, data consumed, rdptr take priority
 
+extern volatile int8_t id_byte;
 
 uint32_t fifolvlcalc(uint32_t wrptr, uint32_t rdptr, uint32_t fifodepth)
 {
@@ -89,20 +90,22 @@ static bool lock_obj= false;
 
 static int tries=0;
 
+#define  QM_common_content \
+	uint32_t overflow=0; \
+	if (lock_obj){ \
+		tries++; \
+		if (tries>10){ \
+			lock_obj = false; \
+		} \
+		return false; \
+	} \
+	tries =0; \
+	lock_obj = true;
+
 //adds 1 packet to the outgoing queue
 bool Queue_Message(uint8_t *msg){
-	unsigned int wrtptr_tmp = wrptr_rdo_tpacket;
-	unsigned int overflow=0;
-	if (lock_obj){
-		tries++;
-		if (tries>10){
-			lock_obj = false;
-		}
-		//a different call is already adding a message
-		return false;
-	}
-	tries =0;
-	lock_obj = true;
+	QM_common_content
+	uint32_t wrtptr_tmp = wrptr_rdo_tpacket;
 	//check if there is  space for the new message
 	overflow = wrptr_inc(&wrtptr_tmp,&rdptr_rdo_tpacket,RDO_TPACKET_FIFO_SIZE, 1);
 	if (overflow){
@@ -118,7 +121,6 @@ bool Queue_Message(uint8_t *msg){
 	lock_obj = false;
 	return true;
 }
-
 
 volatile MavLink_FIFO_Buffer outgoing_messages = {0};
 volatile MavLink_FIFO_Buffer incoming_messages = {0};
@@ -155,7 +157,7 @@ bool Queue_MavLink(MavLink_FIFO_Buffer *fifo, uint8_t *pkt){
 
 //attempts to retrieve a MavLink packet
 //if successful, packet is copied to the location of the pkt pointer
-bool Get_MavLink(MavLink_FIFO_Buffer *fifo, uint8_t *pkt){
+bool Get_MavLink(MavLink_FIFO_Buffer *fifo, uint8_t *pkt, bool id_chk){
 	if (fifo->lock_obj){
 		fifo->lock_cnt++;
 		//prevent indefinite deadlock
@@ -174,6 +176,8 @@ bool Get_MavLink(MavLink_FIFO_Buffer *fifo, uint8_t *pkt){
 	//packet is available, copy to destination
 	rdptr_inc(&(fifo->write_pointer), &(fifo->read_pointer), MavLinkBufferSize, 1);
 	MavLinkPacket* pkt0 = (MavLinkPacket*)(fifo->buffer)+fifo->read_pointer;
+	if (id_chk && id_byte != pkt0->system_ID)
+		return false;	// filter out strayed pkt from other units
 	memcpy(pkt, pkt0, // reduce memcpy overhead
 		MAVLINK_HDR_LEN+pkt0->length+MAVLINK_CHKSUM_LEN);
 	fifo->lock_obj = false;
@@ -259,18 +263,14 @@ bool Build_MavLink_from_Byte_Stream(uint32_t *sts_next, MavLink_FIFO_Buffer *fif
 #define SEARCH_NEXT(sn) \
 		rdptr_str= (MAVLINK_BYTESTREAM_DEPTH-1) & (1+rdptr_str); \
 		if (wrptr_str == rdptr_str) { \
-			flags = cpu_irq_save(); \
 			stream->read_pointer = rdptr_str; \
-			cpu_irq_restore(flags); \
 			*sts_next = sn; \
 			return false;  /*search exhausted*/ \
 		} \
 		next_byte = *(stream->data+rdptr_str);
 #define SEARCH_COMPLETE(sn) \
 		if (sn) { \
-			flags = cpu_irq_save(); \
 			stream->read_pointer= rdptr_str; \
-			cpu_irq_restore(flags); \
 			*sts_next = sn; \
 			return false; \
 		} \
@@ -284,10 +284,7 @@ bool Build_MavLink_from_Byte_Stream(uint32_t *sts_next, MavLink_FIFO_Buffer *fif
 	if (rdptr_fifo>wrptr_fifo && 2> (rdptr_fifo-wrptr_fifo))
 		return false;  // no available pkt buffer
 	int32_t wrptr_str, rdptr_str=stream->read_pointer;
-	irqflags_t flags;  // async access protection, good to have but not necessary, liyenho
-	flags = cpu_irq_save();
 	 wrptr_str = stream->write_pointer;
-	cpu_irq_restore(flags);
 	// get a pkt buffer from fifo
 	pkt = fifo->buffer+wrptr_fifo *MavLinkPacketSize;
 	// load a byte from bit stream
@@ -331,9 +328,7 @@ sts_next_1:
 	else {
 		memcpy(pkt+2, stream->data+rdptr_str+1, tlen1-1);
 	}
-	flags = cpu_irq_save();
 	stream->read_pointer = (MAVLINK_BYTESTREAM_DEPTH-1)& (rdptr_str+tlen1);
-	cpu_irq_restore(flags);
 	fifo->write_pointer = (MavLinkBufferSize-1) & (wrptr_fifo+1);
 	*sts_next = 0; // restart state machine
 	return true;

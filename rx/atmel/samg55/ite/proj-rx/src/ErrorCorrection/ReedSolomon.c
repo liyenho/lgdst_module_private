@@ -61,6 +61,10 @@ int alpha_to [nn+1], index_of [nn+1], gg [nn-kk+1] ;
 int recd [nn]; 
 uint8_t data[kk], bb[nn-kk]; 
  
+ void gen_poly(void);
+ void encode_rs(void); 
+ void decode_rs(void);
+ 
  
 void generate_gf(void) 
 /* generate GF(2**mm) from the irreducible polynomial p(X) in pp[0]..pp[mm] 
@@ -418,10 +422,7 @@ void Encode_Control_Packet(uint8_t *source, uint8_t *destination){
     gen_poly(); 
     initialization_complete = true; 
   } 
-   
-  memset(data, 0x00, kk); 
-  memset(destination, 0x00, CONTROL_MESSAGE_LENGTH+PARITY_LENGTH); 
-   
+	
   memcpy(data, source, CONTROL_MESSAGE_LENGTH); 
    
   encode_rs(); 
@@ -438,10 +439,8 @@ void Decode_Control_Packet(uint8_t *source, uint8_t *destination)
     gen_poly(); 
     initialization_complete = true; 
   } 
-   
-  memset(destination, 0x00, CONTROL_MESSAGE_LENGTH); 
-   
-  //copy encoded message to local 
+
+	  //copy encoded message to local 
   for(int i =0; i<CONTROL_MESSAGE_LENGTH;i++){ 
     recd[i] = source[i]; 
   } 

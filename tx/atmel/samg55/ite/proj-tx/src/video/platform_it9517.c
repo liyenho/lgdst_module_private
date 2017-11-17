@@ -677,7 +677,7 @@ retry_vch_rec:
 #if RECEIVE_MAVLINK
 			Process_MavLink_Raw_Radio_Data();
 			uint8_t pkt[MAX_MAVLINK_SIZE];
-			if (Get_MavLink(&incoming_messages, pkt)) {
+			if (Get_MavLink(&incoming_messages, pkt, true)) {
 				memcpy(rpacket_grp, ((MavLinkPacket*)pkt)->data, RADIO_GRPPKT_LEN);
 				break;
 			}

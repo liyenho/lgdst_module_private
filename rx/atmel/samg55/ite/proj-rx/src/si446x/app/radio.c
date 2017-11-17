@@ -403,15 +403,6 @@ void vRadio_StartTx(U8 channel, U8 *pioRadioPacket, U16  length)
 		}
 		else  // no buffer wrapping
 			memcpy(outgoing_data, gs_rdo_tpacket+(rdptr_rdo_tpacket*RDO_ELEMENT_SIZE), length);
-#if false
-		// wrong implementation again removed, in order to send data amount
-		// over fifo size, first increment tx rdptr with fifo_size/ctl_pkt_len, then flag on
-		// subsequent increment by ALMOST_EMPTY_TX intr per (ctl>pkt_len/buf_thr_sz), liyenho
-		for(int i =0; i< length/RADIO_PKT_LEN; i++){
-			memcpy(outgoing_data+(i*RADIO_PKT_LEN), gs_rdo_tpacket+(rdptr_rdo_tpacket*RDO_ELEMENT_SIZE), RADIO_PKT_LEN);
-			rdptr_inc(&wrptr_rdo_tpacket, &rdptr_rdo_tpacket, RDO_TPACKET_FIFO_SIZE, 1);
-		}
-#endif
 		fifo_write_ptr = outgoing_data;
 		si446x_write_tx_fifo(RADIO_TX_FIFO_SIZE, fifo_write_ptr+fifo_write_offset);
 		fifo_write_offset+=RADIO_TX_FIFO_SIZE;
@@ -619,9 +610,8 @@ bool Channel_Scan(void){
 			si446x_get_modem_status(0);
 			running_total +=Si446xCmd.GET_MODEM_STATUS.CURR_RSSI;
 		}
-		else{ // a quarter sec dwelling period
+		else { // a quarter sec dwelling period
 			measuring = false; //measurements are finished on this channel
-			idx = 0;
 			channel_power[channel] = running_total/NUM_SAMPLES;
 			running_total =0;
 			channel++;
@@ -629,7 +619,6 @@ bool Channel_Scan(void){
 	}
 
 	uint8_t RSSI_MIN = 0xFF;
-	uint8_t best_chnl = 0;
 	if (channel == 10){
 		//when channel gets to 10, all channels have been measured
 		for (int i =9; i>0; i--){

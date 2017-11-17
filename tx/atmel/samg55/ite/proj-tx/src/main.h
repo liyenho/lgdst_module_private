@@ -19,7 +19,8 @@
 //#define DEBUG_ANT_SWITCH	//landing gear based antaena select
 #define  DEBUG_RADIOSTATUS //insert status data into 188 control payload
 #define TP_SIZE					188
-#define I2SC_BUFFER_SIZE		10*TP_SIZE
+#define I2SC_BUFFER_SIZE		12*TP_SIZE  // to accommodate Biil's potential two blocks mavlink packet
+#define USB_TS_BLOCK_SIZE       (10*TP_SIZE)
  // host usb/spi buffer for ctrl/sts, link up with fpga or 6612, liyenho
 #define USB_DEVICE_SPECIFIC_REQUEST()			main_vender_specific()
 #define USB_DEVICE_SYSTEM_RESTART()			main_loop_restart()  // restart yuneec design if usb restart, liyenho

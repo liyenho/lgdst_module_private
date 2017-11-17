@@ -91,8 +91,8 @@ extern volatile bool udi_cdc_data_running; // from udi_cdc.c, liyenho
   								ctrl_tdma_enable_shdw;  // shadow of ctrl_tdma_enable
   volatile bool ctrl_tdma_lock = false;  //always, since RX is master
   //volatile bool ctrl_pkt_rd_available = false;
-	static int timedelta0(bool reset, unsigned int bignum, unsigned int smallnum);
-	int timedelta(unsigned int bignum, unsigned int smallnum);  // no static vars inside
+	static int timedelta0(bool *reset, unsigned int bignum, unsigned int smallnum);
+	int timedelta(unsigned int bignum, unsigned int smallnum); // no static var inside
 	static bool fhop_dir, timedelta_reset ; //to handle system restart
 	/*static*/ uint8_t hop_id[HOP_ID_LEN]; // 10 byte hop id from host
 
@@ -102,6 +102,7 @@ extern volatile bool udi_cdc_data_running; // from udi_cdc.c, liyenho
 #endif
 volatile bool ctrl_tdma_rxactive = false;
 volatile bool stream_flag = true; // default to TS stream automatic on
+volatile uint8_t id_byte=ID_BYTE_DEFAULT; //to be used in ctrl.c file
 #ifdef VIDEO_DUAL_BUFFER
 	extern volatile int32_t stream;
 #endif
@@ -453,8 +454,7 @@ void SysTick_Handler(void)
 
 	  //clock adjustment ---------------------------------
 	  lc = *DWT_CYCCNT;  //not working when in "no-debug" mode
-	  cdelta = timedelta0(timedelta_reset, tdma_sndthr, lc);
-	  timedelta_reset = false ;
+	  cdelta = timedelta0(&timedelta_reset, tdma_sndthr, lc);
 	  if((cdelta>TDMA_BOUND)||(cdelta<-TDMA_BOUND)){
 		//restart
 		tdma_sndthr=lc + TDMA_PERIOD/2;
@@ -468,17 +468,12 @@ void SysTick_Handler(void)
 		/*******************************************/
 		//make sure there are enough messages to send
 		#if SEND_MAVLINK
-	#if false
-		while ( fifolvlcalc(outgoing_messages.write_pointer,outgoing_messages.read_pointer, MavLinkBufferSize) <2)
-	#else  // look for the current byte cnt instead pkt cnt,
-		if (RADIO_PKT_LEN>outgoing_messages.byte_cnt)
-	#endif
+		if (RADIO_PKT_LEN>outgoing_messages.byte_cnt) // look for the current byte cnt instead pkt cnt
 		{
 			Queue_Idle_Mavlink();
 		}
-
-		#else
-		while (fifolvlcalc(wrptr_rdo_tpacket, rdptr_rdo_tpacket, RDO_TPACKET_FIFO_SIZE)<3){
+		#else																		// bad codings again, 3 is not necessary, instead 1 can be applied in 2 ms intr period, liyenho
+		while (fifolvlcalc(wrptr_rdo_tpacket, rdptr_rdo_tpacket, RDO_TPACKET_FIFO_SIZE)<1){
 			Queue_Control_Idle_Packet();
 		}
 		gp_rdo_tpacket_l = gs_rdo_tpacket + (RDO_ELEMENT_SIZE*rdptr_rdo_tpacket);
@@ -523,12 +518,11 @@ void SysTick_Handler(void)
 			fhop_offset = hop_chn_sel(fhop_offset);
 		}
 #endif  //!TEMPERATURE_MEASURE
+		tdma_sndthr = tdma_sndthr + TDMA_PERIOD;
 		if(hop_state!= IDLE){
 			pkt_start_tick = *DWT_CYCCNT;
 			Control_Send_Event();
 		}
-	    radio_mon_txcnt++;
-		tdma_sndthr = tdma_sndthr + TDMA_PERIOD;
 	  }
 	} //if(ctrl_tdma_enable)
 #endif
@@ -1096,7 +1090,7 @@ int main(void)
 	 NVIC_SetPriority(SPI7_IRQn, 1);
 	 NVIC_EnableIRQ(SPI7_IRQn);
  #endif
- 	if (SysTick_Config(sysclk_get_cpu_hz() / 500)) { // 2 msec tick
+ 	if (SysTick_Config(sysclk_get_cpu_hz() / 250)) { // 4 msec tick
 		//puts("-E- Systick configuration error\r");
 		while (1) {
 			// Capture error
@@ -1262,7 +1256,7 @@ pio_set_debounce_filter(PIOB, PIO_PB12, 32768/2);
 #endif
 
 #if FIXED_PAIR_ID
-	uint8_t hop_id[HOP_ID_LEN] = {1};
+	uint8_t hop_id[HOP_ID_LEN] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 1};
 	Set_Pair_ID(hop_id);
 #endif //FIXED_PAIR_ID
 
@@ -1720,11 +1714,12 @@ void main_loop_restart() {
 	}
 }
 
-static int timedelta0(bool reset, unsigned int bignum, unsigned int smallnum){
+static int timedelta0(bool *reset, unsigned int bignum, unsigned int smallnum) {
 	static int64_t bprev, sprev;
 	int64_t bl, sl, delta;
 	if (reset) {
 		bprev = sprev = 0L; // chances to collide with 0 are less than twice being by lightning in a day
+		*reset = false;
 	}
 #define EXTEND64(o, i, i0) o = (i < i0) ? 0x100000000+i : i;
 	EXTEND64(bl, bignum, bprev)

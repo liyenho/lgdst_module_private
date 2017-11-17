@@ -8,6 +8,7 @@
 #define CTRL_H_
 
 #define ASYMM_RATIO								/*1*/ 2
+//#define FEC_ON											true /*false*/ // permanent FEC w/o request, too stupid leaving this as option, liyenho
 
 #define SEND_MAVLINK					/*1*/ 0		//data to send to Drone is in MavLink form
 #define  RECEIVE_MAVLINK				/*1*/ 0	//data received from Drone is in MavLink form
@@ -17,7 +18,11 @@
 //#else
 	#define RADIO_PKT_LEN							32 // ctl/sts radio payload byte length
 //#endif
-#define RADIO_GRPPKT_LEN						30
+#if  FEC_ON
+  #define RADIO_GRPPKT_LEN						23 // accommodate single ctl pkt per host msg with RS fec
+#else  //
+  #define RADIO_GRPPKT_LEN						30
+#endif
 #define RDO_ELEMENT_SIZE   			(RADIO_PKT_LEN/sizeof(uint32_t))	// RADIO_PKT_LEN must divide into sizeof(uint32_t),
 
 #define RADIO_LONG_PKT_LEN				(RADIO_PKT_LEN) //long transmissions for 868 MHz, modified by liyenho
@@ -59,9 +64,11 @@
 #define FEC_ON_RSSI_THRESHOLD		0x10  //RSSI reading at which to request FEC On
 #define FEC_OFF_RSSI_THRESHOLD		(FEC_ON_RSSI_THRESHOLD+10)   //RSSI reading at which to request FEC Off
 //approx 5 db above ON threshold
-
-#define MAVLINK_USB_TRANSFER_LEN		263
-
+#ifdef MAVLINK_V1
+  #define MAVLINK_USB_TRANSFER_LEN		263
+#elif defined(MAVLINK_V2)
+  #define MAVLINK_USB_TRANSFER_LEN		267
+#endif
 //keep track of has a request has been sent to other side to turn FEC on
 extern bool Requested_FEC_On;
 
@@ -73,6 +80,7 @@ enum FEC_Options {
 extern enum FEC_Options FEC_Option;
 extern bool Send_with_FEC; //turn on to send messages with FEC
 extern bool send_long_packet;
+
 bool USE_915MHZ;
 uint8_t control_channel;
 bool control_channge_change_ack;

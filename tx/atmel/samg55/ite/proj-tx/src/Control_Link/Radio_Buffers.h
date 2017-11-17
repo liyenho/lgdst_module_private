@@ -66,7 +66,7 @@ uint32_t wrptr_inc(uint32_t *wrptr,  uint32_t *rdptr, uint32_t fifodepth, int st
 uint32_t rdptr_inc(uint32_t *wrptr,  uint32_t *rdptr, uint32_t fifodepth, int step);
 bool Queue_Message(uint8_t *msg);
 bool Queue_MavLink(MavLink_FIFO_Buffer *fifo, uint8_t *pkt);
-bool Get_MavLink(MavLink_FIFO_Buffer *fifo, uint8_t *pkt);
+bool Get_MavLink(MavLink_FIFO_Buffer *fifo, uint8_t *pkt, bool );
 bool Queue_MavLink_Raw_Data(MavLink_Bytestream *stream, uint32_t num_bytes, uint8_t * bytes);
 void Process_MavLink_Raw_Data(void);
 void Process_MavLink_Raw_Radio_Data(void);

@@ -5,6 +5,7 @@
 #include "ui.h"
 #include "uart.h"
 #include "delay.h"
+#include "ctrl.h"
 #if (SAMG55)
 #include "flexcom.h"
 #endif
@@ -15,7 +16,7 @@
 #include "..\video\inc\platform_it9137.h"
 #include "..\video\inc\type.h"
 //#define DEBUG_VIDEOPIPE
- extern int timedelta(unsigned int bignum, unsigned int smallnum);
+ extern volatile int8_t id_byte;
 #ifdef TIME_ANT_SW
   volatile uint32_t startup_video_tm= 0, // to measure hold off time
   										last_done_spi= 0;
@@ -236,6 +237,7 @@ void RTT_Handler(void)
     pdc_packet_t dma_chain;
 	unsigned int udi_cdc_lvl;
 	unsigned int cc_curr;
+	uint32_t* tsheader;
 	static unsigned char ts47badcnt_pre=0;
 #if defined(DEBUG_VIDEOPIPE) || defined(TIME_ANT_SW)
 	static unsigned int cc_prev=0;
@@ -330,6 +332,21 @@ void RTT_Handler(void)
 		ts47badcnt_pre = 0;
 		mon_ts47bad_cnt++;
 	  }
+
+ //video id filtering adjustment through id_byte
+ for(i=0;i<10;i++)
+ {
+	 tsheader =(uint32_t *) (gs_uc_rbuffer	// wrong! changed spibuff_wrptr_filled to spibuff_wrptr_filled0, liyenho
+	 + (spibuff_wrptr_filled0*(I2SC_BUFFER_SIZE/sizeof(int)) )
+	 + (i*188/4)
+	 );
+	 if(( (*tsheader) & 0xff00001f) != 0xff00001f)
+	 {
+		 uint8_t* pid_lo = ((uint8_t *)tsheader);
+		 pid_lo[3] = pid_lo[3]-id_byte;
+	 }
+ }
+
 															  #ifdef DEBUG_VIDEOPIPE
 															  //cc error checking
 															  for(i=0;i<10;i++)

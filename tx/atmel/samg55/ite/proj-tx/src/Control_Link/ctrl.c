@@ -17,7 +17,7 @@
 #include "uart.h"
 
 
-bool Send_with_FEC = false; // whether control link messages are sent with FEC
+bool Send_with_FEC = FEC_ON; // whether control link messages are sent with FEC
 enum FEC_Options FEC_Option = AUTO; //controls whether host or Atmel owns Send_With_FEC
 
 bool Requested_FEC_On = false;
@@ -34,6 +34,7 @@ int fhop_offset = HOP_2CH_ENABLE?(HOP_2CH_OFFSET0):0;
 int fhop_base = 0;
 int fhopless= 0/*can be 1, 2 or 3*/;
 int fhop_idx= 0; //to produce frequency hopping sequence
+extern volatile  uint8_t id_byte;
 
 void Determine_FEC_Status(void){
 	if (FEC_Option != AUTO){
@@ -44,45 +45,22 @@ void Determine_FEC_Status(void){
 
 }
 //global variable to control using 915 vs 868 MHz
-bool USE_915MHZ = true;//false;
+bool USE_915MHZ = true /*false*/;
 
 
 //adds 1 message to the outgoing message buffer
-//if FEC is enabled, will split into 2 packets
 //returns true if the message was added
 //returns false if the buffer is full
 bool Queue_Control_Packet(uint8_t * pending_msg){
-
-	if (Send_with_FEC){
-
-		uint8_t pkt1_data[16] = {0};
-		uint8_t pkt2_data[16] = {0};
-		//put in header information
-		pkt1_data[0] = (MSG_TYPE_HDR_HAS_FEC | MSG_TYPE_HOST_GENERATED_A);
-		pkt2_data[0] = (MSG_TYPE_HDR_HAS_FEC | MSG_TYPE_HOST_GENERATED_B);
-		memcpy(pkt1_data+1, pending_msg, RADIO_GRPPKT_LEN/2);
-		memcpy(pkt2_data+1, pending_msg+(RADIO_GRPPKT_LEN/2), RADIO_GRPPKT_LEN/2);
-
-		uint8_t msg_a[RADIO_PKT_LEN] = {0};
-		uint8_t msg_b[RADIO_PKT_LEN] = {0};
-		Encode_Control_Packet(pkt1_data, msg_a );
-		Encode_Control_Packet(pkt2_data, msg_b );
-
-		//send messages to be queued
-		bool success = false;
-		success = Queue_Message(msg_a);
-		if (success){
-			success &= Queue_Message(msg_b);
-		}
-		return success;
-
-	}else{
 		//add header info to message and send to be queued
-		uint8_t radio_msg[RADIO_PKT_LEN] ={0};
-		radio_msg[0] = (MSG_TYPE_HDR_NO_FEC | MSG_TYPE_HOST_GENERATED);
+		uint8_t lo, radio_msg[RADIO_PKT_LEN];
+		radio_msg[0] = (MSG_TYPE_HOST_GENERATED);
 		memcpy(radio_msg+1, pending_msg, RADIO_GRPPKT_LEN);
+		 //padded last byte instead fill in all 0s, liyenho
+		lo = RADIO_GRPPKT_LEN+1;
+		while (lo <RADIO_PKT_LEN)
+			radio_msg[lo++] = 0;
 		return Queue_Message(radio_msg);
-	}
 }
 
 #define RADIO_IDLE_CHAR		0xe5
@@ -97,18 +75,10 @@ uint8_t idle_pkt[RADIO_PKT_LEN] = {RADIO_IDLE_CHAR, RADIO_IDLE_CHAR, RADIO_IDLE_
 
 bool Queue_Control_Idle_Packet(){
 	//put in header information
-	idle_pkt[0] = (Send_with_FEC?MSG_TYPE_HDR_HAS_FEC:MSG_TYPE_HDR_NO_FEC)|\
-		MSG_TYPE_IDLE;
+	idle_pkt[0] = MSG_TYPE_IDLE;
 
 	*(uint16_t*)(idle_pkt+3) = radio_mon_txidlecnt;
 	uint8_t *ptr = idle_pkt;
-	if (Send_with_FEC){
-		uint8_t temp[RADIO_PKT_LEN] = {0};
-		//only sending 16 bytes of idle message, that is ok
-		Encode_Control_Packet(idle_pkt,  temp);
-
-		ptr = temp;
-	}
 
 	//temp for testing
 	//put RSSI in message to monitor during flight
@@ -126,19 +96,17 @@ bool Queue_Control_Idle_Packet(){
 }
 
 bool Queue_FEC_Request_On_Packet(){
-	uint8_t request_msg[RADIO_GRPPKT_LEN] = {0};
+	uint8_t request_msg[RADIO_GRPPKT_LEN];
 
-	request_msg[0]= (Send_with_FEC?MSG_TYPE_HDR_HAS_FEC: MSG_TYPE_HDR_NO_FEC)|\
-		MSG_TYPE_REQUEST_FEC_ON;
+	request_msg[0]= MSG_TYPE_REQUEST_FEC_ON;
 
 	return Queue_Message(request_msg);
 }
 
 bool Queue_FEC_Request_Off_Packet(){
-	uint8_t request_msg[RADIO_GRPPKT_LEN] = {0};
+	uint8_t request_msg[RADIO_GRPPKT_LEN];
 
-	request_msg[0]= (Send_with_FEC?MSG_TYPE_HDR_HAS_FEC: MSG_TYPE_HDR_NO_FEC)|\
-		MSG_TYPE_REQUEST_FEC_OFF;
+	request_msg[0]= MSG_TYPE_REQUEST_FEC_OFF;
 
 	return Queue_Message(request_msg);
 }
@@ -225,7 +193,8 @@ void Set_Pair_ID(uint8_t *ID){
 	ID = fixed_id;
 	#endif //FIXED_PAIR_ID
 
-	uint8_t idleflag=1, pairingidflag=1, valb;
+	uint8_t idleflag=1, pairingidflag=1, valb, i;
+	int fshf=0;
 	for (int j=0; j<HOP_ID_LEN; j++) {
 		valb= *(ID+j);
 		if(valb!=0) idleflag=0;
@@ -233,6 +202,16 @@ void Set_Pair_ID(uint8_t *ID){
 		if((j==HOP_ID_LEN-1)&(valb!=1)) pairingidflag=0;
 		*(hop_id+j) = *(ID+j);
 	}
+
+	//always compute new id_byte and id freq-shift (fshf)
+	id_byte=ID_BYTE_SEED;
+	for(i=0;i<HOP_ID_LEN;i++) {
+			id_byte += hop_id[i];
+			id_byte = id_byte%(CHTBL_SIZE);
+			fshf += hop_id[i];
+			fshf = fshf%(NUM_FREQ_SHIFT);
+	}
+
 	if(idleflag) hop_state = IDLE;
 	else if(pairingidflag) hop_state = PAIRING ;
 	else hop_state = PAIRED ;
@@ -242,26 +221,13 @@ void Set_Pair_ID(uint8_t *ID){
 		ctrl_tdma_lock = false;
 	}
 	else if (hop_state == PAIRED) {
-		int id=0, bit = 0;
-		id |= *(hop_id+0) & (1<<bit); bit+=1 ;
-		id |= *(hop_id+2) & (1<<bit); bit+=1 ;
-		id |= *(hop_id+4) & (1<<bit); bit+=1 ;
-		id |= *(hop_id+5) & (1<<bit); bit+=1 ;
-		id |= *(hop_id+7) & (1<<bit); bit+=1 ;
-		id |= *(hop_id+9) & (1<<bit); bit+=1 ;
 
 		// calculated hop id from PAIR ID mode
 	#if false
-		fhop_offset = (CHTBL_SIZE>id) ? id : id-CHTBL_SIZE ;
+		fhop_offset = (CHTBL_SIZE>id_byte) ? id_byte : id_byte-CHTBL_SIZE ;
 		fhop_base=0;  //TBD for 50ch hop case
 	#else // accommodate further frequency shift algorithm too, liyenho
-		int fshf=0;
-		bit = 0;
-		fshf |= *(hop_id+1) & (1<<bit); bit+=1 ;
-		fshf |= *(hop_id+3) & (1<<bit); bit+=1 ;
-		fshf |= *(hop_id+6) & (1<<bit); bit+=1 ;
-		fshf |= *(hop_id+8) & (1<<bit); bit+=1 ;
-		fhop_offset = (CHTBL_SIZE>id) ? id : id-CHTBL_SIZE ;
+		fhop_offset = (CHTBL_SIZE>id_byte) ? id_byte : id_byte-CHTBL_SIZE ;
 		fhop_base = (NUM_FREQ_SHIFT>fshf) ? fshf : fshf-NUM_FREQ_SHIFT ;
 	#endif
 		if(HOP_2CH_ENABLE) {
@@ -302,7 +268,13 @@ bool Queue_Idle_Mavlink(void){
 
 	memset(idle_pkt->data, RADIO_IDLE_CHAR, idle_pkt->length);
 
-	*(uint16_t*) (mav_pkt_buff+MAVLINK_HDR_LEN+RADIO_GRPPKT_LEN) = Compute_Mavlink_Checksum(idle_pkt);
+	uint16_t chksm = Compute_Mavlink_Checksum(idle_pkt);
+	uint8_t lo=0, *pcs = (uint8_t*)&chksm,
+					*pkt1 = ((uint8_t*)mav_pkt_buff+MAVLINK_HDR_LEN+RADIO_GRPPKT_LEN);
+	do {	// in place of memcpy for efficiency,
+		*((uint8_t*)pkt1+lo) = *pcs++;
+	} while(++lo < MAVLINK_CHKSUM_LEN);
+
 	return Queue_MavLink(&outgoing_messages, mav_pkt_buff);
 }
 #endif
@@ -333,7 +305,7 @@ uint8_t Insert_Control_In_TSStream(uint8_t *ptr){
 	uint8_t bytes_avail = frame_size - TS_hdr_sz-1,
 					pkt[MAX_MAVLINK_SIZE];
 
-	if (!Get_MavLink(&outgoing_messages, pkt))
+	if (!Get_MavLink(&outgoing_messages, pkt, false))
 	{
 		//No MavLink packets are queued to send, don't fill in anything
 		packets_used = 0;
@@ -399,14 +371,22 @@ uint8_t Insert_Control_In_TSStream(uint8_t *ptr){
 	pusb += hdr_sz;
 	const uint32_t frame_size = 188;
 	uint32_t free_space = frame_size- hdr_sz;
-	//uint32_t num_packets = free_space/RADIO_PKT_LEN;
-	uint32_t max_packets = 1; //rate limit for now
+	uint32_t max_packets = 1; //free_space/RADIO_PKT_LEN;
 	uint32_t pkts_added = 0;
 	uint32_t payloadAcc;
 	uint32_t i;
 
 	for (i =0; i<max_packets; i++){
+		uint8_t msg_orig[RADIO_PKT_LEN] ;
+		if (Send_with_FEC){
+			pkts_added += Get_Control_Packet(msg_orig);
+			// added FEC hdr flag with outgoing pkt
+			*msg_orig = (0xf&*msg_orig)|MSG_TYPE_HDR_HAS_FEC;
+			Encode_Control_Packet(msg_orig, pusb+(i*RADIO_PKT_LEN));
+		}
+		else {
 		pkts_added += Get_Control_Packet(pusb+(i*RADIO_PKT_LEN));
+		}
 	}
 	if (pkts_added == 0){
 		//if no messages available, just return

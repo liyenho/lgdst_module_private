@@ -39,7 +39,6 @@ extern volatile uint32_t gs_rdo_tpacket[RDO_TPACKET_FIFO_SIZE*RDO_ELEMENT_SIZE];
 extern unsigned int *gp_rdo_tpacket_l;
 extern volatile uint32_t wrptr_rdo_tpacket;
 extern volatile uint32_t rdptr_rdo_tpacket;
-
 // function prototyping
 uint8_t get_si446x_temp() ;
 void recalibrate_capval (void* ul_page_addr_mtemp, uint8_t median);
@@ -56,11 +55,7 @@ void recalibrate_capval (void* ul_page_addr_mtemp, uint8_t median);
 				if(snd_asymm_cnt>0){
 					snd_asymm_cnt--;
 				#if SEND_MAVLINK
-			#if false
-					if (fifolvlcalc(outgoing_messages.write_pointer,outgoing_messages.read_pointer, MavLinkBufferSize) <1)
-			#else  // look for the current byte cnt instead pkt cnt,
-					if (RADIO_PKT_LEN>outgoing_messages.byte_cnt)
-			#endif
+					if (RADIO_PKT_LEN>outgoing_messages.byte_cnt) // look for the current byte cnt instead pkt cnt
 					{
 						Queue_Idle_Mavlink();
 					}

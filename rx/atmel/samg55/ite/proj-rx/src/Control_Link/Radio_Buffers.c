@@ -35,6 +35,7 @@ volatile uint32_t wrptr_rdo_rpacket=RDO_RPACKET_FIFO_SIZE-1;   //wrptr to valid 
 volatile uint32_t rdptr_rdo_rpacket=RDO_RPACKET_FIFO_SIZE-1;  //rdptr to last consummed data
 	//rdptr=wrptr, data consumed, rdptr take priority
 
+extern volatile int8_t id_byte;
 
 uint32_t fifolvlcalc(uint32_t wrptr, uint32_t rdptr, uint32_t fifodepth)
 {
@@ -92,20 +93,23 @@ static bool lock_obj= false;
 
 static int tries=0;
 
+#define  QM_common_content \
+	uint32_t overflow=0; \
+	if (lock_obj){ \
+		tries++; \
+		if (tries>10){ \
+			lock_obj = false; \
+		} \
+		return false; \
+	} \
+	tries =0; \
+	lock_obj = true;
+
+
 //adds 1 packet to the outgoing queue
 bool Queue_Message(uint8_t *msg){
+	QM_common_content
 	uint32_t wrtptr_tmp = wrptr_rdo_tpacket;
-	uint32_t overflow=0;
-	if (lock_obj){
-		tries++;
-		if (tries>10){
-			lock_obj = false;
-		}
-		//a different call is already adding a message
-		return false;
-	}
-	tries =0;
-	lock_obj = true;
 	//check if there is  space for the new message
 	overflow = wrptr_inc(&wrtptr_tmp,&rdptr_rdo_tpacket,RDO_TPACKET_FIFO_SIZE, 1);
 	if (overflow){
@@ -121,7 +125,6 @@ bool Queue_Message(uint8_t *msg){
 	lock_obj = false;
 	return true;
 }
-
 
 volatile MavLink_FIFO_Buffer outgoing_messages = {0};
 volatile MavLink_FIFO_Buffer incoming_messages = {0};
@@ -147,6 +150,16 @@ bool Queue_MavLink(MavLink_FIFO_Buffer *fifo, uint8_t *pkt){
 		fifo->overflow_cnt++;
 		fifo->lock_obj = false;
 		return false;
+	}
+	// tag ID byte for unit identification
+	{
+		MavLinkPacket* p=(MavLinkPacket*)pkt;
+		p->system_ID = id_byte;
+		uint16_t chk=Compute_Mavlink_Checksum(p);
+		uint8_t *pb= pkt+MAVLINK_HDR_LEN+p->length,
+						*pc= &chk;
+		*pb++ = *pc++;
+		*pb++ = *pc++;
 	}
 	//ok to add to buffer
 	memcpy((MavLinkPacket*)(fifo->buffer)+wrtptr_tmp, pkt, // reduce memcpy overhead

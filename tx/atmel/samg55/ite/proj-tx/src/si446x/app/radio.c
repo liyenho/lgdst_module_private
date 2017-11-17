@@ -51,7 +51,6 @@ extern volatile uint32_t *DWT_CYCCNT;
 
 uint8_t FRR_Copy[4] = {0};
 uint32_t pkt_rcv_timestamp = 0;
-#define MAX_PACKET_LEN			1000		//maximum packet lenght in bytes. can be increased
 uint8_t incoming_data[MAX_PACKET_LEN];
 uint32_t crc_err_cnt = 0;
 
@@ -106,6 +105,7 @@ extern volatile bool fhop_in_search, fhop_flag;
 extern int fhop_base, fhopless/*can be 1, 2 or 3*/;
 extern int fhop_offset ;
 extern uint8_t backup[NUM_OF_FPGA_REGS+NUM_OF_ATMEL_REGS+4+1];
+extern volatile  uint8_t id_byte;
 
 /*****************************************************************************
  *  Function Prototyping
@@ -298,12 +298,16 @@ U8 bRadio_Check_Tx_RX(void)
 				Queue_MavLink_Raw_Data(&incoming_MavLink_Data, bytes_read, incoming_data);
 			#else
 
+			if(incoming_data[RADIO_PKT_LEN-1] != id_byte)
+			{
+				//YH: bypass this read due to bad id info
+				return SI446X_CMD_GET_INT_STATUS_REP_PH_PEND_PACKET_RX_PEND_BIT;
+			}
 			//copy data from temp buffer
 			for (int i =0; i< (bytes_read/RADIO_PKT_LEN);i++){
 				wrptr_inc(&wrptr_rdo_rpacket, &rdptr_rdo_rpacket, RDO_TPACKET_FIFO_SIZE, 1);
 				memcpy(gs_rdo_rpacket + (wrptr_rdo_rpacket*RDO_ELEMENT_SIZE), incoming_data+(i*RADIO_PKT_LEN),RADIO_PKT_LEN);
 			}
-
 			uint32_t wrptr_tmp=wrptr_rdo_rpacket;
 			wrptr_inc(&wrptr_tmp, &rdptr_rdo_rpacket, (uint32_t)RDO_RPACKET_FIFO_SIZE,1);//to be written position
 			gp_rdo_rpacket_l = gs_rdo_rpacket + (RDO_ELEMENT_SIZE*wrptr_tmp);
@@ -589,7 +593,7 @@ uint8_t channel_power[10] = {0};
 #define NUM_SAMPLES	4
 
 
-//Channel_Scan returns true when all channels have been measured
+//Channel_Scan returns true when all channels have been measured, Bad design not yet used, liyenho
 
 uint8_t selected_channel = 0;
  extern volatile bool ctrl_tdma_enable;
@@ -987,17 +991,6 @@ int hop_chn_sel(int offset) {
 		  else /*(offset==(HOP_2CH_OFFSET1+fhop_base)||offset==(HOP_2CH_OFFSET0))*/
 		  	offset = WRAP_OFFSET(HOP_2CH_OFFSET0+fhop_base);
 #else
-	  // simple random walk (forwar-backward) approach
-	  /*if (true == fhop_dir) {
-		offset = FORWARD_HOP + offset;
-		offset = (HOPPING_TABLE_SIZE>offset) ? offset : offset-HOPPING_TABLE_SIZE;
-	  	fhop_dir = false;
-	  }
-	  	else {
-		offset = offset - BACKWARD_HOP;
-		offset = (0 <= offset) ? offset : HOPPING_TABLE_SIZE + offset;
-	  	fhop_dir = true;
-	  	}*/
   extern const char hopping_patterns[] ;
 	  	offset = hopping_patterns[fhop_idx++] ;
 	  	fhop_idx = (CHTBL_SIZE>fhop_idx)? fhop_idx: 0;
