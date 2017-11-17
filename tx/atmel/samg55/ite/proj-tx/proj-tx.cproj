@@ -432,6 +432,8 @@
       <Value>SI4463_CRYSTAL_32MHZ</Value>
       <Value>BOOT_SIZE=0</Value>
       <Value>SAMG55=1</Value>
+      <Value>MAVLINK_V2</Value>
+      <Value>FEC_ON=true</Value>
     </ListValues>
   </armgcc.compiler.symbols.DefSymbols>
   <armgcc.compiler.directories.IncludePaths>
