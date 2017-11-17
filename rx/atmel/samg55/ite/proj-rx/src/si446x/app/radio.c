@@ -594,9 +594,10 @@ extern volatile bool ctrl_tdma_enable;
 
 //Channel_Scan returns true when all channels have been measured
 bool Channel_Scan(void){
-	static int channel = 0, idx=0;
-	static uint32_t running_total = 0;
-
+	static int channel = 0;
+	static uint32_t running_total = 0,
+									tick_prev;  // added by liyenho
+	int32_t tm_delta;
 	ctrl_tdma_enable = false; //block transmitting while meausring power
 
 	static bool measuring = false;
@@ -605,7 +606,7 @@ bool Channel_Scan(void){
 	}
 
 	if (!measuring){
-		idx = 0;
+		tick_prev = *DWT_CYCCNT;
 		vRadio_StartRX(channel, 0xFF);
 		//ToDo: what if RX stops?
 		measuring = true;
@@ -613,11 +614,12 @@ bool Channel_Scan(void){
 	}
 
 	if (measuring){
-		if (idx<NUM_SAMPLES){
+		tm_delta = timedelta(*DWT_CYCCNT, tick_prev);
+		if (0.25*120000000>tm_delta) {
 			si446x_get_modem_status(0);
 			running_total +=Si446xCmd.GET_MODEM_STATUS.CURR_RSSI;
-			idx++;
-		}else{
+		}
+		else{ // a quarter sec dwelling period
 			measuring = false; //measurements are finished on this channel
 			idx = 0;
 			channel_power[channel] = running_total/NUM_SAMPLES;
