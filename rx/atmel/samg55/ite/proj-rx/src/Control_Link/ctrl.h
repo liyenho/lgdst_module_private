@@ -41,6 +41,7 @@
 #define REAL_PKT_LEN				(RADIO_PKT_LEN+13+2+2+4) //payload + preamble + sync word + length field
 #define EURO_TDMA_PERIOD			MilliSec_To_Tick(30+3*(1000*REAL_PKT_LEN*8/10000)) //revised by liyenho
 #define US_TDMA_PERIOD    				MilliSec_To_Tick(12+3*(1000*REAL_PKT_LEN*8/40000))	// see TX ctrl.h for details
+//#define  US_TDMA_PERIOD  				MilliSec_To_Tick(9+2*(1000*REAL_PKT_LEN*8/22500))		// testing with dynamic new rate, liyenho
 #define  TDMA_BOUND								 (12*4320000) // 100 ms = 12000000
 
 #define TDMA_PERIOD			(USE_915MHZ ?US_TDMA_PERIOD:EURO_TDMA_PERIOD)  //macro to select between 915MHz and 869 MHz

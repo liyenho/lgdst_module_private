@@ -35,6 +35,7 @@
 #define RADIO_INFO_LEN      4 // usb pipe information post header
 #define RDO_ELEMENT_SIZE   (RADIO_PKT_LEN/sizeof(uint32_t))  // RADIO_PKT_LEN must divide into sizeof(uint32_t), liyenho
 #define US_TDMA_PERIOD     MilliSec_To_Tick(12+3*(1000*REAL_PKT_LEN*8/40000))
+//#define  US_TDMA_PERIOD  				MilliSec_To_Tick(9+2*(1000*REAL_PKT_LEN*8/22500))		// testing with dynamic new rate, liyenho
 								// 30kbps 2snd1rx case--------------------------------------------
 								//   actual transfer period = 26B*8*3/30000 = 20.8ms
 								//   TX delivery time = 26*8*2/30000 = 13.86ms
